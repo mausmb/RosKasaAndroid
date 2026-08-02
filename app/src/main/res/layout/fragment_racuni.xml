@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/pos_bg_dark">
+
+    <!-- Zgornja vrstica z iskalnikom -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:background="@color/pos_header_bg"
+        android:padding="4dp"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical"
+            android:src="@android:drawable/ic_menu_search"
+            android:contentDescription="Search" />
+
+        <EditText
+            android:id="@+id/etSearchRacun"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@null"
+            android:hint="Išči račun / marker..."
+            android:textColor="#FFFFFF"
+            android:textColorHint="#888888"
+            android:paddingStart="8dp"
+            android:inputType="text" />
+    </LinearLayout>
+
+    <!-- Seznam računov -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvRacuni"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="2dp" />
+
+        <ProgressBar
+            android:id="@+id/pbLoading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvEmptyList"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="Ni računov za izbran status"
+            android:textColor="#888888"
+            android:textSize="16sp"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <!-- POS Krmilne Tipke za RAČUNE - Vsi gumbi poravnani na 56dp, alignBounds -->
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:columnCount="5"
+        android:rowCount="4"
+        android:alignmentMode="alignBounds"
+        android:useDefaultMargins="false"
+        android:padding="1dp">
+
+        <!-- Vrstica 1 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNavMize"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="@string/btn_mize"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnToggleStatus"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_accent_blue"
+            android:text="@string/btn_izpisani_racuni"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNavNaroci"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="@string/btn_naroci"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNavPlacila"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="@string/btn_placila"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1" />
+
+        <!-- Vrstica 2 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnBrisanje"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="Brisanje"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnZdruzi"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="Združi račune"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDeli"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="Deli račun"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnZamenjajMarker"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="Zamenjaj marker"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnIzpisRačuna"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="Izpis Računa"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+
+        <!-- Vrstica 3 -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnPrikaz"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="Prikaz"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnStorno"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_accent_red"
+            android:text="Storno"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1" />
+
+        <!-- Vrstica 4 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnInkaso"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="Inkaso"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnObracun"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="Obračun"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTestTiskanja"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="Test tiskanja"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1" />
+    </GridLayout>
+
+</LinearLayout>

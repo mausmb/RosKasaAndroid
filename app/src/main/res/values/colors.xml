@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="pos_bg_dark">#222222</color>
+    <color name="pos_card_bg">#333333</color>
+    <color name="pos_btn_normal">#4E545C</color>
+    <color name="pos_btn_pressed">#68707C</color>
+    <color name="pos_btn_text">#FFFFFF</color>
+    <color name="pos_header_bg">#1A1A1A</color>
+    <color name="pos_accent_blue">#1976D2</color>
+    <color name="pos_accent_green">#388E3C</color>
+    <color name="pos_accent_red">#D32F2F</color>
+    <color name="pos_region_bg">#99CCEE</color>
+    <color name="pos_table_free">#607D8B</color>
+    <color name="pos_table_occupied">#C62828</color>
+</resources>

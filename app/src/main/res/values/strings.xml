@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RosKasa</string>
+    <string name="title_login">Prijava v aplikacijo</string>
+    <string name="title_mize">Mize in rajoni</string>
+    <string name="title_narocila">Naročila</string>
+    <string name="title_racuni">Računi</string>
+    <string name="title_placila">Plačila</string>
+
+    <!-- POS Krmilne tipke -->
+    <string name="btn_mize">Mize</string>
+    <string name="btn_racuni">Računi</string>
+    <string name="btn_naroci">Naroči</string>
+    <string name="btn_placila">Plačila</string>
+    <string name="btn_odjava">Odjava</string>
+    <string name="btn_brisanje">Brisanje</string>
+    <string name="btn_cenik_tipke">Cenik/Tipke</string>
+    <string name="btn_hodi">Hod-i</string>
+    <string name="btn_preklopi_cenik">Preklopi Cenik</string>
+    <string name="btn_popust">Popust</string>
+    <string name="btn_izpisani_racuni">Izpisani Računi</string>
+    <string name="btn_odprti_racuni">Odprti Računi</string>
+    <string name="btn_storno">Storno</string>
+    <string name="btn_izpis_racuna">Izpis Računa</string>
+    <string name="btn_test_tiskanja">Test tiskanja</string>
+    <string name="btn_nazaj">Nazaj</string>
+    <string name="btn_potrdi">Potrdi</string>
+
+    <!-- Polja za prvi zagon -->
+    <string name="lbl_url">Strežnik URL:</string>
+    <string name="lbl_mobile_id">Mobile ID:</string>
+    <string name="lbl_username">Uporabniško ime:</string>
+    <string name="lbl_password">Geslo:</string>
+    <string name="lbl_pin">Vnesite PIN kodo ali približajte NFC kartico:</string>
+</resources>

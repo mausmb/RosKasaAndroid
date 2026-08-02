@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="pos_accent_blue">#1976D2</color>
+    <color name="pos_accent_green">#388E3C</color>
+    <color name="pos_accent_red">#D32F2F</color>
+    <color name="pos_bg_dark">#222222</color>
+    <color name="pos_btn_normal">#4E545C</color>
+    <color name="pos_btn_pressed">#68707C</color>
+    <color name="pos_btn_text">#FFFFFF</color>
+    <color name="pos_card_bg">#333333</color>
+    <color name="pos_header_bg">#1A1A1A</color>
+    <color name="pos_region_bg">#99CCEE</color>
+    <color name="pos_table_free">#607D8B</color>
+    <color name="pos_table_occupied">#C62828</color>
+    <string name="app_name">RosKasa</string>
+    <string name="btn_brisanje">Brisanje</string>
+    <string name="btn_cenik_tipke">Cenik/Tipke</string>
+    <string name="btn_hodi">Hod-i</string>
+    <string name="btn_izpis_racuna">Izpis Računa</string>
+    <string name="btn_izpisani_racuni">Izpisani Računi</string>
+    <string name="btn_mize">Mize</string>
+    <string name="btn_naroci">Naroči</string>
+    <string name="btn_nazaj">Nazaj</string>
+    <string name="btn_odjava">Odjava</string>
+    <string name="btn_odprti_racuni">Odprti Računi</string>
+    <string name="btn_placila">Plačila</string>
+    <string name="btn_popust">Popust</string>
+    <string name="btn_potrdi">Potrdi</string>
+    <string name="btn_preklopi_cenik">Preklopi Cenik</string>
+    <string name="btn_racuni">Računi</string>
+    <string name="btn_storno">Storno</string>
+    <string name="btn_test_tiskanja">Test tiskanja</string>
+    <string name="lbl_mobile_id">Mobile ID:</string>
+    <string name="lbl_password">Geslo:</string>
+    <string name="lbl_pin">Vnesite PIN kodo ali približajte NFC kartico:</string>
+    <string name="lbl_url">Strežnik URL:</string>
+    <string name="lbl_username">Uporabniško ime:</string>
+    <string name="title_login">Prijava v aplikacijo</string>
+    <string name="title_mize">Mize in rajoni</string>
+    <string name="title_narocila">Naročila</string>
+    <string name="title_placila">Plačila</string>
+    <string name="title_racuni">Računi</string>
+    <style name="PosButtonStyle" parent="Widget.MaterialComponents.Button">
+        <item name="android:layout_height">56dp</item>
+        <item name="android:minHeight">56dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingTop">0dp</item>
+        <item name="android:paddingBottom">0dp</item>
+        <item name="android:paddingLeft">2dp</item>
+        <item name="android:paddingRight">2dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:layout_margin">1dp</item>
+        <item name="android:baselineAligned">false</item>
+    </style>
+    <style name="Theme.RosKasa" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/pos_accent_blue</item>
+        <item name="colorSecondary">@color/pos_accent_green</item>
+        <item name="android:windowBackground">@color/pos_bg_dark</item>
+        <item name="android:textColor">@color/pos_btn_text</item>
+    </style>
+</resources>

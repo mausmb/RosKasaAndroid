@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/pos_bg_dark">
+
+    <!-- Seznam vrstic naročila -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvNarociloItems"
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:padding="2dp"
+        android:background="#222222" />
+
+    <!-- Statusna vrstica mize in zneska -->
+    <TextView
+        android:id="@+id/tvMizaStatus"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:background="#111111"
+        android:gravity="center"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:text="M: Miza 5  -  Zn: 4,00 / Pl: 0,00" />
+
+    <!-- POS Krmilni gumbi Naročila (Vsi gumbi 56dp višina, alignBounds) -->
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:columnCount="5"
+        android:rowCount="3"
+        android:alignmentMode="alignBounds"
+        android:useDefaultMargins="false"
+        android:padding="1dp">
+
+        <!-- Vrstica 1 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNavMize"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="@string/btn_mize"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNavRacuni"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="@string/btn_racuni"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNavPlacila"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="@string/btn_placila"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1" />
+
+        <!-- Vrstica 2 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnBrisanje"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="Brisanje"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCenikTipke"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="CENIK/\nTIPKE"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnHodi"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="Hod-i"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnPreklopiCenik"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="PREKLOPI\nCENIK"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNarociPost"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_accent_green"
+            android:text="NAROČI"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp" />
+
+        <!-- Vrstica 3 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnPopust"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="Popust"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnGostHotela"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="GOST\nHOTELA"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnKreditnaPos"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="KREDITNA K\nPOS"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnKredRocno"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="KRED. K\nROCNO"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnGotovina"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="Gotovina"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp" />
+    </GridLayout>
+
+    <!-- Mreža Hitrih Tipk za Kategorije in Artikle -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvQuickKeys"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="1dp"
+        android:background="#1B1B1B" />
+
+</LinearLayout>

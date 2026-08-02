@@ -1,0 +1,46 @@
+[
+    {
+        "merged": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-mergeDebugResources-3:\\layout\\fragment_login.xml",
+        "source": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-main-6:\\layout\\fragment_login.xml"
+    },
+    {
+        "merged": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-mergeDebugResources-3:\\layout\\fragment_narocila.xml",
+        "source": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-main-6:\\layout\\fragment_narocila.xml"
+    },
+    {
+        "merged": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-mergeDebugResources-3:\\layout\\item_narocilo_row.xml",
+        "source": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-main-6:\\layout\\item_narocilo_row.xml"
+    },
+    {
+        "merged": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-mergeDebugResources-3:\\layout\\item_racun_seznam.xml",
+        "source": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-main-6:\\layout\\item_racun_seznam.xml"
+    },
+    {
+        "merged": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-mergeDebugResources-3:\\layout\\item_miza.xml",
+        "source": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-main-6:\\layout\\item_miza.xml"
+    },
+    {
+        "merged": "si.ros.RosKasa.app-mergeDebugResources-3:/layout/item_quick_key.xml",
+        "source": "si.ros.RosKasa.app-main-6:/layout/item_quick_key.xml"
+    },
+    {
+        "merged": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-mergeDebugResources-3:\\layout\\fragment_mize.xml",
+        "source": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-main-6:\\layout\\fragment_mize.xml"
+    },
+    {
+        "merged": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-mergeDebugResources-3:\\layout\\fragment_racuni.xml",
+        "source": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-main-6:\\layout\\fragment_racuni.xml"
+    },
+    {
+        "merged": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-mergeDebugResources-3:\\layout\\activity_main.xml",
+        "source": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-main-6:\\layout\\activity_main.xml"
+    },
+    {
+        "merged": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-mergeDebugResources-3:\\layout\\item_quick_key.xml",
+        "source": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-main-6:\\layout\\item_quick_key.xml"
+    },
+    {
+        "merged": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-mergeDebugResources-3:\\layout\\fragment_placila.xml",
+        "source": "C:\\Users\\pc\\.gradle\\daemon\\8.5\\si.ros.RosKasa.app-main-6:\\layout\\fragment_placila.xml"
+    }
+]
