@@ -25,6 +25,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_accent_blue"
             android:text="@string/btn_mize"
             android:textColor="#FFFFFF" />
@@ -35,6 +36,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_racuni"
             android:textColor="#FFFFFF" />
@@ -45,6 +47,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_naroci"
             android:textColor="#FFFFFF" />
@@ -55,6 +58,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_placila"
             android:textColor="#FFFFFF" />
@@ -65,6 +69,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_accent_red"
             android:text="@string/btn_odjava"
             android:textColor="#FFFFFF" />
@@ -76,6 +81,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Marker"
             android:textColor="#FFFFFF" />
@@ -86,6 +92,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Info"
             android:textColor="#FFFFFF" />
@@ -93,17 +100,20 @@
         <View
             android:layout_width="0dp"
             android:layout_height="50dp"
-            android:layout_columnWeight="1" />
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill" />
 
         <View
             android:layout_width="0dp"
             android:layout_height="50dp"
-            android:layout_columnWeight="1" />
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill" />
 
         <View
             android:layout_width="0dp"
             android:layout_height="50dp"
-            android:layout_columnWeight="1" />
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill" />
     </GridLayout>
 
     <!-- Sekcija Rajoni (Filter za mize) -->

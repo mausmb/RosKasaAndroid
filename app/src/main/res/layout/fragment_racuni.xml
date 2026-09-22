@@ -80,6 +80,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_mize"
             android:textColor="#FFFFFF" />
@@ -90,6 +91,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_accent_blue"
             android:text="@string/btn_izpisani_racuni"
             android:textColor="#FFFFFF" />
@@ -100,6 +102,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_naroci"
             android:textColor="#FFFFFF" />
@@ -110,6 +113,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_placila"
             android:textColor="#FFFFFF" />
@@ -120,6 +124,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_accent_red"
             android:text="@string/btn_odjava"
             android:textColor="#FFFFFF" />
@@ -131,6 +136,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Brisanje"
             android:textColor="#FFFFFF" />
@@ -141,6 +147,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Združi račune"
             android:textColor="#FFFFFF" />
@@ -151,6 +158,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Deli račun"
             android:textColor="#FFFFFF" />
@@ -161,6 +169,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Zamenjaj marker"
             android:textColor="#FFFFFF" />
@@ -171,6 +180,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Izpis Računa"
             android:textColor="#FFFFFF" />
@@ -179,7 +189,8 @@
         <View
             android:layout_width="0dp"
             android:layout_height="50dp"
-            android:layout_columnWeight="1" />
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnPrikaz"
@@ -187,6 +198,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Prikaz"
             android:textColor="#FFFFFF" />
@@ -197,6 +209,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_accent_red"
             android:text="Storno"
             android:textColor="#FFFFFF" />
@@ -204,12 +217,14 @@
         <View
             android:layout_width="0dp"
             android:layout_height="50dp"
-            android:layout_columnWeight="1" />
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill" />
 
         <View
             android:layout_width="0dp"
             android:layout_height="50dp"
-            android:layout_columnWeight="1" />
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill" />
 
         <!-- Vrstica 4 -->
         <com.google.android.material.button.MaterialButton
@@ -218,6 +233,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Inkaso"
             android:textColor="#FFFFFF" />
@@ -228,6 +244,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Obračun"
             android:textColor="#FFFFFF" />
@@ -235,7 +252,8 @@
         <View
             android:layout_width="0dp"
             android:layout_height="50dp"
-            android:layout_columnWeight="1" />
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTestTiskanja"
@@ -243,6 +261,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Test tiskanja"
             android:textColor="#FFFFFF" />
@@ -250,7 +269,8 @@
         <View
             android:layout_width="0dp"
             android:layout_height="50dp"
-            android:layout_columnWeight="1" />
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill" />
     </GridLayout>
 
 </LinearLayout>

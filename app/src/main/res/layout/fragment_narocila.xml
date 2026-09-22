@@ -43,6 +43,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_mize"
             android:textColor="#FFFFFF" />
@@ -53,6 +54,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_racuni"
             android:textColor="#FFFFFF" />
@@ -63,6 +65,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_accent_blue"
             android:text="@string/btn_naroci"
             android:textColor="#FFFFFF" />
@@ -73,6 +76,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_placila"
             android:textColor="#FFFFFF" />
@@ -83,6 +87,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_accent_red"
             android:text="@string/btn_odjava"
             android:textColor="#FFFFFF" />
@@ -94,6 +99,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Brisanje"
             android:textColor="#FFFFFF" />
@@ -104,6 +110,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="CENIK/\nTIPKE"
             android:textColor="#FFFFFF" />
@@ -114,6 +121,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Hod-i"
             android:textColor="#FFFFFF" />
@@ -124,6 +132,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="PREKLOPI\nCENIK"
             android:textColor="#FFFFFF" />
@@ -134,6 +143,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_accent_green"
             android:text="NAROČI"
             android:textColor="#FFFFFF" />
@@ -145,6 +155,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Popust"
             android:textColor="#FFFFFF" />
@@ -155,6 +166,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="GOST\nHOTELA"
             android:textColor="#FFFFFF" />
@@ -165,6 +177,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="KREDITNA K\nPOS"
             android:textColor="#FFFFFF" />
@@ -175,6 +188,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="KRED. K\nROCNO"
             android:textColor="#FFFFFF" />
@@ -185,6 +199,7 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
+            android:layout_gravity="fill"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Gotovina"
             android:textColor="#FFFFFF" />
