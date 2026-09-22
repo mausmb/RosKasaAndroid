@@ -89,7 +89,9 @@ public class NarocilaFragment extends Fragment {
     }
 
     private void setupOrderRecyclerView() {
-        orderAdapter = new NarociloItemAdapter();
+        orderAdapter = new NarociloItemAdapter((item, position) -> {
+            // Izbira vrstice se vizualno označi v adapterju
+        });
         binding.rvNarociloItems.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.rvNarociloItems.setAdapter(orderAdapter);
     }
@@ -409,7 +411,14 @@ public class NarocilaFragment extends Fragment {
             totalZnesek = totalZnesek.add(item.getZnesek());
         }
 
-        binding.tvMizaStatus.setText(String.format(Locale.getDefault(), "M: %s  -  Zn: %.2f / Pl: 0,00", activeMarker, totalZnesek));
+        BigDecimal placano = (currentRacun != null && currentRacun.getPlacano() != null) ? currentRacun.getPlacano() : BigDecimal.ZERO;
+        boolean isPlacan = (currentRacun != null && currentRacun.isPlacan());
+
+        if (isPlacan) {
+            binding.tvMizaStatus.setText(String.format(Locale.getDefault(), "M: %s  -  Zn: %.2f / Pl: %.2f [PLAČAN - ZAKLENJENO]", activeMarker, totalZnesek, placano));
+        } else {
+            binding.tvMizaStatus.setText(String.format(Locale.getDefault(), "M: %s  -  Zn: %.2f / Pl: %.2f", activeMarker, totalZnesek, placano));
+        }
     }
 
     private int resolveNivo4Id(String naziv) {
@@ -560,6 +569,11 @@ public class NarocilaFragment extends Fragment {
 
     private void knjiziVNarocilo(int nivo4Id, String naziv, BigDecimal cena, double kolicina, double ep, int paket) {
         if (naziv == null || naziv.trim().isEmpty()) return;
+
+        if (currentRacun != null && currentRacun.isPlacan()) {
+            Toast.makeText(requireContext(), "Račun je že plačan! Dodajanje artiklov ni dovoljeno.", Toast.LENGTH_LONG).show();
+            return;
+        }
 
         if (cena.compareTo(BigDecimal.ZERO) == 0 && !Globals.getInstance().isCena0Dovoljena()) {
             Toast.makeText(requireContext(), "Cena 0,00 EUR ni dovoljena!", Toast.LENGTH_SHORT).show();
@@ -1002,13 +1016,34 @@ public class NarocilaFragment extends Fragment {
         });
 
         binding.btnBrisanje.setOnClickListener(v -> {
-            if (!orderItems.isEmpty()) {
-                NarociloItem removed = orderItems.remove(orderItems.size() - 1);
-                if (currentRacun != null && currentRacun.getRacPozic() != null) {
-                    for (int i = currentRacun.getRacPozic().size() - 1; i >= 0; i--) {
-                        PozicijaTp p = currentRacun.getRacPozic().get(i);
-                        if (p.getNaziv().equals(removed.getNaziv())) {
-                            if (p.getPozicijaId() == 0) {
+            if (currentRacun != null && currentRacun.isPlacan()) {
+                Toast.makeText(requireContext(), "Račun je že plačan! Brisanje postavk ni dovoljeno.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (orderItems.isEmpty()) {
+                Toast.makeText(requireContext(), "Naročilo nima postavk za brisanje.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int selPos = orderAdapter.getSelectedPosition();
+            if (selPos < 0 || selPos >= orderItems.size()) {
+                selPos = orderItems.size() - 1;
+            }
+
+            NarociloItem removed = orderItems.remove(selPos);
+            if (currentRacun != null && currentRacun.getRacPozic() != null) {
+                for (int i = currentRacun.getRacPozic().size() - 1; i >= 0; i--) {
+                    PozicijaTp p = currentRacun.getRacPozic().get(i);
+                    if (p != null && !p.isRowDeleted()) {
+                        boolean match = false;
+                        if (removed.getPozicijaId() != 0 && p.getPozicijaId() != 0) {
+                            match = (p.getPozicijaId() == removed.getPozicijaId());
+                        } else if (p.getNaziv() != null && p.getNaziv().equals(removed.getNaziv())) {
+                            match = true;
+                        }
+
+                        if (match) {
+                            if (p.getPozicijaId() <= 0) {
                                 currentRacun.getRacPozic().remove(i);
                             } else {
                                 p.setRowDeleted(true);
@@ -1016,17 +1051,25 @@ public class NarocilaFragment extends Fragment {
                             break;
                         }
                     }
-                    currentRacun.preracunajVsote();
                 }
-                updateOrderSummary();
-                Toast.makeText(requireContext(), "Zadnja pozicija izbrisana", Toast.LENGTH_SHORT).show();
+                currentRacun.preracunajVsote();
             }
+
+            int newSel = Math.min(selPos, orderItems.size() - 1);
+            orderAdapter.setSelectedPosition(newSel);
+            updateOrderSummary();
+            Toast.makeText(requireContext(), "Izbrisan označen artikel: " + removed.getNaziv(), Toast.LENGTH_SHORT).show();
         });
 
         binding.btnNarociPost.setOnClickListener(v -> handlePostNarocilo());
     }
 
     private void handlePostNarocilo() {
+        if (currentRacun != null && currentRacun.isPlacan()) {
+            Toast.makeText(requireContext(), "Račun je že plačan! Pošiljanje naročila ni dovoljeno.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         if (currentRacun == null || currentRacun.getRacPozic() == null || currentRacun.getRacPozic().isEmpty()) {
             Toast.makeText(requireContext(), "Naročilo je prazno! Dodajte artikle.", Toast.LENGTH_SHORT).show();
             return;

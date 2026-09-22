@@ -26,6 +26,10 @@ public class VnosCeneDialog {
     }
 
     public static void show(@NonNull Context context, String itemTitle, boolean allowNegative, OnPriceEnteredListener listener) {
+        show(context, itemTitle, null, allowNegative, listener);
+    }
+
+    public static void show(@NonNull Context context, String itemTitle, BigDecimal defaultValue, boolean allowNegative, OnPriceEnteredListener listener) {
         Dialog dialog = new Dialog(context);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         View view = LayoutInflater.from(context).inflate(R.layout.dialog_vnos_cene, null);
@@ -40,15 +44,45 @@ public class VnosCeneDialog {
         tvTitle.setText(itemTitle != null ? itemTitle : "VNOS CENE ARTIKLA");
 
         EditText etValue = view.findViewById(R.id.etVnosCeneValue);
+        final boolean[] isFirstInput = new boolean[]{false};
+        if (defaultValue != null && defaultValue.compareTo(BigDecimal.ZERO) > 0) {
+            etValue.setText(String.format(Locale.GERMANY, "%.2f", defaultValue));
+            isFirstInput[0] = true;
+        }
+
         MaterialButton btnMinus = view.findViewById(R.id.btnNumMinus);
-        btnMinus.setVisibility(allowNegative ? View.VISIBLE : View.GONE);
+        if (allowNegative) {
+            btnMinus.setText("-");
+        } else {
+            btnMinus.setText("C");
+        }
+        btnMinus.setVisibility(View.VISIBLE);
 
         View.OnClickListener numListener = v -> {
             String curr = etValue.getText().toString();
             String digit = ((MaterialButton) v).getText().toString();
+
+            if (digit.equals("C")) {
+                etValue.setText("");
+                isFirstInput[0] = false;
+                return;
+            }
+
+            if (isFirstInput[0]) {
+                isFirstInput[0] = false;
+                if (digit.equals(",")) {
+                    etValue.setText("0,");
+                } else if (digit.equals("-")) {
+                    etValue.setText("-");
+                } else {
+                    etValue.setText(digit);
+                }
+                return;
+            }
+
             if (digit.equals(",")) {
                 if (!curr.contains(",") && !curr.contains(".")) {
-                    etValue.setText(curr + ",");
+                    etValue.setText(curr.isEmpty() ? "0," : curr + ",");
                 }
             } else if (digit.equals("-")) {
                 if (curr.startsWith("-")) {

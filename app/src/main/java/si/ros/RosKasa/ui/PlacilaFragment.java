@@ -258,6 +258,7 @@ public class PlacilaFragment extends Fragment {
         BigDecimal trenPlacano = currentRacun.getPlacano() != null ? currentRacun.getPlacano() : BigDecimal.ZERO;
         currentRacun.setPlacano(trenPlacano.add(znesek));
         currentRacun.preracunajVsote();
+        updatePlacilaSummary();
 
         disableEkran("Knjiženje plačila " + nacin + " na strežnik...");
         executor.execute(() -> {
@@ -284,6 +285,10 @@ public class PlacilaFragment extends Fragment {
                         // Ohrani znesek računa, če je strežniški 0
                         if ((returned.getZnesek() == null || returned.getZnesek().compareTo(BigDecimal.ZERO) == 0) && currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
                             returned.setZnesek(currentRacun.getZnesek());
+                        }
+                        // Ohrani placano, če strežnik vrne 0 ali manj od lokalnega
+                        if (currentRacun.getPlacano() != null && (returned.getPlacano() == null || returned.getPlacano().compareTo(currentRacun.getPlacano()) < 0)) {
+                            returned.setPlacano(currentRacun.getPlacano());
                         }
                         if (returned.getRacPozic() != null) {
                             for (PozicijaTp p : returned.getRacPozic()) {
@@ -342,6 +347,15 @@ public class PlacilaFragment extends Fragment {
         });
     }
 
+    private boolean isPlaciloFiskalno(int plId) {
+        NacPlacTp np = Globals.getInstance().getPlaciloById(plId);
+        if (np != null && np.getFiskalno() != null) {
+            return np.getFiskalno() == 1;
+        }
+        // Privzete vrednosti po metodah, če ni v cachedPlacila
+        return plId == 1 || plId == 2 || plId == 3 || plId == 399;
+    }
+
     private long lastActionTime = 0;
     private static final long DEBOUNCE_DELAY = 400; // ms
 
@@ -363,9 +377,56 @@ public class PlacilaFragment extends Fragment {
             return;
         }
 
+        // 1. Preverjanje pravila FiskalnoEnako: če ima račun že plačila, mora biti fiskalnost enaka
+        PlaciloTp firstActive = null;
+        if (currentRacun.getRacPlaci() != null) {
+            for (PlaciloTp pl : currentRacun.getRacPlaci()) {
+                if (pl != null && !pl.isRowDeleted() && pl.getPlaciloId() != 99) {
+                    firstActive = pl;
+                    break;
+                }
+            }
+        }
+        if (firstActive != null && Globals.getInstance().isFiskalnoEnako()) {
+            boolean existingIsFisk = isPlaciloFiskalno(firstActive.getPlaciloId());
+            boolean newIsFisk = isPlaciloFiskalno(placiloId);
+            if (existingIsFisk != newIsFisk) {
+                String obstojeceIme = getPaymentName(firstActive.getPlaciloId());
+                String tipObstoj = existingIsFisk ? "fiskalno" : "nefiskalno";
+                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                        .setTitle("FiskalnoEnako - Omejitev")
+                        .setMessage("Račun že ima " + tipObstoj + " plačilo (" + obstojeceIme + ").\n\n"
+                                + "Zaradi nastavitve FiskalnoEnako je dovoljeno doknjižiti le " + tipObstoj + " plačilo.")
+                        .setPositiveButton("V redu", null)
+                        .show();
+                return;
+            }
+        }
+
         final int tempmetoda = Globals.getInstance().placilometoda(placiloId);
         final String nacinNaziv = getPaymentName(placiloId);
 
+        // 2. Odpiranje okna za vnos zneska (privzeto racglava.znesek - racglava.placano)
+        VnosCeneDialog.show(requireContext(), "ZNESEK - " + nacinNaziv, zaplacilo, false, new VnosCeneDialog.OnPriceEnteredListener() {
+            @Override
+            public void onPriceEntered(BigDecimal enteredAmt) {
+                if (enteredAmt == null || enteredAmt.compareTo(BigDecimal.ZERO) <= 0) {
+                    Toast.makeText(requireContext(), "Znesek mora biti večji od 0!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (enteredAmt.compareTo(zaplacilo) > 0) {
+                    Toast.makeText(requireContext(), "Znesek (" + enteredAmt + " €) presega preostanek (" + zaplacilo + " €)!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                nadaljujSPlacilom(placiloId, tempmetoda, nacinNaziv, enteredAmt);
+            }
+
+            @Override
+            public void onCancelled() {}
+        });
+    }
+
+    private void nadaljujSPlacilom(final int placiloId, final int tempmetoda, final String nacinNaziv, final BigDecimal znesekPlacila) {
         // Če je račun že shranjen na strežniku (racunId > 0), preveri verzijo računa
         if (currentRacun.getRacunId() > 0) {
             disableEkran("Preverjanje verzije računa...");
@@ -391,11 +452,11 @@ public class PlacilaFragment extends Fragment {
 
                 mainHandler.post(() -> {
                     enableEkran();
-                    izvediPlaciloPoMetodi(placiloId, tempmetoda, nacinNaziv, zaplacilo);
+                    izvediPlaciloPoMetodi(placiloId, tempmetoda, nacinNaziv, znesekPlacila);
                 });
             });
         } else {
-            izvediPlaciloPoMetodi(placiloId, tempmetoda, nacinNaziv, zaplacilo);
+            izvediPlaciloPoMetodi(placiloId, tempmetoda, nacinNaziv, znesekPlacila);
         }
     }
 

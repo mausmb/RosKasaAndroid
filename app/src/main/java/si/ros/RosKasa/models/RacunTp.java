@@ -181,6 +181,14 @@ public class RacunTp {
     public BigDecimal getPlacano() { return placano; }
     public void setPlacano(BigDecimal placano) { this.placano = placano != null ? placano : BigDecimal.ZERO; }
 
+    public boolean isPlacan() {
+        if (status == 2) return true;
+        if (znesek != null && placano != null && znesek.compareTo(BigDecimal.ZERO) > 0) {
+            return placano.compareTo(znesek) >= 0;
+        }
+        return false;
+    }
+
     public Integer getKasiral() { return kasiral; }
     public void setKasiral(Integer kasiral) { this.kasiral = kasiral; }
 

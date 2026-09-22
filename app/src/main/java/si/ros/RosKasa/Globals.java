@@ -240,7 +240,7 @@ public class Globals {
     private boolean turBoniAktivni = false;
     private boolean tbDonatorOn = false;
     private boolean boldNazivPodjetja = false;
-    private boolean fiskalnoEnako = false;
+    private boolean fiskalnoEnako = true;
     private String turBoniNivo1Ok = "";
     private List<Integer> turBoniNivo1Dovoljeni = new ArrayList<>();
     private String langApp = "";
@@ -1380,6 +1380,7 @@ public class Globals {
     public boolean isTbDonatorOn() { return tbDonatorOn; }
     public boolean isBoldNazivPodjetja() { return boldNazivPodjetja; }
     public boolean isFiskalnoEnako() { return fiskalnoEnako; }
+    public void setFiskalnoEnako(boolean fiskalnoEnako) { this.fiskalnoEnako = fiskalnoEnako; }
     public String getTurBoniNivo1Ok() { return turBoniNivo1Ok; }
     public List<Integer> getTurBoniNivo1Dovoljeni() { return turBoniNivo1Dovoljeni; }
     public String getLangApp() { return langApp; }

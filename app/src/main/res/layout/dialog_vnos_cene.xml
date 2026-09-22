@@ -63,7 +63,7 @@
             android:id="@+id/btnNum3" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:layout_gravity="fill" android:text="3" android:textSize="16sp" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnNumMinus" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:layout_gravity="fill" android:text="-" android:textSize="18sp" android:visibility="gone" />
+            android:id="@+id/btnNumMinus" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:layout_gravity="fill" android:text="C" android:textSize="18sp" />
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnNum0" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:layout_gravity="fill" android:text="0" android:textSize="16sp" />
         <com.google.android.material.button.MaterialButton
