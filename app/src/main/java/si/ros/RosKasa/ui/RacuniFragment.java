@@ -117,6 +117,12 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
             }
         });
 
+        binding.btnOdjava.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).navigateToFragment(new LoginFragment());
+            }
+        });
+
         binding.btnStorno.setOnClickListener(v -> {
             RacunSeznamItem selected = adapter.getSelectedItem();
             if (selected == null) {

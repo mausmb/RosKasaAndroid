@@ -7,57 +7,104 @@
     android:background="@color/pos_bg_dark"
     android:padding="2dp">
 
-    <!-- Zgornja krmilna vrstica - Poravnani gumbi (Nivo 1) -->
-    <LinearLayout
+    <!-- Zgornja krmilna vrstica - 5-stolpčna mreža (enaka kot na vseh formah) -->
+    <GridLayout
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:orientation="horizontal"
+        android:layout_height="wrap_content"
+        android:columnCount="5"
+        android:rowCount="2"
+        android:alignmentMode="alignBounds"
+        android:useDefaultMargins="false"
+        android:padding="1dp"
         android:layout_marginBottom="2dp">
 
+        <!-- Vrstica 0: Standardna navigacijska vrstica -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnMizeSelf"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:backgroundTint="@color/pos_btn_normal"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_accent_blue"
             android:text="@string/btn_mize"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp" />
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnNavRacuni"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_racuni"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp" />
+            android:textColor="#FFFFFF" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNavNaroci"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="@string/btn_naroci"
+            android:textColor="#FFFFFF" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNavPlacila"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="@string/btn_placila"
+            android:textColor="#FFFFFF" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnOdjava"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_accent_red"
+            android:text="@string/btn_odjava"
+            android:textColor="#FFFFFF" />
+
+        <!-- Vrstica 1: Funkcijske tipke mize -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnMarker"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Marker"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp" />
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnInfo"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Info"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp" />
-    </LinearLayout>
+            android:textColor="#FFFFFF" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_columnWeight="1" />
+    </GridLayout>
 
     <!-- Sekcija Rajoni (Filter za mize) -->
     <HorizontalScrollView

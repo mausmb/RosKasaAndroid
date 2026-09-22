@@ -36,7 +36,7 @@
         android:useDefaultMargins="false"
         android:padding="1dp">
 
-        <!-- Vrstica 1 -->
+        <!-- Vrstica 1: Standardna navigacijska vrstica -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnNavMize"
             style="@style/PosButtonStyle"
@@ -45,8 +45,7 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_mize"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp" />
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnNavRacuni"
@@ -56,8 +55,7 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_racuni"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp" />
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnNavNaroci"
@@ -67,13 +65,17 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_naroci"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp" />
+            android:textColor="#FFFFFF" />
 
-        <View
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNavPlacilaSelf"
+            style="@style/PosButtonStyle"
             android:layout_width="0dp"
             android:layout_height="56dp"
-            android:layout_columnWeight="1" />
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_accent_blue"
+            android:text="@string/btn_placila"
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnOdjava"
@@ -83,8 +85,7 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_accent_red"
             android:text="@string/btn_odjava"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp" />
+            android:textColor="#FFFFFF" />
 
         <!-- Vrstica 2 -->
         <com.google.android.material.button.MaterialButton
@@ -95,8 +96,7 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Brisanje"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp" />
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnOpis"
@@ -106,8 +106,7 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Opis"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp" />
+            android:textColor="#FFFFFF" />
 
         <View
             android:layout_width="0dp"
@@ -127,8 +126,7 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_accent_green"
             android:text="Izpis Računa"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp" />
+            android:textColor="#FFFFFF" />
 
         <!-- Vrstica 3 -->
         <com.google.android.material.button.MaterialButton
@@ -139,8 +137,7 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Popust"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp" />
+            android:textColor="#FFFFFF" />
 
         <View
             android:layout_width="0dp"
@@ -160,8 +157,7 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Tap On"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp" />
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnOpombaRacuna"

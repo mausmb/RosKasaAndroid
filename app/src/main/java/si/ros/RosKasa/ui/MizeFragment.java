@@ -61,6 +61,24 @@ public class MizeFragment extends Fragment {
             }
         });
 
+        binding.btnNavNaroci.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).navigateToFragment(new NarocilaFragment());
+            }
+        });
+
+        binding.btnNavPlacila.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).navigateToFragment(new PlacilaFragment());
+            }
+        });
+
+        binding.btnOdjava.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).navigateToFragment(new LoginFragment());
+            }
+        });
+
         setupMizeGrid();
         loadOpenTablesData();
     }

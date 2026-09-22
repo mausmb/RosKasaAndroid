@@ -942,6 +942,12 @@ public class NarocilaFragment extends Fragment {
             }
         });
 
+        binding.btnOdjava.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).navigateToFragment(new LoginFragment());
+            }
+        });
+
         // Gumb CENIK/TIPKE: preklaplja med prikazi (Mreža Hitrih Tipk <-> Seznam Cenika)
         binding.btnCenikTipke.setOnClickListener(v -> {
             if (binding.llCenikContainer.getVisibility() == View.VISIBLE) {

@@ -36,7 +36,7 @@
         android:useDefaultMargins="false"
         android:padding="1dp">
 
-        <!-- Vrstica 1 -->
+        <!-- Vrstica 1: Standardna navigacijska vrstica -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnNavMize"
             style="@style/PosButtonStyle"
@@ -45,8 +45,7 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_mize"
-            android:textColor="#FFFFFF"
-            android:textSize="13sp" />
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnNavRacuni"
@@ -56,13 +55,17 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_racuni"
-            android:textColor="#FFFFFF"
-            android:textSize="13sp" />
+            android:textColor="#FFFFFF" />
 
-        <View
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNavNarociSelf"
+            style="@style/PosButtonStyle"
             android:layout_width="0dp"
             android:layout_height="56dp"
-            android:layout_columnWeight="1" />
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_accent_blue"
+            android:text="@string/btn_naroci"
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnNavPlacila"
@@ -72,13 +75,17 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_placila"
-            android:textColor="#FFFFFF"
-            android:textSize="13sp" />
+            android:textColor="#FFFFFF" />
 
-        <View
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnOdjava"
+            style="@style/PosButtonStyle"
             android:layout_width="0dp"
             android:layout_height="56dp"
-            android:layout_columnWeight="1" />
+            android:layout_columnWeight="1"
+            android:backgroundTint="@color/pos_accent_red"
+            android:text="@string/btn_odjava"
+            android:textColor="#FFFFFF" />
 
         <!-- Vrstica 2 -->
         <com.google.android.material.button.MaterialButton
@@ -89,8 +96,7 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Brisanje"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp" />
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCenikTipke"
@@ -101,7 +107,7 @@
             android:backgroundTint="@color/pos_btn_normal"
             android:text="CENIK/\nTIPKE"
             android:textColor="#FFFFFF"
-            android:textSize="11sp" />
+            android:textSize="10sp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnHodi"
@@ -111,8 +117,7 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Hod-i"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp" />
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnPreklopiCenik"
@@ -133,8 +138,7 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_accent_green"
             android:text="NAROČI"
-            android:textColor="#FFFFFF"
-            android:textSize="13sp" />
+            android:textColor="#FFFFFF" />
 
         <!-- Vrstica 3 -->
         <com.google.android.material.button.MaterialButton
@@ -145,8 +149,7 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Popust"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp" />
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnGostHotela"
@@ -189,8 +192,7 @@
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Gotovina"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp" />
+            android:textColor="#FFFFFF" />
     </GridLayout>
 
     <!-- Mreža Hitrih Tipk za Kategorije in Artikle -->
