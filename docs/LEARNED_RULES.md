@@ -54,7 +54,7 @@ This document summarizes critical architectural, SOAP protocol, and Android layo
 ---
 
 ## 7. Izpis računa in postavke: Naziv artikla (NIVO4_ID) se VEDNO poišče iz cenika
-- **Problem:** V WSDL / SOAP shemi strežnika struktura `PozicijaTp` (tabela `RACPOZIC`) **ne vsebuje** atributa `NAZIV`, temveč le `NIVO4_ID`. Ko strežnik vrne račun prek `setRacun` ali `getRacun`, so vsa polja `NAZIV` v vrnjenih postavkah prazna (`null` oziroma `""`).
+- **Problem:** V WSDL / SOAP shemi strežnika struktura `PozicijaTp` (tabela `RACPOZIC`) **ne vsebuje** atributa `NAZIV`, temveč le `NIVO4_ID`. Ko strežnik vrne račun prek `setRacun` ali `getRacun`, so vsa polja `NAZIV` v vrnjenih postavkah prazne (`null` oziroma `""`).
 - **Pravilo:**
   1. Za vsako postavko računa se mora naziv artikla **vedno** poiskati iz cenika oziroma hitrih tipk preko:
      `Globals.getInstance().findNazivByNivo4Id(nivo4Id)`.
@@ -62,3 +62,46 @@ This document summarizes critical architectural, SOAP protocol, and Android layo
   3. Metoda `PozicijaTp.getNaziv()` ter gradnik računa `RacunPrintBuilder` morata avtomatsko izvesti lookup preko `findNazivByNivo4Id(nivo4Id)`, če je polje `naziv` prazno ali enako privzetemu `Artikel #...`.
   4. Na izpisu računa (Bluetooth ali tekstovni predogled) ne sme biti praznih nazivov ali izmišljenih fiksnih nizov (kot je bil npr. "Artiker"). Če naziv v ceniku ne obstaja, je fallback `Artikel #<nivo4Id>`.
 
+---
+
+## 8. Android GridLayout & `android:layout_gravity="fill"` za poravnavo gumbov
+- **Problem:** Tipke v `GridLayout` z večvrstičnim besedilom (npr. "CENIK /\nTIPKE") so bile vertikalno zamaknjene (nižje ali višje) glede na enovrstične tipke v isti vrstici. Android privzeto poravna elemente v celici glede na prvo vrstico besedila (baseline alignment), tudi če je nastavljen `alignmentMode="alignBounds"`. Poleg tega se v Androidu atributi `layout_*` (npr. `layout_gravity`, `layout_columnWeight`) **ne** dedujejo zanesljivo preko `@style/...`.
+- **Pravilo:**
+  1. Za vse tipke v mrežnem pogledu (`GridLayout`) je **obvezno** neposredno v vsako značko `<com.google.android.material.button.MaterialButton>` dodati:
+     `android:layout_gravity="fill"` (oziroma `fill_horizontal|fill_vertical`).
+  2. Vse tipke v isti vrstici morajo imeti enako določeno višino (`android:layout_height="56dp"`) ali pa `layout_gravity="fill"` z enako porazdelitvijo uteži (`layout_columnWeight="1"`).
+
+---
+
+## 9. POS Plačila: `FiskalnoEnako` in delna plačila
+- **Zahteva:**
+  1. Ob kliku na način plačila se mora vedno odpreti vnosno okno za znesek (`VnosCeneDialog`), vnaprej izpolnjeno z ostankom za plačilo (`racglava.znesek - racglava.placano`).
+  2. Uporabnik lahko potrdi celoten znesek ali vnese delni znesek (s tipkovnico na dotik).
+  3. Pred potrditvijo plačila se mora preveriti pogoj `Globals.isFiskalnoEnako()`:
+     - Privzeta vrednost je `true` (enako kot v Delphi `Globals.pas: FiskalnoEnako: Boolean = True`).
+     - Če je `isFiskalnoEnako() == true` in račun že vsebuje predhodno plačilo:
+       - Če je obstoječe plačilo fiskalno (`fiskalno == 1`), se lahko doda **samo** drugo fiskalno plačilo (npr. Gotovina, Kartica).
+       - Če je obstoječe plačilo nefiskalno (`fiskalno == 0`), se lahko doda **samo** drugo nefiskalno plačilo (npr. Naročilnica, Bon, Interno).
+       - Mešanje fiskalnih in nefiskalnih načinov plačila na istem računu je strogo prepovedano in se zavrne z opozorilom.
+
+---
+
+## 10. Takojšnje knjiženje in ohranjanje `RACGLAVA.PLACANO`
+- **Problem:** Ob potrditvi plačila mora biti `PLACANO` takoj ažurirano na zaslonu in v glavi računa. Strežnik SOAP ob klicu `setRacun` v določenih primerih vrne objekt `RACGLAVA`, kjer je polje `PLACANO` prazno ali `0`, kar bi ob prepisu uničilo že zabeleženo plačilo.
+- **Pravilo:**
+  1. Ob vsakem dodanem plačilu se nemudoma izvede:
+     `currentRacun.setPlacano(currentRacun.getPlacano() + znesekPlacila)`
+     ter takoj posodobi povzetek plačil na zaslonu (`updatePlacilaSummary()`).
+  2. Po uspešnem SOAP klicu `setRacun` se preveri vrnjena vrednost: če je `returned.getPlacano() <= 0`, se v lokalnem objektu ohrani predhodno izračunan `currentRacun.getPlacano()`.
+
+---
+
+## 11. Naročila: Zaklepanje plačanih računov (`isPlacan()`) in brisanje točno označene vrstice
+- **Zahteva:**
+  1. **Zaklepanje plačanega računa:** Če je račun plačan (`RacunTp.isPlacan()`, kjer je `status == 2` ali `placano >= znesek && znesek > 0`):
+     - V `NarocilaFragment` je urejanje računa popolnoma zaklenjeno: ni mogoče dodajati novih artiklov (`knjiziVNarocilo`), ni mogoče pošiljati naročila (`handlePostNarocilo`) in ni mogoče brisati vrstic (`btnBrisanje`).
+     - V glavi naročila je viden jasen status `[PLAČAN - ZAKLENJENO]`.
+  2. **Brisanje točno označene vrstice:**
+     - V seznamu naročila (`NarociloItemAdapter`) mora uporabnik z dotikom lahko izbrati poljubno vrstico.
+     - Izbrana vrstica mora biti jasno vizualno označena (obarvano ozadje, npr. `#1976D2`).
+     - Ob pritisku na gumb `[BRISANJE]` se mora pobrisati **točno tista vrstica**, ki je trenutno označena (tako iz prikazanega seznama adapterja kot iz seznama postavk `currentRacun.getRacPozic()`), ter se preračunati zneski računa.
