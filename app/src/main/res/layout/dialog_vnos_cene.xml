@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#1E272C"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/tvVnosCeneTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="VNOS CENE ARTIKLA"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:paddingBottom="8dp" />
+
+    <EditText
+        android:id="@+id/etVnosCeneValue"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="#101820"
+        android:textColor="#00FF66"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:gravity="end|center_vertical"
+        android:paddingEnd="12dp"
+        android:paddingStart="12dp"
+        android:inputType="numberDecimal"
+        android:hint="0,00"
+        android:textColorHint="#555555" />
+
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:columnCount="3"
+        android:rowCount="4"
+        android:layout_marginTop="8dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNum7" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:text="7" android:textSize="16sp" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNum8" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:text="8" android:textSize="16sp" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNum9" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:text="9" android:textSize="16sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNum4" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:text="4" android:textSize="16sp" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNum5" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:text="5" android:textSize="16sp" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNum6" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:text="6" android:textSize="16sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNum1" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:text="1" android:textSize="16sp" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNum2" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:text="2" android:textSize="16sp" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNum3" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:text="3" android:textSize="16sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNumMinus" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:text="-" android:textSize="18sp" android:visibility="gone" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNum0" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:text="0" android:textSize="16sp" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNumComma" style="@style/PosButtonStyle" android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1" android:text="," android:textSize="16sp" />
+    </GridLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnVnosCeneCancel"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:backgroundTint="#546E7A"
+            android:text="PREKLIČI"
+            android:textColor="#FFFFFF" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnVnosCeneOk"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/pos_accent_green"
+            android:text="POTRDI"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+</LinearLayout>

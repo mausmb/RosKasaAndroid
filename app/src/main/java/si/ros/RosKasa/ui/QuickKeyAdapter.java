@@ -25,7 +25,12 @@ public class QuickKeyAdapter extends RecyclerView.Adapter<QuickKeyAdapter.ViewHo
         public boolean isCategory;
         public boolean isBack;
         public String categoryGroup;
+        public Integer categoryTargetId;
         public double price;
+        public int nivo4Id;
+        public int nacinProdaje;
+        public double polnjenje;
+        public int paket;
 
         public QuickKey(String title, boolean isCategory, boolean isBack, String categoryGroup, double price) {
             this.title = title;
@@ -33,6 +38,10 @@ public class QuickKeyAdapter extends RecyclerView.Adapter<QuickKeyAdapter.ViewHo
             this.isBack = isBack;
             this.categoryGroup = categoryGroup;
             this.price = price;
+            this.nivo4Id = 0;
+            this.nacinProdaje = 0;
+            this.polnjenje = 1.0;
+            this.paket = 0;
         }
     }
 

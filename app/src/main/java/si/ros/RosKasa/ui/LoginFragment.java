@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import si.ros.RosKasa.AppPreferences;
+import si.ros.RosKasa.Globals;
 import si.ros.RosKasa.MainActivity;
 import si.ros.RosKasa.databinding.FragmentLoginBinding;
 import si.ros.RosKasa.models.MobileSetupTp;
@@ -85,7 +86,9 @@ public class LoginFragment extends Fragment {
 
                     // Pridobi še zagonske nastavitve strežnika (MobileSetup)
                     try {
-                        MobileSetupTp setup = RosKasaSoapClient.getAppConfig(url, result.getToken());
+                        int mId = 1;
+                        try { mId = Integer.parseInt(mobileId); } catch (Exception ignored) {}
+                        MobileSetupTp setup = RosKasaSoapClient.getAppConfig(url, result.getToken(), mId);
                         prefs.saveMobileSetup(setup);
                     } catch (Exception setupEx) {
                         // Ignoriramo napako pri pridobivanju setupa (uporabi se fallback)
@@ -121,12 +124,35 @@ public class LoginFragment extends Fragment {
             return;
         }
 
-        // Osveži nastavitve v ozadju pred preusmeritvijo
+        // Osveži nastavitve in naloži plačila ter cenik v ozadju
         if (prefs.isRegistered()) {
             executor.execute(() -> {
                 try {
-                    MobileSetupTp setup = RosKasaSoapClient.getAppConfig(prefs.getServerUrl(), prefs.getToken());
+                    int mId = 1;
+                    try { mId = Integer.parseInt(prefs.getMobileId()); } catch (Exception ignored) {}
+                    MobileSetupTp setup = RosKasaSoapClient.getAppConfig(prefs.getServerUrl(), prefs.getToken(), mId);
                     prefs.saveMobileSetup(setup);
+
+                    // Nalaganje plačilnih metod (getNacPlac2)
+                    try {
+                        java.util.List<si.ros.RosKasa.models.NacPlacTp> placila = RosKasaSoapClient.getNacPlac2(prefs.getServerUrl(), prefs.getToken(), mId);
+                        Globals.getInstance().filterAndSetCachedPlacila(placila);
+                    } catch (Exception ex) {
+                        android.util.Log.w("LoginFragment", "Napaka pri nalaganju plačil: " + ex.getMessage());
+                    }
+
+                    // Preload cenika v ozadju za takojšen lookup nazivov
+                    if (!Globals.getInstance().hasCachedCenik()) {
+                        int strmId = prefs.getHisObrat() > 0 ? prefs.getHisObrat() : 512200;
+                        try {
+                            java.util.List<CenikListAdapter.CenikItem> cenik = RosKasaSoapClient.getCenik(prefs.getServerUrl(), prefs.getToken(), strmId);
+                            if (cenik != null && !cenik.isEmpty()) {
+                                Globals.getInstance().setCachedCenik(cenik);
+                            }
+                        } catch (Exception ex) {
+                            android.util.Log.w("LoginFragment", "Napaka pri prednalaganju cenika: " + ex.getMessage());
+                        }
+                    }
                 } catch (Exception ignored) {}
             });
         }

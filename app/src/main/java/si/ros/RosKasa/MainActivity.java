@@ -16,6 +16,16 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        AppPreferences prefs = new AppPreferences(this);
+        Globals g = Globals.getInstance();
+        g.setServerUrl(prefs.getServerUrl());
+        g.setToken(prefs.getToken());
+        g.setNazivMobile(prefs.getNaziv());
+        g.setTipkePosId(prefs.getTipkePosId());
+        g.setHisObrat(prefs.getHisObrat());
+        g.setPrinterRacuni(prefs.getPrinterRacuni());
+        try { g.setMobileId(Integer.parseInt(prefs.getMobileId())); } catch (Exception ignored) {}
+
         // Nastavitev napak za SOAP klice v debug načinu
         RosKasaSoapClient.setErrorListener((method, errorMessage) -> {
             Toast.makeText(MainActivity.this, "[SOAP DEBUG NAPAKA - " + method + "]: " + errorMessage, Toast.LENGTH_LONG).show();

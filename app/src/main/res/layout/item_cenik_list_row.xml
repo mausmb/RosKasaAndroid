@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="?attr/selectableItemBackground"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp">
+
+    <!-- Naziv artikla (z oznako polnjenja če obstaja) -->
+    <TextView
+        android:id="@+id/tvCenikNaziv"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="MALVAZIJA 0,1 [02933] (0,1/0,125/0,5/1)" />
+
+    <!-- Cena artikla -->
+    <TextView
+        android:id="@+id/tvCenikCena"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#00E676"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:text="2,20 €" />
+</LinearLayout>

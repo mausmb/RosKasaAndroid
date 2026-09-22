@@ -1,0 +1,25 @@
+# I need some design changes if landscape is enabled for example tablet in landscape mode.
+
+## tasks
+1. analyze current design and wirte it as portrait mode
+2. create function which will on formshow or similar examine device mode (portrait or landscape) and display form as described in rules bellow
+
+
+## Rules
+1. Portrait mode - everything should be as it is 
+2. Landscape mode :
+2.1. TabCenik
+LyNarFunkcTipke - landscape to the right, portrait as it is (bellow)
+
+2.2. TabRacGlava
+LyRacFunkcTipke - landscape to the right, portrait as it is (bellow)
+
+2.3 TabRacPlaci
+LyPlaciFunkcTipke - landscape to the right, portrait as it is (bellow)
+
+2.4 TabMize
+LyPlaciFunkcTipke - landscape stays on top, but inside should be 
+gpMizeFunkcTipke - right
+PnlRajoni - left
+
+
