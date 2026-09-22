@@ -78,7 +78,7 @@
             android:id="@+id/btnNavMize"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_mize"
@@ -88,18 +88,17 @@
             android:id="@+id/btnToggleStatus"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_accent_blue"
             android:text="@string/btn_izpisani_racuni"
-            android:textColor="#FFFFFF"
-            android:textSize="10sp" />
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnNavNaroci"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_naroci"
@@ -109,7 +108,7 @@
             android:id="@+id/btnNavPlacila"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_placila"
@@ -119,7 +118,7 @@
             android:id="@+id/btnOdjava"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_accent_red"
             android:text="@string/btn_odjava"
@@ -130,7 +129,7 @@
             android:id="@+id/btnBrisanje"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Brisanje"
@@ -140,18 +139,17 @@
             android:id="@+id/btnZdruzi"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Združi račune"
-            android:textColor="#FFFFFF"
-            android:textSize="10sp" />
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDeli"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Deli račun"
@@ -161,18 +159,17 @@
             android:id="@+id/btnZamenjajMarker"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Zamenjaj marker"
-            android:textColor="#FFFFFF"
-            android:textSize="10sp" />
+            android:textColor="#FFFFFF" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnIzpisRacuna"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Izpis Računa"
@@ -181,14 +178,14 @@
         <!-- Vrstica 3 -->
         <View
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnPrikaz"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Prikaz"
@@ -198,7 +195,7 @@
             android:id="@+id/btnStorno"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_accent_red"
             android:text="Storno"
@@ -206,12 +203,12 @@
 
         <View
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1" />
 
         <View
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1" />
 
         <!-- Vrstica 4 -->
@@ -219,7 +216,7 @@
             android:id="@+id/btnInkaso"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Inkaso"
@@ -229,7 +226,7 @@
             android:id="@+id/btnObracun"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Obračun"
@@ -237,23 +234,22 @@
 
         <View
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTestTiskanja"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Test tiskanja"
-            android:textColor="#FFFFFF"
-            android:textSize="10sp" />
+            android:textColor="#FFFFFF" />
 
         <View
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1" />
     </GridLayout>
 

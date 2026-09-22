@@ -67,6 +67,14 @@ public class QuickKeyAdapter extends RecyclerView.Adapter<QuickKeyAdapter.ViewHo
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         QuickKey key = keys.get(position);
+        if (key == null || key.title == null || key.title.trim().isEmpty()) {
+            holder.btnKey.setText("");
+            holder.btnKey.setVisibility(View.INVISIBLE);
+            holder.btnKey.setOnClickListener(null);
+            return;
+        }
+
+        holder.btnKey.setVisibility(View.VISIBLE);
         holder.btnKey.setText(key.title);
 
         if (key.isBack) {

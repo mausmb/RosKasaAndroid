@@ -23,7 +23,7 @@
             android:id="@+id/btnMizeSelf"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_accent_blue"
             android:text="@string/btn_mize"
@@ -33,7 +33,7 @@
             android:id="@+id/btnNavRacuni"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_racuni"
@@ -43,7 +43,7 @@
             android:id="@+id/btnNavNaroci"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_naroci"
@@ -53,7 +53,7 @@
             android:id="@+id/btnNavPlacila"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="@string/btn_placila"
@@ -63,7 +63,7 @@
             android:id="@+id/btnOdjava"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_accent_red"
             android:text="@string/btn_odjava"
@@ -74,7 +74,7 @@
             android:id="@+id/btnMarker"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Marker"
@@ -84,7 +84,7 @@
             android:id="@+id/btnInfo"
             style="@style/PosButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1"
             android:backgroundTint="@color/pos_btn_normal"
             android:text="Info"
@@ -92,17 +92,17 @@
 
         <View
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1" />
 
         <View
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1" />
 
         <View
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="50dp"
             android:layout_columnWeight="1" />
     </GridLayout>
 
