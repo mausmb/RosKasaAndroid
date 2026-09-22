@@ -14,6 +14,8 @@ procedure TFrmKasaMobile.IzpisRacuna(const pStKopijZaPrint,pZacStevecKopij:integ
 PrintAll.pas
 uPrintData.pas
 3. Splošna pravila pri kreiranju računa:
+- **Naziv artikla (NIVO4_ID)**: `PozicijaTp` v WSDL/SOAP shemi nima atributa `NAZIV` (le `NIVO4_ID`). Naziv se **vedno** poišče iz predpomnilnika cenika / hitrih tipk preko `Globals.getInstance().findNazivByNivo4Id(nivo4Id)`.
+- **F_POS_ID vs TIPKE_POS_ID**: Za glavo računa (`RACGLAVA.POS_ID`) in `setRacun` se uporablja izključno `F_POS_ID` / `POS_ID`, `TIPKE_POS_ID` je samo za postavitev hitrih tipk.
 
 PrintAll.pas - function TConfigQRCode.kreirajRacunS2(Const PracunId,vo:integer):Tstringlist; 
 

@@ -174,7 +174,19 @@ public class RacunPrintBuilder {
             for (PozicijaTp poz : racun.getRacPozic()) {
                 if (poz == null || poz.isRowDeleted()) continue;
 
-                String naziv = poz.getNaziv() != null ? poz.getNaziv().trim() : "Artiker";
+                int nivo4 = (poz.getNivo4Id() != null) ? poz.getNivo4Id() : 0;
+                String naziv = (poz.getNaziv() != null) ? poz.getNaziv().trim() : "";
+                if ((naziv.isEmpty() || naziv.startsWith("Artikel #")) && nivo4 > 0 && globals != null) {
+                    String lookup = globals.findNazivByNivo4Id(nivo4);
+                    if (lookup != null && !lookup.trim().isEmpty()) {
+                        naziv = lookup.trim();
+                        poz.setNaziv(naziv);
+                    }
+                }
+                if (naziv.isEmpty()) {
+                    naziv = (nivo4 > 0) ? "Artikel #" + nivo4 : "Artikel";
+                    poz.setNaziv(naziv);
+                }
                 if (naziv.length() > width) {
                     naziv = naziv.substring(0, width);
                 }

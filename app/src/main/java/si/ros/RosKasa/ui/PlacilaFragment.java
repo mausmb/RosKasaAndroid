@@ -724,6 +724,18 @@ public class PlacilaFragment extends Fragment {
                     racunZaTisk = returned;
                 }
 
+                // Zagotovi, da imajo vse postavke veljaven naziv iz cenika/hitrih tipk
+                if (racunZaTisk != null && racunZaTisk.getRacPozic() != null) {
+                    for (PozicijaTp p : racunZaTisk.getRacPozic()) {
+                        if (p != null && p.getNivo4Id() != null && p.getNivo4Id() > 0) {
+                            String lookup = Globals.getInstance().findNazivByNivo4Id(p.getNivo4Id());
+                            if (lookup != null && !lookup.trim().isEmpty()) {
+                                p.setNaziv(lookup.trim());
+                            }
+                        }
+                    }
+                }
+
                 final RacunTp finalRacunToPrint = racunZaTisk;
                 final int finalStKopij = Globals.getInstance().stKopijPlacila(racunZaTisk);
 

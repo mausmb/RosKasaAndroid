@@ -153,6 +153,19 @@ public class LoginFragment extends Fragment {
                             android.util.Log.w("LoginFragment", "Napaka pri prednalaganju cenika: " + ex.getMessage());
                         }
                     }
+
+                    // Preload hitrih tipk v ozadju za takojšen lookup nazivov
+                    int tipkePosId = prefs.getTipkePosId();
+                    if (tipkePosId > 0 && !Globals.getInstance().hasCachedHitreTipke()) {
+                        try {
+                            java.util.List<si.ros.RosKasa.models.HitraTipkaTp> tipke = RosKasaSoapClient.getHitreTipke(prefs.getServerUrl(), prefs.getToken(), tipkePosId);
+                            if (tipke != null && !tipke.isEmpty()) {
+                                Globals.getInstance().setCachedHitreTipke(tipke);
+                            }
+                        } catch (Exception ex) {
+                            android.util.Log.w("LoginFragment", "Napaka pri prednalaganju hitrih tipk: " + ex.getMessage());
+                        }
+                    }
                 } catch (Exception ignored) {}
             });
         }

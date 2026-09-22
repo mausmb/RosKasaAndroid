@@ -358,6 +358,8 @@ public class NarocilaFragment extends Fragment {
         cenikItems.clear();
         cenikItems.addAll(processAndSortCenikItems(rawFallback));
         cenikListAdapter.setItems(cenikItems);
+        Globals.getInstance().setCachedCenik(rawFallback);
+        refreshOrderArticleNames();
 
         String msg = "Naložen privzeti rezervni cenik (" + cenikItems.size() + " artiklov)";
         Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
@@ -605,6 +607,9 @@ public class NarocilaFragment extends Fragment {
             zd = vr.multiply(BigDecimal.valueOf(davekProc)).divide(BigDecimal.valueOf(100.0 + davekProc), 4, RoundingMode.HALF_UP);
         }
 
+        // Zabeleži naziv artikla v globalni predpomnilnik za NIVO4_ID
+        Globals.getInstance().registerNazivForNivo4(nivo4Id, naziv);
+
         // Določi naslednji negativni POZICIJA_ID za novo pozicijo (Delphi stil: -1, -2, -3...)
         int nextPozId = -1;
         if (currentRacun.getRacPozic() != null) {
@@ -705,6 +710,8 @@ public class NarocilaFragment extends Fragment {
 
                 mainHandler.post(() -> {
                     if (result != null && !result.isEmpty()) {
+                        Globals.getInstance().setCachedHitreTipke(result);
+                        refreshOrderArticleNames();
                         allApiHitreTipke.clear();
                         allApiHitreTipke.addAll(result);
                         currentSkupinaId = 1;

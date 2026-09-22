@@ -13,6 +13,7 @@ import si.ros.RosKasa.ui.CenikListAdapter;
 import si.ros.RosKasa.models.HitraTipkaTp;
 import si.ros.RosKasa.models.RacunSeznamItem;
 import si.ros.RosKasa.models.RacunTp;
+import si.ros.RosKasa.models.PozicijaTp;
 import si.ros.RosKasa.models.NacPlacTp;
 import si.ros.RosKasa.models.PlaciloTp;
 
@@ -1238,6 +1239,12 @@ public class Globals {
         nivo4NazivLookup.clear();
     }
 
+    public void registerNazivForNivo4(int nivo4Id, String naziv) {
+        if (nivo4Id > 0 && naziv != null && !naziv.trim().isEmpty() && !naziv.startsWith("Artikel #")) {
+            nivo4NazivLookup.put(nivo4Id, naziv.trim());
+        }
+    }
+
     public String findNazivByNivo4Id(int nivo4Id) {
         if (nivo4Id <= 0) return "";
         String found = nivo4NazivLookup.get(nivo4Id);
@@ -1254,6 +1261,17 @@ public class Globals {
             if (ht.getNivo4Id() != null && ht.getNivo4Id() == nivo4Id && ht.getNaziv() != null && !ht.getNaziv().trim().isEmpty()) {
                 nivo4NazivLookup.put(nivo4Id, ht.getNaziv().trim());
                 return ht.getNaziv().trim();
+            }
+        }
+        if (currentRacun != null && currentRacun.getRacPozic() != null) {
+            for (PozicijaTp p : currentRacun.getRacPozic()) {
+                if (p != null && p.getNivo4Id() != null && p.getNivo4Id() == nivo4Id) {
+                    String pNaziv = p.getNazivRaw();
+                    if (pNaziv != null && !pNaziv.trim().isEmpty() && !pNaziv.startsWith("Artikel #")) {
+                        nivo4NazivLookup.put(nivo4Id, pNaziv.trim());
+                        return pNaziv.trim();
+                    }
+                }
             }
         }
         return "";

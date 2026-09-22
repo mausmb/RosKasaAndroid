@@ -109,16 +109,29 @@ public class PozicijaTp {
     public Integer getCenikId() { return cenikId; }
     public void setCenikId(Integer cenikId) { this.cenikId = cenikId; }
 
+    public String getNazivRaw() {
+        return naziv;
+    }
+
     public String getNaziv() {
-        if ((naziv == null || naziv.trim().isEmpty()) && nivo4Id != null && nivo4Id > 0) {
+        if ((naziv == null || naziv.trim().isEmpty() || naziv.startsWith("Artikel #")) && nivo4Id != null && nivo4Id > 0) {
             String lookup = Globals.getInstance().findNazivByNivo4Id(nivo4Id);
             if (lookup != null && !lookup.trim().isEmpty()) {
                 naziv = lookup.trim();
             }
         }
+        if ((naziv == null || naziv.trim().isEmpty()) && nivo4Id != null && nivo4Id > 0) {
+            return "Artikel #" + nivo4Id;
+        }
         return naziv != null ? naziv : "";
     }
-    public void setNaziv(String naziv) { this.naziv = naziv != null ? naziv : ""; }
+
+    public void setNaziv(String naziv) {
+        this.naziv = (naziv != null) ? naziv.trim() : "";
+        if (this.nivo4Id != null && this.nivo4Id > 0 && !this.naziv.isEmpty() && !this.naziv.startsWith("Artikel #")) {
+            Globals.getInstance().registerNazivForNivo4(this.nivo4Id, this.naziv);
+        }
+    }
 
     public BigDecimal getCena() { return cena; }
     public void setCena(BigDecimal cena) {

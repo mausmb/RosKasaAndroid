@@ -356,10 +356,29 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
                 si.ros.RosKasa.models.RacunTp r = RosKasaSoapClient.getRacun(prefs.getServerUrl(), prefs.getToken(), item.getRacunId());
                 if (r != null) {
 
+                    // Zagotovi, da je cenik naložen v predpomnilnik za lookup nazivov
+                    if (!Globals.getInstance().hasCachedCenik()) {
+                        int strmId = prefs.getHisObrat() > 0 ? prefs.getHisObrat() : 512200;
+                        try {
+                            java.util.List<CenikListAdapter.CenikItem> cenik = RosKasaSoapClient.getCenik(prefs.getServerUrl(), prefs.getToken(), strmId);
+                            if (cenik != null && !cenik.isEmpty()) {
+                                Globals.getInstance().setCachedCenik(cenik);
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    if (!Globals.getInstance().hasCachedHitreTipke() && prefs.getTipkePosId() > 0) {
+                        try {
+                            java.util.List<si.ros.RosKasa.models.HitraTipkaTp> tipke = RosKasaSoapClient.getHitreTipke(prefs.getServerUrl(), prefs.getToken(), prefs.getTipkePosId());
+                            if (tipke != null && !tipke.isEmpty()) {
+                                Globals.getInstance().setCachedHitreTipke(tipke);
+                            }
+                        } catch (Exception ignored) {}
+                    }
+
                     // Preveri manjkajoče nazive artiklov
                     if (r.getRacPozic() != null) {
                         for (si.ros.RosKasa.models.PozicijaTp p : r.getRacPozic()) {
-                            if (p != null && (p.getNaziv() == null || p.getNaziv().trim().isEmpty()) && p.getNivo4Id() != null && p.getNivo4Id() > 0) {
+                            if (p != null && p.getNivo4Id() != null && p.getNivo4Id() > 0) {
                                 String lookupName = Globals.getInstance().findNazivByNivo4Id(p.getNivo4Id());
                                 if (lookupName != null && !lookupName.trim().isEmpty()) {
                                     p.setNaziv(lookupName.trim());

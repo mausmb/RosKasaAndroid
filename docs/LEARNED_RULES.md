@@ -40,3 +40,25 @@ This document summarizes critical architectural, SOAP protocol, and Android layo
 ## 5. Slovenian Character Encoding & Delphi File Preservation
 - **Rule:**
   Always preserve ANSI / Windows-1250 encoding in source files containing Slovenian characters (`č`, `š`, `ž`, `ć`, `đ`). Do not convert Delphi source files to UTF-8 with BOM.
+
+---
+
+## 6. Razlika med TIPKE_POS_ID in F_POS_ID / POS_ID
+- **Problem:** Klic `setRacun` z `mobile_setup.TIPKE_POS_ID` namesto `mobile_setup.F_POS_ID` (ali `POS_ID`) povzroči strežniško napako:
+  `Klic setRacun NAPAKA: R:... SERVER FAULT v setRacun: Neznan pos 542`.
+- **Pravilo:**
+  - `TIPKE_POS_ID` (npr. 542) je izključno ID za postavitev hitrih tipk v naročilih (`getHitreTipke`).
+  - Za davčno blagajno, klic `setRacun`, `getRacun`, fiskalizacijo in glavo računa se MORA vedno uporabiti `F_POS_ID` oziroma `POS_ID` (npr. 1 ali 512200).
+  - Ta dva identifikatorja nista enaka in se ju nikoli ne sme zamenjati!
+
+---
+
+## 7. Izpis računa in postavke: Naziv artikla (NIVO4_ID) se VEDNO poišče iz cenika
+- **Problem:** V WSDL / SOAP shemi strežnika struktura `PozicijaTp` (tabela `RACPOZIC`) **ne vsebuje** atributa `NAZIV`, temveč le `NIVO4_ID`. Ko strežnik vrne račun prek `setRacun` ali `getRacun`, so vsa polja `NAZIV` v vrnjenih postavkah prazna (`null` oziroma `""`).
+- **Pravilo:**
+  1. Za vsako postavko računa se mora naziv artikla **vedno** poiskati iz cenika oziroma hitrih tipk preko:
+     `Globals.getInstance().findNazivByNivo4Id(nivo4Id)`.
+  2. Cenik (`getCenik`) in hitre tipke (`getHitreTipke`) se morata prednaložiti v predpomnilnik (`Globals.setCachedCenik`, `Globals.setCachedHitreTipke`) takoj ob prijavi (`LoginFragment`) in ob odprtju naročil.
+  3. Metoda `PozicijaTp.getNaziv()` ter gradnik računa `RacunPrintBuilder` morata avtomatsko izvesti lookup preko `findNazivByNivo4Id(nivo4Id)`, če je polje `naziv` prazno ali enako privzetemu `Artikel #...`.
+  4. Na izpisu računa (Bluetooth ali tekstovni predogled) ne sme biti praznih nazivov ali izmišljenih fiksnih nizov (kot je bil npr. "Artiker"). Če naziv v ceniku ne obstaja, je fallback `Artikel #<nivo4Id>`.
+
