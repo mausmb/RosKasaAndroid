@@ -230,7 +230,9 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
         String odDatum = calculateOdDatum();
 
         if (!prefs.isRegistered()) {
-            loadMockRacuni();
+            binding.pbLoading.setVisibility(View.GONE);
+            allItems.clear();
+            applyFilters();
             return;
         }
 
@@ -253,36 +255,17 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
                     allItems.clear();
                     if (result != null && !result.isEmpty()) {
                         allItems.addAll(result);
-                    } else {
-                        populateMockData();
                     }
                     applyFilters();
                 });
             } catch (Exception e) {
                 mainHandler.post(() -> {
                     binding.pbLoading.setVisibility(View.GONE);
-                    populateMockData();
+                    allItems.clear();
                     applyFilters();
                 });
             }
         });
-    }
-
-    private void loadMockRacuni() {
-        binding.pbLoading.setVisibility(View.GONE);
-        populateMockData();
-        applyFilters();
-    }
-
-    private void populateMockData() {
-        allItems.clear();
-        // Računi ustrezno iz baze (61118 STATUS=2, 61119 STATUS=2, 61120 STATUS=1)
-        if (currentStatusFilter == 1) {
-            allItems.add(new RacunSeznamItem(61120, 1, "Miza 5", 1, null, new BigDecimal("4.00")));
-        } else {
-            allItems.add(new RacunSeznamItem(61118, 1, "Miza 2", 2, null, new BigDecimal("4.00")));
-            allItems.add(new RacunSeznamItem(61119, 1, "Miza 4", 2, null, new BigDecimal("2.70")));
-        }
     }
 
     private void applyFilters() {
