@@ -592,7 +592,9 @@ public class NarocilaFragment extends Fragment {
 
         int tocilnicaId = prefs.getTocilnicaId() > 0 ? prefs.getTocilnicaId() : 512200;
         int kuhinjaId = prefs.getKuhinjaId() > 0 ? prefs.getKuhinjaId() : 512600;
-        int posId = prefs.getTipkePosId() > 0 ? prefs.getTipkePosId() : 6;
+        int mobileId = 1;
+        try { mobileId = Integer.parseInt(prefs.getMobileId()); } catch (Exception ignored) {}
+        int posId = mobileId > 0 ? mobileId : (prefs.getfPosId() > 0 ? prefs.getfPosId() : 1);
         int natakarId = 9999;
         int izvorPrihodekId = (nivo1Id == 2 && kuhinjaId != 0) ? kuhinjaId : (tocilnicaId != 0 ? tocilnicaId : izvorStrmId);
         int cenikId = 11246;
@@ -1054,7 +1056,7 @@ public class NarocilaFragment extends Fragment {
                 // 2. Nastavitev parametrov za naročilo
                 currentRacun.setStatus(1);
                 currentRacun.setMarker(activeMarker);
-                int fPosId = prefs.getTipkePosId() > 0 ? prefs.getTipkePosId() : 500;
+                int fPosId = prefs.getfPosId() > 0 ? prefs.getfPosId() : (Globals.getInstance().getfPosId() != null && Globals.getInstance().getfPosId() > 0 ? Globals.getInstance().getfPosId() : 500);
                 currentRacun.setfPosId(fPosId);
                 int fPoslovniProstorId = Globals.getInstance().getfPoslovniProstorId() != null && Globals.getInstance().getfPoslovniProstorId() > 0 ? Globals.getInstance().getfPoslovniProstorId() : 5000;
                 currentRacun.setfPoslovniProstorId(fPoslovniProstorId);

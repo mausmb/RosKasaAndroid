@@ -22,6 +22,10 @@ public class MainActivity extends AppCompatActivity {
         g.setToken(prefs.getToken());
         g.setNazivMobile(prefs.getNaziv());
         g.setTipkePosId(prefs.getTipkePosId());
+        g.setfPosId(prefs.getfPosId());
+        g.setfPoslovniProstorId(prefs.getfPoslovniProstorId());
+        g.setTocilnicaId(prefs.getTocilnicaId());
+        g.setKuhinjaId(prefs.getKuhinjaId());
         g.setHisObrat(prefs.getHisObrat());
         g.setPrinterRacuni(prefs.getPrinterRacuni());
         try { g.setMobileId(Integer.parseInt(prefs.getMobileId())); } catch (Exception ignored) {}

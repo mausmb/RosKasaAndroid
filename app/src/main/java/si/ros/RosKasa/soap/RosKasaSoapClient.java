@@ -1318,7 +1318,8 @@ public class RosKasaSoapClient {
                 : (Globals.getInstance().getfPoslovniProstorId() != null && Globals.getInstance().getfPoslovniProstorId() > 0 ? Globals.getInstance().getfPoslovniProstorId() : 5000);
         soap.addProperty("F_POSLOVNI_PROSTOR_ID", fPoslovniProstorId);
 
-        int fPosId = (racun.getfPosId() != null && racun.getfPosId() > 0)
+        int tipkePosIdVal = Globals.getInstance().getTipkePosId();
+        int fPosId = (racun.getfPosId() != null && racun.getfPosId() > 0 && (tipkePosIdVal <= 0 || racun.getfPosId() != tipkePosIdVal || racun.getfPosId() == Globals.getInstance().getfPosId()))
                 ? racun.getfPosId()
                 : (Globals.getInstance().getfPosId() != null && Globals.getInstance().getfPosId() > 0 ? Globals.getInstance().getfPosId() : 500);
         soap.addProperty("F_POS_ID", fPosId);
@@ -1507,7 +1508,12 @@ public class RosKasaSoapClient {
         if (nivo4Id <= 0) nivo4Id = 315100008;
         soap.addProperty("NIVO4_ID", nivo4Id);
 
-        int posId = (poz.getPosId() != null && poz.getPosId() > 0) ? poz.getPosId() : 6;
+        int mobileIdDef = Globals.getInstance().getMobileId() > 0 ? Globals.getInstance().getMobileId() : 1;
+        int tipkePosId = Globals.getInstance().getTipkePosId();
+        int fPosIdVal = Globals.getInstance().getfPosId() != null && Globals.getInstance().getfPosId() > 0 ? Globals.getInstance().getfPosId() : 500;
+        int posId = (poz.getPosId() != null && poz.getPosId() > 0 && (tipkePosId <= 0 || poz.getPosId() != tipkePosId || poz.getPosId() == fPosIdVal))
+                ? poz.getPosId()
+                : (mobileIdDef > 0 ? mobileIdDef : 1);
         soap.addProperty("POS_ID", posId);
 
         int natakarId = (poz.getNatakarId() != null && poz.getNatakarId() > 0) ? poz.getNatakarId() : 9999;

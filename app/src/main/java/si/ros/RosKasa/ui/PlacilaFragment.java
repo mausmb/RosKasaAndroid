@@ -233,7 +233,7 @@ public class PlacilaFragment extends Fragment {
         }
         currentRacun.setStatus(1);
         currentRacun.setMarker(activeMarker);
-        currentRacun.setfPosId(prefs.getTipkePosId() > 0 ? prefs.getTipkePosId() : 500);
+        currentRacun.setfPosId(prefs.getfPosId() > 0 ? prefs.getfPosId() : (Globals.getInstance().getfPosId() != null && Globals.getInstance().getfPosId() > 0 ? Globals.getInstance().getfPosId() : 500));
         currentRacun.setfPoslovniProstorId(Globals.getInstance().getfPoslovniProstorId() != null && Globals.getInstance().getfPoslovniProstorId() > 0 ? Globals.getInstance().getfPoslovniProstorId() : 5000);
         currentRacun.setTocilnicaId(tocId);
         if (currentRacun.getKasiral() == null || currentRacun.getKasiral() <= 0) {
@@ -698,7 +698,7 @@ public class PlacilaFragment extends Fragment {
                 // STATUS = 2 pomeni izpisan / fiskaliziran račun
                 currentRacun.setStatus(2);
                 currentRacun.setMarker(activeMarker);
-                currentRacun.setfPosId(prefs.getTipkePosId() > 0 ? prefs.getTipkePosId() : 500);
+                currentRacun.setfPosId(prefs.getfPosId() > 0 ? prefs.getfPosId() : (Globals.getInstance().getfPosId() != null && Globals.getInstance().getfPosId() > 0 ? Globals.getInstance().getfPosId() : 500));
                 currentRacun.setfPoslovniProstorId(Globals.getInstance().getfPoslovniProstorId() != null && Globals.getInstance().getfPoslovniProstorId() > 0 ? Globals.getInstance().getfPoslovniProstorId() : 5000);
                 if (currentRacun.getRacPozic() != null) {
                     for (PozicijaTp p : currentRacun.getRacPozic()) {

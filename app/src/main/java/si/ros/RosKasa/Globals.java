@@ -980,7 +980,8 @@ public class Globals {
     public String getAktivenStyle() { return aktivenStyle; }
     public void setAktivenStyle(String aktivenStyle) { this.aktivenStyle = aktivenStyle; }
 
-    public Integer getfPosId() { return fPosId; }
+    public Integer getfPosId() { return (fPosId != null && fPosId > 0) ? fPosId : 500; }
+    public Integer getPosId() { return getfPosId(); }
     public void setfPosId(Integer fPosId) { this.fPosId = fPosId; }
 
     public Integer getfPoslovniProstorId() { return fPoslovniProstorId; }

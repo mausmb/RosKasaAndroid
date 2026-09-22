@@ -54,7 +54,10 @@ public class AppPreferences {
         SharedPreferences.Editor editor = prefs.edit();
         editor.putInt(KEY_TIPKE_POS_ID, setup.getTipkePosId());
         editor.putInt(KEY_HIS_OBRAT, setup.getHisObrat());
-        if (setup.getfPosId() != null) editor.putInt(KEY_F_POS_ID_VAL, setup.getfPosId());
+        if (setup.getfPosId() != null) {
+            editor.putInt(KEY_F_POS_ID_VAL, setup.getfPosId());
+            editor.putInt(KEY_F_POS_ID, setup.getfPosId());
+        }
         if (setup.getfPoslovniProstorId() != null) editor.putInt(KEY_F_POSLOVNI_PROSTOR_ID, setup.getfPoslovniProstorId());
         if (setup.getKuhinjaId() != null) editor.putInt(KEY_KUHINJA_ID, setup.getKuhinjaId());
         if (setup.getTocilnicaId() != null) editor.putInt(KEY_TOCILNICA_ID, setup.getTocilnicaId());
@@ -147,11 +150,20 @@ public class AppPreferences {
     }
 
     public int getfPosId() {
-        return prefs.getInt(KEY_F_POS_ID_VAL, 0);
+        int pos = prefs.getInt(KEY_F_POS_ID_VAL, 0);
+        if (pos <= 0) {
+            pos = prefs.getInt(KEY_F_POS_ID, 0);
+        }
+        return pos > 0 ? pos : 500;
+    }
+
+    public int getPosId() {
+        return getfPosId();
     }
 
     public int getfPoslovniProstorId() {
-        return prefs.getInt(KEY_F_POSLOVNI_PROSTOR_ID, 0);
+        int pp = prefs.getInt(KEY_F_POSLOVNI_PROSTOR_ID, 0);
+        return pp > 0 ? pp : 5000;
     }
 
     public void clear() {
