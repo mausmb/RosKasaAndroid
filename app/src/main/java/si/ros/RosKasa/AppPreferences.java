@@ -23,6 +23,21 @@ public class AppPreferences {
     private static final String KEY_KUHINJA_ID = "kuhinja_id";
     private static final String KEY_TOCILNICA_ID = "tocilnica_id";
     private static final String KEY_F_POS_ID_VAL = "f_pos_id_val";
+    private static final String KEY_PRINTER_STEVILO_ZNAKOV = "printer_stevilo_znakov";
+    private static final String KEY_ESC_INIT_PRINT = "esc_init_print";
+    private static final String KEY_ESC_RESET = "esc_reset";
+    private static final String KEY_ESC_WIDTH2X_ON = "esc_width2x_on";
+    private static final String KEY_ESC_WIDTH2X_OFF = "esc_width2x_off";
+    private static final String KEY_ESC_BOLD_ON = "esc_bold_on";
+    private static final String KEY_ESC_BOLD_OFF = "esc_bold_off";
+    private static final String KEY_ESC_ALIGN_CENTER = "esc_align_center";
+    private static final String KEY_ESC_ALIGN_LEFT = "esc_align_left";
+    private static final String KEY_ESC_CUT = "esc_cut";
+    private static final String KEY_NAZIV_STREGEL_VAS_JE = "naziv_stregel_vas_je";
+    private static final String KEY_NAZIV_ZAHVALA_1 = "naziv_zahvala_1";
+    private static final String KEY_NAZIV_ZAHVALA_2 = "naziv_zahvala_2";
+    private static final String KEY_NAZIV_ZAHVALA_3 = "naziv_zahvala_3";
+    private static final String KEY_NAZIV_ZAHVALA_4 = "naziv_zahvala_4";
 
     private final SharedPreferences prefs;
 
@@ -66,6 +81,21 @@ public class AppPreferences {
         if (setup.getPrinterRacuni() != null && !setup.getPrinterRacuni().trim().isEmpty()) {
             editor.putString(KEY_PRINTER_RACUNI, setup.getPrinterRacuni().trim());
         }
+        if (setup.getSteviloZnakov() != null) editor.putString(KEY_PRINTER_STEVILO_ZNAKOV, setup.getSteviloZnakov());
+        if (setup.getEscInitPrint() != null) editor.putString(KEY_ESC_INIT_PRINT, setup.getEscInitPrint());
+        if (setup.getEscReset() != null) editor.putString(KEY_ESC_RESET, setup.getEscReset());
+        if (setup.getEscWidth2xOn() != null) editor.putString(KEY_ESC_WIDTH2X_ON, setup.getEscWidth2xOn());
+        if (setup.getEscWidth2xOff() != null) editor.putString(KEY_ESC_WIDTH2X_OFF, setup.getEscWidth2xOff());
+        if (setup.getEscBoldOn() != null) editor.putString(KEY_ESC_BOLD_ON, setup.getEscBoldOn());
+        if (setup.getEscBoldOff() != null) editor.putString(KEY_ESC_BOLD_OFF, setup.getEscBoldOff());
+        if (setup.getEscAlignCenter() != null) editor.putString(KEY_ESC_ALIGN_CENTER, setup.getEscAlignCenter());
+        if (setup.getEscAlignLeft() != null) editor.putString(KEY_ESC_ALIGN_LEFT, setup.getEscAlignLeft());
+        if (setup.getEscCut() != null) editor.putString(KEY_ESC_CUT, setup.getEscCut());
+        if (setup.getNazivStregelVasJe() != null) editor.putString(KEY_NAZIV_STREGEL_VAS_JE, setup.getNazivStregelVasJe());
+        if (setup.getNazivZahvala1() != null) editor.putString(KEY_NAZIV_ZAHVALA_1, setup.getNazivZahvala1());
+        if (setup.getNazivZahvala2() != null) editor.putString(KEY_NAZIV_ZAHVALA_2, setup.getNazivZahvala2());
+        if (setup.getNazivZahvala3() != null) editor.putString(KEY_NAZIV_ZAHVALA_3, setup.getNazivZahvala3());
+        if (setup.getNazivZahvala4() != null) editor.putString(KEY_NAZIV_ZAHVALA_4, setup.getNazivZahvala4());
         editor.apply();
 
         int mobId = 1;
@@ -76,6 +106,46 @@ public class AppPreferences {
         if ((Globals.getInstance().getPrinterRacuni() == null || Globals.getInstance().getPrinterRacuni().isEmpty()) && !savedPrinter.isEmpty()) {
             Globals.getInstance().setPrinterRacuni(savedPrinter);
         }
+    }
+
+    public void loadSavedPrinterSetup(Globals g) {
+        if (g == null) return;
+        String stZn = prefs.getString(KEY_PRINTER_STEVILO_ZNAKOV, "");
+        if (!stZn.isEmpty()) {
+            try {
+                int w = Integer.parseInt(stZn);
+                if (w == 48) w = 42;
+                if (w > 0) g.setPrinterSteviloZnakov(w);
+            } catch (Exception ignored) {}
+        }
+        String init = prefs.getString(KEY_ESC_INIT_PRINT, "");
+        if (!init.isEmpty()) g.setEscInitPrint(Globals.pretvoriROSESC(init));
+        String reset = prefs.getString(KEY_ESC_RESET, "");
+        if (!reset.isEmpty()) g.setEscReset(Globals.pretvoriROSESC(reset));
+        String wOn = prefs.getString(KEY_ESC_WIDTH2X_ON, "");
+        if (!wOn.isEmpty()) g.setEscWidth2xOn(Globals.pretvoriROSESC(wOn));
+        String wOff = prefs.getString(KEY_ESC_WIDTH2X_OFF, "");
+        if (!wOff.isEmpty()) g.setEscWidth2xOff(Globals.pretvoriROSESC(wOff));
+        String bOn = prefs.getString(KEY_ESC_BOLD_ON, "");
+        if (!bOn.isEmpty()) g.setEscBoldOn(Globals.pretvoriROSESC(bOn));
+        String bOff = prefs.getString(KEY_ESC_BOLD_OFF, "");
+        if (!bOff.isEmpty()) g.setEscBoldOff(Globals.pretvoriROSESC(bOff));
+        String aCenter = prefs.getString(KEY_ESC_ALIGN_CENTER, "");
+        if (!aCenter.isEmpty()) g.setEscAlignCenter(Globals.pretvoriROSESC(aCenter));
+        String aLeft = prefs.getString(KEY_ESC_ALIGN_LEFT, "");
+        if (!aLeft.isEmpty()) g.setEscAlignLeft(Globals.pretvoriROSESC(aLeft));
+        String cut = prefs.getString(KEY_ESC_CUT, "");
+        if (!cut.isEmpty()) g.setEscCut(Globals.pretvoriROSESC(cut));
+        String stregel = prefs.getString(KEY_NAZIV_STREGEL_VAS_JE, "");
+        if (!stregel.isEmpty()) g.setNazivStregelVasJe(stregel);
+        String z1 = prefs.getString(KEY_NAZIV_ZAHVALA_1, "");
+        if (!z1.isEmpty()) g.setNazivZahvala1(z1);
+        String z2 = prefs.getString(KEY_NAZIV_ZAHVALA_2, "");
+        if (!z2.isEmpty()) g.setNazivZahvala2(z2);
+        String z3 = prefs.getString(KEY_NAZIV_ZAHVALA_3, "");
+        if (!z3.isEmpty()) g.setNazivZahvala3(z3);
+        String z4 = prefs.getString(KEY_NAZIV_ZAHVALA_4, "");
+        if (!z4.isEmpty()) g.setNazivZahvala4(z4);
     }
 
     public String getPrinterRacuni() {

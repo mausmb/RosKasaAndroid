@@ -29,6 +29,7 @@ import si.ros.RosKasa.Globals;
 import si.ros.RosKasa.MainActivity;
 import si.ros.RosKasa.databinding.FragmentNarocilaBinding;
 import si.ros.RosKasa.models.GetRacunRsTp;
+import si.ros.RosKasa.models.CenikVrVrTp;
 import si.ros.RosKasa.models.HitraTipkaTp;
 import si.ros.RosKasa.models.NarociloItem;
 import si.ros.RosKasa.models.PozicijaTp;
@@ -58,6 +59,7 @@ public class NarocilaFragment extends Fragment {
     private final Stack<Integer> skupinaHistory = new Stack<>();
 
     private String activeMarker = "Miza 5";
+    private boolean hasUnsavedChanges = false;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -88,9 +90,21 @@ public class NarocilaFragment extends Fragment {
         loadHitreTipkeFromApi();
     }
 
+    private long lastOrderClickTime = 0;
+    private int lastOrderClickPos = -1;
+
     private void setupOrderRecyclerView() {
         orderAdapter = new NarociloItemAdapter((item, position) -> {
-            // Izbira vrstice se vizualno označi v adapterju
+            long now = System.currentTimeMillis();
+            if (position == lastOrderClickPos && (now - lastOrderClickTime < 600)) {
+                // Dvojni klik (double-tap) odpre dialog za urejanje vrstice naročila
+                odpriEditPozicijeDialog(item);
+                lastOrderClickPos = -1;
+                lastOrderClickTime = 0;
+            } else {
+                lastOrderClickTime = now;
+                lastOrderClickPos = position;
+            }
         });
         binding.rvNarociloItems.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.rvNarociloItems.setAdapter(orderAdapter);
@@ -160,6 +174,7 @@ public class NarocilaFragment extends Fragment {
                         enableEkran();
                         if (loaded != null) {
                             currentRacun = loaded;
+                            hasUnsavedChanges = false;
                             Globals.getInstance().setCurrentRacun(loaded);
                             if (loaded.getMarker() != null && !loaded.getMarker().trim().isEmpty()) {
                                 activeMarker = loaded.getMarker().trim();
@@ -184,6 +199,7 @@ public class NarocilaFragment extends Fragment {
     }
 
     private void initNewRacun() {
+        hasUnsavedChanges = false;
         int newId = Globals.getNextNegativeRacunId();
         currentRacun = new RacunTp(newId, activeMarker);
         currentRacun.setStatus(1);
@@ -206,8 +222,67 @@ public class NarocilaFragment extends Fragment {
     private void populateOrderItemsFromCurrentRacun() {
         orderItems.clear();
         if (currentRacun != null && currentRacun.getRacPozic() != null) {
+            java.util.Set<Integer> processedPaketi = new java.util.HashSet<>();
+
             for (PozicijaTp p : currentRacun.getRacPozic()) {
-                if (p != null && !p.isRowDeleted()) {
+                if (p == null || p.isRowDeleted()) continue;
+
+                if (p.getPaketDistinct() != null && p.getPaketDistinct() > 0) {
+                    int pDist = p.getPaketDistinct();
+                    if (processedPaketi.contains(pDist)) {
+                        continue;
+                    }
+                    processedPaketi.add(pDist);
+
+                    int pNivo4 = (p.getPaketNivo4Id() != null && p.getPaketNivo4Id() > 0) ? p.getPaketNivo4Id() : 0;
+                    String pNaziv = Globals.getInstance().findNazivByNivo4Id(pNivo4);
+                    if (pNaziv == null || pNaziv.trim().isEmpty()) {
+                        pNaziv = "Paket #" + pNivo4;
+                    }
+
+                    double pKol = (p.getPaketKol() != null && p.getPaketKol().compareTo(BigDecimal.ZERO) > 0)
+                            ? p.getPaketKol().doubleValue() : 1.0;
+
+                    BigDecimal pZnesek = BigDecimal.ZERO;
+                    BigDecimal pPopust = BigDecimal.ZERO;
+
+                    for (PozicijaTp comp : currentRacun.getRacPozic()) {
+                        if (comp != null && !comp.isRowDeleted() && comp.getPaketDistinct() != null && comp.getPaketDistinct() == pDist) {
+                            if (comp.getZnesek() != null) {
+                                pZnesek = pZnesek.add(comp.getZnesek());
+                            }
+                            if (comp.getZnesekPopust() != null && comp.getZnesekPopust().abs().compareTo(BigDecimal.ZERO) > 0) {
+                                pPopust = pPopust.add(comp.getZnesekPopust().abs());
+                            }
+                        }
+                    }
+
+                    BigDecimal pCena = pKol > 0
+                            ? pZnesek.add(pPopust).divide(BigDecimal.valueOf(pKol), 2, RoundingMode.HALF_UP)
+                            : pZnesek;
+
+                    NarociloItem item = new NarociloItem(
+                            pNivo4,
+                            "[PAKET] " + pNaziv,
+                            pCena,
+                            pKol,
+                            1.0,
+                            1,
+                            1,
+                            p.getTarifaId() != null ? p.getTarifaId() : 1,
+                            p.getIzvorStrmId() != null ? p.getIzvorStrmId() : 1,
+                            p.getIzvorPrihodekId() != null ? p.getIzvorPrihodekId() : 1,
+                            p.getStopnjaDavka(),
+                            0
+                    );
+                    item.setPozicijaId(p.getPozicijaId());
+                    item.setPaketDistinct(pDist);
+                    item.setPaketNivo4Id(pNivo4);
+                    item.setCustomZnesek(pZnesek);
+                    item.setZnesekPopust(pPopust);
+                    orderItems.add(item);
+
+                } else {
                     String naziv = p.getNaziv();
                     if ((naziv == null || naziv.trim().isEmpty()) && p.getNivo4Id() != null && p.getNivo4Id() > 0) {
                         naziv = Globals.getInstance().findNazivByNivo4Id(p.getNivo4Id());
@@ -234,6 +309,12 @@ public class NarocilaFragment extends Fragment {
                             0
                     );
                     item.setPozicijaId(p.getPozicijaId());
+                    if (p.getZnesekPopust() != null && p.getZnesekPopust().abs().compareTo(BigDecimal.ZERO) > 0) {
+                        item.setZnesekPopust(p.getZnesekPopust().abs());
+                    }
+                    if (p.getZnesek() != null) {
+                        item.setCustomZnesek(p.getZnesek());
+                    }
                     orderItems.add(item);
                 }
             }
@@ -634,6 +715,117 @@ public class NarocilaFragment extends Fragment {
             }
         }
 
+        boolean isPaketItem = (paket == 1 || (ci != null && ci.paket == 1));
+        List<CenikVrVrTp> components = isPaketItem ? Globals.getInstance().findCenikVrVrByPaketNivo4Id(nivo4Id) : null;
+
+        if (isPaketItem && components != null && !components.isEmpty()) {
+            // Knjiženje sestave paketa (Delphi ZapisiPaketVnarocilo)
+            int pompaketdistinct = new java.util.Random().nextInt(90000) + 10000;
+            BigDecimal paketCenaPaketa = cena;
+            BigDecimal compSum = BigDecimal.ZERO;
+            for (CenikVrVrTp comp : components) {
+                BigDecimal compCena = comp.getCena1() != null && comp.getCena1().compareTo(BigDecimal.ZERO) > 0
+                        ? comp.getCena1() : BigDecimal.ZERO;
+                compSum = compSum.add(compCena.multiply(BigDecimal.valueOf(comp.getKolicina())));
+            }
+
+            BigDecimal faktor = BigDecimal.ONE;
+            if (compSum.compareTo(BigDecimal.ZERO) > 0 && paketCenaPaketa.compareTo(BigDecimal.ZERO) > 0) {
+                faktor = paketCenaPaketa.divide(compSum, 6, RoundingMode.HALF_UP);
+            }
+
+            BigDecimal tekocePaketVsota = BigDecimal.ZERO;
+            int targetRacunId = currentRacun.getRacunId() <= 0 ? -1 : currentRacun.getRacunId();
+
+            for (int i = 0; i < components.size(); i++) {
+                CenikVrVrTp comp = components.get(i);
+                int compNivo4Id = comp.getNivo4Id();
+                String compNaziv = Globals.getInstance().findNazivByNivo4Id(compNivo4Id);
+                if (compNaziv == null || compNaziv.trim().isEmpty()) {
+                    compNaziv = "Komponenta #" + compNivo4Id;
+                }
+
+                BigDecimal compCena = comp.getCena1() != null ? comp.getCena1().multiply(faktor).setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+                tekocePaketVsota = tekocePaketVsota.add(compCena);
+
+                // Parska izravnava na zadnjem elementu sestave
+                if (i == components.size() - 1 && faktor.compareTo(BigDecimal.ONE) != 0) {
+                    BigDecimal razlika = paketCenaPaketa.subtract(tekocePaketVsota);
+                    if (razlika.compareTo(BigDecimal.ZERO) != 0) {
+                        compCena = compCena.add(razlika);
+                    }
+                }
+
+                double compKol = comp.getKolicina() * kolicina;
+                BigDecimal compZnesek = compCena.multiply(BigDecimal.valueOf(compKol)).setScale(2, RoundingMode.HALF_UP);
+
+                int compTarifa = comp.getTarifaId() > 0 ? comp.getTarifaId() : tarifaId;
+                double compDavek = davekProc;
+                BigDecimal compZd = BigDecimal.ZERO;
+                if (compZnesek.compareTo(BigDecimal.ZERO) != 0 && compDavek > 0) {
+                    compZd = compZnesek.multiply(BigDecimal.valueOf(compDavek)).divide(BigDecimal.valueOf(100.0 + compDavek), 4, RoundingMode.HALF_UP);
+                }
+
+                int cPozId = nextPozId - i;
+                PozicijaTp poz = new PozicijaTp(cPozId, targetRacunId, compNivo4Id, compNaziv, compCena, compKol);
+                poz.setEnotaProdajeId(BigDecimal.ONE);
+                poz.setTarifaId(compTarifa);
+                poz.setStopnjaDavka(compDavek);
+                poz.setZnesek(compZnesek);
+                poz.setZnesekDavka(compZd);
+                poz.setIzvorStrmId(comp.getIzvorStrmId() > 0 ? comp.getIzvorStrmId() : izvorStrmId);
+                poz.setIzvorPrihodekId(comp.getIzvorPrihodekId() > 0 ? comp.getIzvorPrihodekId() : izvorPrihodekId);
+                poz.setNatakarId(natakarId);
+                poz.setTocilnicaId(tocilnicaId);
+                poz.setKuhinjaId(kuhinjaId);
+                poz.setPosId(posId);
+                poz.setCenikId(cenikId);
+                poz.setStatus(BigDecimal.ZERO);
+                poz.setCenaNabavna(BigDecimal.ZERO);
+                poz.setZnesekPopust(BigDecimal.ZERO);
+                poz.setLojalnostPopust(BigDecimal.ZERO);
+                poz.setZnesekLojalnost(BigDecimal.ZERO);
+                poz.setPaketKol(BigDecimal.valueOf(kolicina));
+                poz.setPaketNivo4Id(nivo4Id);
+                poz.setPaketDistinct(pompaketdistinct);
+                poz.setStatusPoz(0);
+                poz.setNarociloPoslano(0);
+                poz.setVerzijaZapisa(0);
+                poz.setRowDeleted(false);
+                poz.setNeNarocaj(true);
+
+                currentRacun.getRacPozic().add(poz);
+            }
+
+            // V seznamu naročila na ekranu prikažemo en paketni artikel
+            NarociloItem paketItem = new NarociloItem(
+                    nivo4Id,
+                    "[PAKET] " + naziv,
+                    cena,
+                    kolicina,
+                    1.0,
+                    1,
+                    nivo1Id,
+                    tarifaId,
+                    izvorStrmId,
+                    izvorPrihodekId,
+                    davekProc,
+                    0
+            );
+            paketItem.setPozicijaId(nextPozId);
+            paketItem.setPaketDistinct(pompaketdistinct);
+            paketItem.setPaketNivo4Id(nivo4Id);
+            paketItem.setCustomZnesek(cena.multiply(BigDecimal.valueOf(kolicina)));
+            orderItems.add(paketItem);
+
+            hasUnsavedChanges = true;
+            currentRacun.posodobiZnesekIzNarocila();
+            currentRacun.preracunajVsote();
+            updateOrderSummary();
+            Toast.makeText(requireContext(), "Knjižen paket: " + naziv + " (" + String.format(Locale.getDefault(), "%.2f €", cena) + ")", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         // Preveri, če neposlana postavka z istim nivo4Id, ceno in ep že obstaja na računu (Delphi združevanje)
         boolean merged = false;
         if (currentRacun.getRacPozic() != null) {
@@ -701,6 +893,8 @@ public class NarocilaFragment extends Fragment {
             orderItems.add(ni);
         }
 
+        hasUnsavedChanges = true;
+        currentRacun.posodobiZnesekIzNarocila();
         currentRacun.preracunajVsote();
         updateOrderSummary();
         Toast.makeText(requireContext(), "Knjiženo: " + naziv + " (" + String.format(Locale.getDefault(), "%.2f €", cena) + ")", Toast.LENGTH_SHORT).show();
@@ -947,27 +1141,29 @@ public class NarocilaFragment extends Fragment {
     }
 
     private void setupNavigationButtons() {
-        binding.btnNavMize.setOnClickListener(v -> {
-            if (getActivity() instanceof MainActivity) {
-                ((MainActivity) getActivity()).navigateToFragment(new MizeFragment());
-            }
-        });
+        binding.btnNavMize.setOnClickListener(v -> checkUnpostedAndNavigate(new MizeFragment()));
 
-        binding.btnNavRacuni.setOnClickListener(v -> {
-            if (getActivity() instanceof MainActivity) {
-                ((MainActivity) getActivity()).navigateToFragment(new RacuniFragment());
-            }
-        });
+        binding.btnNavRacuni.setOnClickListener(v -> checkUnpostedAndNavigate(new RacuniFragment()));
 
-        binding.btnNavPlacila.setOnClickListener(v -> {
-            if (getActivity() instanceof MainActivity) {
-                ((MainActivity) getActivity()).navigateToFragment(new PlacilaFragment());
-            }
-        });
+        binding.btnNavPlacila.setOnClickListener(v -> checkUnpostedAndNavigate(new PlacilaFragment()));
 
         binding.btnOdjava.setOnClickListener(v -> {
-            if (getActivity() instanceof MainActivity) {
-                ((MainActivity) getActivity()).navigateToFragment(new LoginFragment());
+            if (hasUnpostedChanges()) {
+                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                        .setTitle("Neshranjeno naročilo")
+                        .setMessage("Imate neshranjeno naročilo. Ali ga želite shraniti pred odjavo?")
+                        .setPositiveButton("Shrani in odjavi", (dialog, which) -> handlePostNarocilo(new LoginFragment()))
+                        .setNegativeButton("Zavrzi in odjavi", (dialog, which) -> {
+                            if (getActivity() instanceof MainActivity) {
+                                ((MainActivity) getActivity()).navigateToFragment(new LoginFragment());
+                            }
+                        })
+                        .setNeutralButton("Prekliči", null)
+                        .show();
+            } else {
+                if (getActivity() instanceof MainActivity) {
+                    ((MainActivity) getActivity()).navigateToFragment(new LoginFragment());
+                }
             }
         });
 
@@ -1032,26 +1228,41 @@ public class NarocilaFragment extends Fragment {
 
             NarociloItem removed = orderItems.remove(selPos);
             if (currentRacun != null && currentRacun.getRacPozic() != null) {
-                for (int i = currentRacun.getRacPozic().size() - 1; i >= 0; i--) {
-                    PozicijaTp p = currentRacun.getRacPozic().get(i);
-                    if (p != null && !p.isRowDeleted()) {
-                        boolean match = false;
-                        if (removed.getPozicijaId() != 0 && p.getPozicijaId() != 0) {
-                            match = (p.getPozicijaId() == removed.getPozicijaId());
-                        } else if (p.getNaziv() != null && p.getNaziv().equals(removed.getNaziv())) {
-                            match = true;
-                        }
-
-                        if (match) {
+                if (removed.getPaketDistinct() > 0) {
+                    for (int i = currentRacun.getRacPozic().size() - 1; i >= 0; i--) {
+                        PozicijaTp p = currentRacun.getRacPozic().get(i);
+                        if (p != null && p.getPaketDistinct() != null && p.getPaketDistinct() == removed.getPaketDistinct()) {
                             if (p.getPozicijaId() <= 0) {
                                 currentRacun.getRacPozic().remove(i);
                             } else {
                                 p.setRowDeleted(true);
                             }
-                            break;
+                        }
+                    }
+                } else {
+                    for (int i = currentRacun.getRacPozic().size() - 1; i >= 0; i--) {
+                        PozicijaTp p = currentRacun.getRacPozic().get(i);
+                        if (p != null && !p.isRowDeleted()) {
+                            boolean match = false;
+                            if (removed.getPozicijaId() != 0 && p.getPozicijaId() != 0) {
+                                match = (p.getPozicijaId() == removed.getPozicijaId());
+                            } else if (p.getNaziv() != null && p.getNaziv().equals(removed.getNaziv())) {
+                                match = true;
+                            }
+
+                            if (match) {
+                                if (p.getPozicijaId() <= 0) {
+                                    currentRacun.getRacPozic().remove(i);
+                                } else {
+                                    p.setRowDeleted(true);
+                                }
+                                break;
+                            }
                         }
                     }
                 }
+                hasUnsavedChanges = true;
+                currentRacun.posodobiZnesekIzNarocila();
                 currentRacun.preracunajVsote();
             }
 
@@ -1064,18 +1275,66 @@ public class NarocilaFragment extends Fragment {
         binding.btnNarociPost.setOnClickListener(v -> handlePostNarocilo());
     }
 
+    private boolean hasUnpostedChanges() {
+        if (currentRacun == null) return false;
+        if (hasUnsavedChanges) return true;
+
+        if (currentRacun.getRacunId() <= 0) {
+            if (currentRacun.getRacPozic() != null) {
+                for (PozicijaTp p : currentRacun.getRacPozic()) {
+                    if (p != null && !p.isRowDeleted()) return true;
+                }
+            }
+            return false;
+        }
+
+        if (currentRacun.getRacPozic() != null) {
+            for (PozicijaTp p : currentRacun.getRacPozic()) {
+                if (p != null) {
+                    if (p.getPozicijaId() < 0) return true;
+                    if (p.isRowDeleted()) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void checkUnpostedAndNavigate(Fragment targetFragment) {
+        if (hasUnpostedChanges()) {
+            handlePostNarocilo(targetFragment);
+        } else {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).navigateToFragment(targetFragment);
+            }
+        }
+    }
+
     private void handlePostNarocilo() {
+        handlePostNarocilo(null);
+    }
+
+    private void handlePostNarocilo(final Fragment targetFragmentOnSuccess) {
         if (currentRacun != null && currentRacun.isPlacan()) {
             Toast.makeText(requireContext(), "Račun je že plačan! Pošiljanje naročila ni dovoljeno.", Toast.LENGTH_LONG).show();
+            if (targetFragmentOnSuccess != null && getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).navigateToFragment(targetFragmentOnSuccess);
+            }
             return;
         }
 
         if (currentRacun == null || currentRacun.getRacPozic() == null || currentRacun.getRacPozic().isEmpty()) {
-            Toast.makeText(requireContext(), "Naročilo je prazno! Dodajte artikle.", Toast.LENGTH_SHORT).show();
+            if (targetFragmentOnSuccess != null && getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).navigateToFragment(targetFragmentOnSuccess);
+            } else {
+                Toast.makeText(requireContext(), "Naročilo je prazno! Dodajte artikle.", Toast.LENGTH_SHORT).show();
+            }
             return;
         }
 
-        disableEkran("Pošiljanje naročila na kuhinjo/šank...");
+        String ekranMsg = (targetFragmentOnSuccess != null)
+                ? "Shranjevanje naročila..."
+                : "Pošiljanje naročila na kuhinjo/šank...";
+        disableEkran(ekranMsg);
 
         executor.execute(() -> {
             try {
@@ -1129,7 +1388,7 @@ public class NarocilaFragment extends Fragment {
                 // 3. SOAP klic setRacun
                 GetRacunRsTp response = RosKasaSoapClient.setRacun(serverUrl, token, mobileId, currentRacun);
 
-                mainHandler.post(() -> handlePostRacunSuccess(response));
+                mainHandler.post(() -> handlePostRacunSuccess(response, targetFragmentOnSuccess));
 
             } catch (VersionConflictException vce) {
                 mainHandler.post(() -> handleVersionConflict(vce));
@@ -1139,9 +1398,10 @@ public class NarocilaFragment extends Fragment {
         });
     }
 
-    private void handlePostRacunSuccess(GetRacunRsTp response) {
+    private void handlePostRacunSuccess(GetRacunRsTp response, Fragment targetFragmentOnSuccess) {
         enableEkran();
         if (response != null && response.getRacGlava() != null) {
+            hasUnsavedChanges = false;
             currentRacun = response.getRacGlava();
             Globals.getInstance().setCurrentRacun(currentRacun);
             activeRacunId = currentRacun.getRacunId();
@@ -1150,7 +1410,14 @@ public class NarocilaFragment extends Fragment {
             populateOrderItemsFromCurrentRacun();
 
             String infoMsg = "Naročilo uspešno oddano! (Račun #" + currentRacun.getRacunId() + ", Verzija " + currentRacun.getVerzijaZapisa() + ")";
-            Toast.makeText(requireContext(), infoMsg, Toast.LENGTH_LONG).show();
+            Toast.makeText(requireContext(), infoMsg, Toast.LENGTH_SHORT).show();
+
+            if (targetFragmentOnSuccess != null) {
+                if (getActivity() instanceof MainActivity) {
+                    ((MainActivity) getActivity()).navigateToFragment(targetFragmentOnSuccess);
+                }
+                return;
+            }
 
             if (Globals.getInstance().ispLogoutPoNarocilu()) {
                 if (Globals.getInstance().ispLogout() && getActivity() instanceof MainActivity) {
@@ -1179,6 +1446,67 @@ public class NarocilaFragment extends Fragment {
         enableEkran();
         String msg = (e != null && e.getMessage() != null) ? e.getMessage() : "Neznana napaka";
         Toast.makeText(requireContext(), "Napaka pri oddaji naročila: " + msg, Toast.LENGTH_LONG).show();
+    }
+
+    private void odpriEditPozicijeDialog(NarociloItem item) {
+        if (item == null || currentRacun == null || currentRacun.getRacPozic() == null) return;
+
+        if (currentRacun.isPlacan()) {
+            Toast.makeText(requireContext(), "Račun je že plačan! Urejanje ni dovoljeno.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        PozicijaTp targetPoz = null;
+        List<PozicijaTp> paketPozicije = null;
+        boolean isPaket = (item.getPaketDistinct() > 0);
+
+        if (isPaket) {
+            paketPozicije = new ArrayList<>();
+            for (PozicijaTp p : currentRacun.getRacPozic()) {
+                if (p != null && !p.isRowDeleted() && p.getPaketDistinct() != null && p.getPaketDistinct() == item.getPaketDistinct()) {
+                    paketPozicije.add(p);
+                    if (targetPoz == null) {
+                        targetPoz = p;
+                    }
+                }
+            }
+        } else {
+            for (PozicijaTp p : currentRacun.getRacPozic()) {
+                if (p != null && !p.isRowDeleted()) {
+                    if (item.getPozicijaId() != 0 && p.getPozicijaId() == item.getPozicijaId()) {
+                        targetPoz = p;
+                        break;
+                    } else if (item.getNivo4Id() > 0 && p.getNivo4Id() != null && p.getNivo4Id() == item.getNivo4Id()) {
+                        targetPoz = p;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (targetPoz == null) {
+            Toast.makeText(requireContext(), "Postavka ni najdena v računu.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        RacpozicEditDialog.show(requireContext(), targetPoz, isPaket, paketPozicije, new RacpozicEditDialog.OnItemEditedListener() {
+            @Override
+            public void onItemUpdated() {
+                hasUnsavedChanges = true;
+                populateOrderItemsFromCurrentRacun();
+                updateOrderSummary();
+            }
+
+            @Override
+            public void onItemDeleted() {
+                hasUnsavedChanges = true;
+                populateOrderItemsFromCurrentRacun();
+                updateOrderSummary();
+            }
+
+            @Override
+            public void onCancelled() {}
+        });
     }
 
     @Override

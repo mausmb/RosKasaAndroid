@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#1E272C">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Naziv artikla -->
+        <TextView
+            android:id="@+id/tvEditNaziv"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="NAZIV ARTIKLA"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:paddingBottom="4dp" />
+
+        <!-- Osnovna cena -->
+        <TextView
+            android:id="@+id/tvEditCena"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Cena: 0,00 €"
+            android:textColor="#AAAAAA"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:paddingBottom="12dp" />
+
+        <!-- Količina z gumboma -1 in +1 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="KOLIČINA"
+            android:textColor="#90CAF9"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="12dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSub1"
+                style="@style/PosButtonStyle"
+                android:layout_width="56dp"
+                android:layout_height="48dp"
+                android:text="-1"
+                android:textSize="16sp"
+                android:backgroundTint="#37474F" />
+
+            <EditText
+                android:id="@+id/etKolicina"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="#101820"
+                android:textColor="#00FF66"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:inputType="numberDecimal"
+                android:hint="1,0"
+                android:textColorHint="#555555" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAdd1"
+                style="@style/PosButtonStyle"
+                android:layout_width="56dp"
+                android:layout_height="48dp"
+                android:text="+1"
+                android:textSize="16sp"
+                android:backgroundTint="#37474F" />
+        </LinearLayout>
+
+        <!-- Popust na postavko (%) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginEnd="6dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="POPUST (%)"
+                    android:textColor="#90CAF9"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/etPopustProcent"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:background="#101820"
+                    android:textColor="#FFD54F"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:inputType="numberDecimal"
+                    android:hint="0"
+                    android:textColorHint="#555555" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="6dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="POPUST (€)"
+                    android:textColor="#90CAF9"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tvPopustZnesek"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:background="#101820"
+                    android:textColor="#FFD54F"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:text="0,00 €" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Hod in Enota prodaje (EP) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginEnd="6dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="HOD"
+                    android:textColor="#90CAF9"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/etHod"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:background="#101820"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:gravity="center"
+                    android:inputType="text"
+                    android:hint="1, 2..."
+                    android:textColorHint="#555555" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="6dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ENOTA PRODAJE (EP)"
+                    android:textColor="#90CAF9"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/etEP"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:background="#101820"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:gravity="center"
+                    android:inputType="numberDecimal"
+                    android:hint="1,0"
+                    android:textColorHint="#555555" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Opomba s tipko za izbiro iz šifranta dodatkov -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="OPOMBA / DODATKI"
+            android:textColor="#90CAF9"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="14dp">
+
+            <EditText
+                android:id="@+id/etOpomba"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="#101820"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:hint="Vpis opombe..."
+                android:textColorHint="#555555" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnIzberiOpombo"
+                style="@style/PosButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:layout_marginStart="8dp"
+                android:text="OPOMBA"
+                android:textSize="12sp"
+                android:backgroundTint="@color/pos_accent_blue"
+                android:textColor="#FFFFFF" />
+        </LinearLayout>
+
+        <!-- Končni znesek postavke -->
+        <TextView
+            android:id="@+id/tvKoncniZnesek"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#101820"
+            android:padding="8dp"
+            android:text="Skupaj postavka: 0,00 €"
+            android:textColor="#00FF66"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Akcijski gumbi -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDeletePozic"
+                style="@style/PosButtonStyle"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/pos_accent_red"
+                android:text="BRIŠI"
+                android:textSize="13sp"
+                android:textColor="#FFFFFF"
+                android:layout_marginEnd="4dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCancelEdit"
+                style="@style/PosButtonStyle"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:backgroundTint="#546E7A"
+                android:text="PREKLIČI"
+                android:textSize="13sp"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnOkEdit"
+                style="@style/PosButtonStyle"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/pos_accent_green"
+                android:text="SHRANI"
+                android:textSize="13sp"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="4dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

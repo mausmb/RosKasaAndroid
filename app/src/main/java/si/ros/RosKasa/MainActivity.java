@@ -29,6 +29,7 @@ public class MainActivity extends AppCompatActivity {
         g.setHisObrat(prefs.getHisObrat());
         g.setPrinterRacuni(prefs.getPrinterRacuni());
         try { g.setMobileId(Integer.parseInt(prefs.getMobileId())); } catch (Exception ignored) {}
+        prefs.loadSavedPrinterSetup(g);
 
         // Nastavitev napak za SOAP klice v debug načinu
         RosKasaSoapClient.setErrorListener((method, errorMessage) -> {

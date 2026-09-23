@@ -19,6 +19,8 @@ import java.util.concurrent.Executors;
 
 import si.ros.RosKasa.Globals;
 
+import si.ros.RosKasa.models.CenikVrVrTp;
+import si.ros.RosKasa.models.DodatekTp;
 import si.ros.RosKasa.models.GetRacunRsTp;
 import si.ros.RosKasa.models.HitraTipkaTp;
 import si.ros.RosKasa.models.KronologijaTp;
@@ -449,6 +451,25 @@ public class RosKasaSoapClient {
                                 }
                             }
                         }
+                        if (cglSoap.hasProperty("CENIKVRVR")) {
+                            Object cvrvrObj = cglSoap.getProperty("CENIKVRVR");
+                            if (cvrvrObj instanceof SoapObject) {
+                                SoapObject cvrvrSoap = (SoapObject) cvrvrObj;
+                                int vrvrCount = cvrvrSoap.getPropertyCount();
+                                List<CenikVrVrTp> vrvrList = new ArrayList<>();
+                                for (int j = 0; j < vrvrCount; j++) {
+                                    Object vrvrObj = cvrvrSoap.getProperty(j);
+                                    if (vrvrObj instanceof SoapObject) {
+                                        CenikVrVrTp vrvrItem = parseCenikVrVrItem((SoapObject) vrvrObj);
+                                        if (vrvrItem != null) {
+                                            vrvrList.add(vrvrItem);
+                                        }
+                                    }
+                                }
+                                Globals.getInstance().setCachedCenikVrVr(vrvrList);
+                                Log.d(TAG, "Naloženih CENIKVRVR sestavin paketov: " + vrvrList.size());
+                            }
+                        }
                     }
                 }
             }
@@ -562,6 +583,131 @@ public class RosKasaSoapClient {
         }
 
         return item;
+    }
+
+    private static CenikVrVrTp parseCenikVrVrItem(SoapObject soap) {
+        if (soap == null) return null;
+        CenikVrVrTp item = new CenikVrVrTp();
+
+        String cvrNivo4Str = getPropertyStringSafe(soap, "CENIKVRNIVO4_ID");
+        if (cvrNivo4Str != null) {
+            try { item.setCenikvrnivo4Id(Integer.parseInt(cvrNivo4Str)); } catch (Exception ignored) {}
+        }
+
+        String nivo4Str = getPropertyStringSafe(soap, "NIVO4_ID");
+        if (nivo4Str != null) {
+            try { item.setNivo4Id(Integer.parseInt(nivo4Str)); } catch (Exception ignored) {}
+        }
+
+        String kolStr = getPropertyStringSafe(soap, "KOLICINA");
+        if (kolStr != null) {
+            try { item.setKolicina(Double.parseDouble(kolStr.replace(",", ".").trim())); } catch (Exception ignored) {}
+        }
+
+        String c1Str = getPropertyStringSafe(soap, "CENA1");
+        if (c1Str != null) {
+            try { item.setCena1(new BigDecimal(c1Str.replace(",", ".").trim())); } catch (Exception ignored) {}
+        }
+
+        String c2Str = getPropertyStringSafe(soap, "CENA2");
+        if (c2Str != null) {
+            try { item.setCena2(new BigDecimal(c2Str.replace(",", ".").trim())); } catch (Exception ignored) {}
+        }
+
+        String strmStr = getPropertyStringSafe(soap, "IZVOR_STRM_ID");
+        if (strmStr != null) {
+            try { item.setIzvorStrmId(Integer.parseInt(strmStr)); } catch (Exception ignored) {}
+        }
+
+        String prihStr = getPropertyStringSafe(soap, "IZVOR_PRIHODEK_ID");
+        if (prihStr != null) {
+            try { item.setIzvorPrihodekId(Integer.parseInt(prihStr)); } catch (Exception ignored) {}
+        }
+
+        String nivo1Str = getPropertyStringSafe(soap, "NIVO1_ID");
+        if (nivo1Str != null) {
+            try { item.setNivo1Id(Integer.parseInt(nivo1Str)); } catch (Exception ignored) {}
+        }
+
+        String popDaneStr = getPropertyStringSafe(soap, "POPUST_DANE");
+        if (popDaneStr != null) {
+            try { item.setPopustDane(Integer.parseInt(popDaneStr)); } catch (Exception ignored) {}
+        }
+
+        String cenikIdStr = getPropertyStringSafe(soap, "CENIK_ID");
+        if (cenikIdStr != null) {
+            try { item.setCenikId(Integer.parseInt(cenikIdStr)); } catch (Exception ignored) {}
+        }
+
+        return item;
+    }
+
+    public static List<DodatekTp> getDodatki(String serverUrl, String token) throws Exception {
+        String methodName = "getDodatki";
+        String soapAction = NAMESPACE + "/" + methodName;
+
+        SoapObject request = new SoapObject(NAMESPACE, methodName);
+        if (token != null && !token.isEmpty()) {
+            request.addProperty("token", token);
+        }
+
+        SoapSerializationEnvelope envelope = createEnvelope(request);
+        String fullEndpoint = formatEndpoint(serverUrl);
+        HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+        transport.debug = true;
+
+        List<DodatekTp> result = new ArrayList<>();
+
+        try {
+            transport.call(soapAction, envelope);
+            if (transport.requestDump != null) Log.d(TAG, methodName + " Request XML: " + transport.requestDump);
+            if (transport.responseDump != null) Log.d(TAG, methodName + " Response XML: " + transport.responseDump);
+            checkResponseFault(envelope, methodName);
+
+            SoapObject response = null;
+            if (envelope.bodyIn instanceof SoapObject) {
+                response = (SoapObject) envelope.bodyIn;
+                if (response.hasProperty("getDodatkiResult")) {
+                    Object resObj = response.getProperty("getDodatkiResult");
+                    if (resObj instanceof SoapObject) response = (SoapObject) resObj;
+                }
+            }
+
+            if (response != null && response.hasProperty("Dodatki")) {
+                Object dodatkiProp = response.getProperty("Dodatki");
+                if (dodatkiProp instanceof SoapObject) {
+                    SoapObject dodatkiSoap = (SoapObject) dodatkiProp;
+                    int count = dodatkiSoap.getPropertyCount();
+                    for (int i = 0; i < count; i++) {
+                        Object itemObj = dodatkiSoap.getProperty(i);
+                        if (itemObj instanceof SoapObject) {
+                            SoapObject dSoap = (SoapObject) itemObj;
+                            int dId = 0;
+                            String idStr = getPropertyStringSafe(dSoap, "DODATEK_ID");
+                            if (idStr != null) {
+                                try { dId = Integer.parseInt(idStr); } catch (Exception ignored) {}
+                            }
+                            String dText = getPropertyStringSafe(dSoap, "DODATEK_TEXT");
+                            if (dText != null && !dText.trim().isEmpty()) {
+                                result.add(new DodatekTp(dId, dText.trim()));
+                            }
+                        }
+                    }
+                }
+            }
+
+            Globals.getInstance().setCachedDodatki(result);
+            String opis = "Klic getDodatki -> USPEH. Naloženih dodatkov/opomb: " + result.size();
+            vpisKronologijeAsync(serverUrl, token, "", opis, 9999, 512200);
+
+        } catch (Exception e) {
+            String msg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+            Log.e(TAG, "getDodatki napaka: " + msg, e);
+            notifyError(methodName, "getDodatki napaka: " + msg);
+            throw e;
+        }
+
+        return result;
     }
 
     public static List<NacPlacTp> getNacPlac2(String serverUrl, String token, int mobileId) throws Exception {
@@ -1633,7 +1779,7 @@ public class RosKasaSoapClient {
         soap.addProperty("RowDeleted", pl.isRowDeleted());
 
         // 10. STATUS
-        soap.addProperty("STATUS", 0);
+        soap.addProperty("STATUS", pl.getStatus() != null ? pl.getStatus().toPlainString() : "0");
 
         // 11. ST_KARTICE
         if (pl.getStKartice() != null && !pl.getStKartice().isEmpty()) {
@@ -1950,6 +2096,58 @@ public class RosKasaSoapClient {
         String opisStr = getPropertyStringSafe(soap, "DODATNI_OPIS");
         if (opisStr != null) poz.setDodatniOpis(opisStr);
 
+        String cenaNabavnaStr = getPropertyStringSafe(soap, "CENA_NABAVNA");
+        if (cenaNabavnaStr != null) {
+            try {
+                cenaNabavnaStr = cenaNabavnaStr.replace(",", ".").trim();
+                poz.setCenaNabavna(new BigDecimal(cenaNabavnaStr));
+            } catch (Exception ignored) {}
+        }
+
+        String lojPopStr = getPropertyStringSafe(soap, "LOJALNOST_POPUST");
+        if (lojPopStr != null) {
+            try {
+                lojPopStr = lojPopStr.replace(",", ".").trim();
+                poz.setLojalnostPopust(new BigDecimal(lojPopStr));
+            } catch (Exception ignored) {}
+        }
+
+        String lojZnStr = getPropertyStringSafe(soap, "ZNESEK_LOJALNOST");
+        if (lojZnStr != null) {
+            try {
+                lojZnStr = lojZnStr.replace(",", ".").trim();
+                poz.setZnesekLojalnost(new BigDecimal(lojZnStr));
+            } catch (Exception ignored) {}
+        }
+
+        String paketKolStr = getPropertyStringSafe(soap, "PAKET_KOL");
+        if (paketKolStr != null) {
+            try {
+                paketKolStr = paketKolStr.replace(",", ".").trim();
+                poz.setPaketKol(new BigDecimal(paketKolStr));
+            } catch (Exception ignored) {}
+        }
+
+        String paketNivo4Str = getPropertyStringSafe(soap, "PAKET_NIVO4_ID");
+        if (paketNivo4Str != null) {
+            try { poz.setPaketNivo4Id(Integer.parseInt(paketNivo4Str)); } catch (Exception ignored) {}
+        }
+
+        String paketDistStr = getPropertyStringSafe(soap, "PAKET_DISTINCT");
+        if (paketDistStr != null) {
+            try { poz.setPaketDistinct(Integer.parseInt(paketDistStr)); } catch (Exception ignored) {}
+        }
+
+        String statusPozStr = getPropertyStringSafe(soap, "STATUS_POZ");
+        if (statusPozStr != null) {
+            try { poz.setStatusPoz(Integer.parseInt(statusPozStr)); } catch (Exception ignored) {}
+        }
+
+        String narPoslanoStr = getPropertyStringSafe(soap, "NAROCILO_POSLANO");
+        if (narPoslanoStr != null) {
+            try { poz.setNarociloPoslano(Integer.parseInt(narPoslanoStr)); } catch (Exception ignored) {}
+        }
+
         String delStr = getPropertyStringSafe(soap, "RowDeleted");
         if (delStr != null) poz.setRowDeleted("true".equalsIgnoreCase(delStr));
 
@@ -2008,11 +2206,24 @@ public class RosKasaSoapClient {
             } catch (Exception ignored) {}
         }
 
-        if ((pl.getZnesek() == null || pl.getZnesek().compareTo(BigDecimal.ZERO) == 0) && pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) > 0) {
-            pl.setZnesek(pl.getDelniZnesek());
+        String statusStr = getPropertyStringSafe(soap, "STATUS");
+        if (statusStr != null) {
+            try {
+                statusStr = statusStr.replace(",", ".").trim();
+                pl.setStatus(new BigDecimal(statusStr));
+            } catch (Exception ignored) {}
         }
-        if ((pl.getDelniZnesek() == null || pl.getDelniZnesek().compareTo(BigDecimal.ZERO) == 0) && pl.getZnesek() != null && pl.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
-            pl.setDelniZnesek(pl.getZnesek());
+
+        if (pl.getPlaciloId() != 99) {
+            if ((pl.getZnesek() == null || pl.getZnesek().compareTo(BigDecimal.ZERO) == 0) && pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) > 0) {
+                pl.setZnesek(pl.getDelniZnesek());
+            }
+            if ((pl.getDelniZnesek() == null || pl.getDelniZnesek().compareTo(BigDecimal.ZERO) == 0) && pl.getZnesek() != null && pl.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
+                pl.setDelniZnesek(pl.getZnesek());
+            }
+        } else {
+            // Popust 99: delni_znesek je vedno 0 po pravilih iz popusti.md
+            pl.setDelniZnesek(BigDecimal.ZERO);
         }
 
         String tocStr = getPropertyStringSafe(soap, "TOCILNICA_ID");

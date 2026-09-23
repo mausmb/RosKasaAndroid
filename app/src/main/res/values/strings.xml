@@ -20,6 +20,12 @@
     <string name="btn_popust">Popust</string>
     <string name="btn_izpisani_racuni">Izpisani Računi</string>
     <string name="btn_odprti_racuni">Odprti Računi</string>
+    <string name="btn_toggle_status_izpisani">Izpisani (STATUS=2)</string>
+    <string name="btn_toggle_status_odprti">Odprti (STATUS=1)</string>
+    <string name="preview_racun_title">PREDOGLED RAČUNA #%d</string>
+    <string name="preview_loading_data">Nalaganje podatkov računa s strežnika&#8230;</string>
+    <string name="preview_error_load">Računa ni bilo mogoče naložiti s strežnika.</string>
+    <string name="preview_error_read">Napaka pri branju računa: %1$s</string>
     <string name="btn_storno">Storno</string>
     <string name="btn_izpis_racuna">Izpis Računa</string>
     <string name="btn_test_tiskanja">Test tiskanja</string>

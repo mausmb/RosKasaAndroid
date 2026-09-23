@@ -55,14 +55,33 @@ public class RacunPrintBuilder {
         }
 
         int width = globals.getPrinterSteviloZnakov();
-        if (width <= 0) width = 32;
+        if (width <= 0) width = 42;
         if (width == 48) width = 42;
 
         StringBuilder preview = new StringBuilder();
         ByteArrayOutputStream printStream = new ByteArrayOutputStream();
 
-        // Inicializacija tiskalnika
-        writeEsc(printStream, globals.getEscInitPrint());
+        // Inicializacija tiskalnika (OptiPos / standard ESC/POS)
+        try {
+            // 1. ESC @ (Hardware reset)
+            printStream.write(new byte[]{0x1B, 0x40});
+
+            // 2. OptiPos UTF-8 & multi-byte init (FS & / FS C 255) - kot v Delphi FormKasaMobile.pas PrinterInitESC
+            printStream.write(new byte[]{0x1C, 0x26});
+            printStream.write(new byte[]{0x1C, 0x43, (byte) 0xFF});
+
+            // 3. Izbira standardnega Font A (12x24) in ponastavitev nacina znakov (ESC M 0, ESC ! 0)
+            printStream.write(new byte[]{0x1B, 0x4D, 0x00});
+            printStream.write(new byte[]{0x1B, 0x21, 0x00});
+        } catch (Exception ignored) {}
+
+        // 4. Custom ESC kode iz MobileSetup (ce obstajajo)
+        if (globals.getEscReset() != null && !globals.getEscReset().isEmpty()) {
+            writeEsc(printStream, globals.getEscReset());
+        }
+        if (globals.getEscInitPrint() != null && !globals.getEscInitPrint().isEmpty()) {
+            writeEsc(printStream, globals.getEscInitPrint());
+        }
 
         // 1. GLAVA PODJETJA
         String podjetje = globals.getNazivPodjetja();
@@ -74,8 +93,25 @@ public class RacunPrintBuilder {
         String ddv = globals.getDdvStevilka();
         if (ddv == null || ddv.trim().isEmpty()) ddv = "SI32355058";
 
-        // Podjetje (lahko krepko na tiskalniku)
-        writeLine(preview, printStream, podjetje, false, true, globals);
+        // Podjetje (center + dvojna sirina / krepko, kot v Delphi PrintAll.pas ESCWIDTH2XON)
+        preview.append(podjetje).append("\n");
+        writeEsc(printStream, globals.getEscAlignCenter());
+        if (globals.getEscWidth2xOn() != null && !globals.getEscWidth2xOn().isEmpty()) {
+            writeEsc(printStream, globals.getEscWidth2xOn());
+        } else {
+            writeEsc(printStream, "\u001B!\u0020"); // ESC ! 32 (double width)
+        }
+        writeEsc(printStream, globals.getEscBoldOn());
+        try {
+            printStream.write(podjetje.getBytes(StandardCharsets.UTF_8));
+            printStream.write(0x0A);
+        } catch (Exception ignored) {}
+        if (globals.getEscWidth2xOff() != null && !globals.getEscWidth2xOff().isEmpty()) {
+            writeEsc(printStream, globals.getEscWidth2xOff());
+        } else {
+            writeEsc(printStream, "\u001B!\u0000"); // Normal
+        }
+        writeEsc(printStream, globals.getEscBoldOff());
 
         if (obratPE != null && !obratPE.trim().isEmpty()) {
             writeLine(preview, printStream, obratPE.trim(), false, false, globals);
@@ -123,10 +159,27 @@ public class RacunPrintBuilder {
         String datumStr = sdfDate.format(docDate);
         String uraStr = sdfTime.format(docDate);
         if (racun.getDatum() != null && !racun.getDatum().trim().isEmpty()) {
-            datumStr = racun.getDatum().trim();
+            String raw = racun.getDatum().trim();
+            if (raw.contains("T")) {
+                String dPart = raw.substring(0, raw.indexOf("T"));
+                String[] parts = dPart.split("-");
+                if (parts.length == 3) {
+                    datumStr = parts[2] + "." + parts[1] + "." + parts[0];
+                } else {
+                    datumStr = dPart;
+                }
+            } else {
+                datumStr = raw;
+            }
         }
         if (racun.getUra() != null && !racun.getUra().trim().isEmpty()) {
-            uraStr = racun.getUra().trim();
+            String raw = racun.getUra().trim();
+            if (raw.contains("T")) {
+                uraStr = raw.substring(raw.indexOf("T") + 1);
+                if (uraStr.length() > 8) uraStr = uraStr.substring(0, 8);
+            } else {
+                uraStr = raw;
+            }
         }
         writeBlankLine(preview, printStream);
         writeLine(preview, printStream, "Datum " + datumStr + " Ura " + uraStr, false, false, globals);
@@ -171,53 +224,23 @@ public class RacunPrintBuilder {
         Map<Double, DavcnaPostavka> davkiMap = new LinkedHashMap<>();
 
         if (racun.getRacPozic() != null) {
+            java.util.Set<Integer> processedPaketi = new java.util.HashSet<>();
+
             for (PozicijaTp poz : racun.getRacPozic()) {
                 if (poz == null || poz.isRowDeleted()) continue;
 
-                int nivo4 = (poz.getNivo4Id() != null) ? poz.getNivo4Id() : 0;
-                String naziv = (poz.getNaziv() != null) ? poz.getNaziv().trim() : "";
-                if ((naziv.isEmpty() || naziv.startsWith("Artikel #")) && nivo4 > 0 && globals != null) {
-                    String lookup = globals.findNazivByNivo4Id(nivo4);
-                    if (lookup != null && !lookup.trim().isEmpty()) {
-                        naziv = lookup.trim();
-                        poz.setNaziv(naziv);
-                    }
-                }
-                if (naziv.isEmpty()) {
-                    naziv = (nivo4 > 0) ? "Artikel #" + nivo4 : "Artikel";
-                    poz.setNaziv(naziv);
-                }
-                if (naziv.length() > width) {
-                    naziv = naziv.substring(0, width);
-                }
-                writeLine(preview, printStream, naziv, false, false, globals);
+                // 1. Davcna evidenca se vedno vodi po posamezni dejanski postavki (po odbitku popustov)
+                BigDecimal zn = poz.getZnesek() != null ? poz.getZnesek() : BigDecimal.ZERO;
+                BigDecimal popVrstice = (poz.getZnesekPopust() != null ? poz.getZnesekPopust() : BigDecimal.ZERO)
+                        .add(poz.getZnesekLojalnost() != null ? poz.getZnesekLojalnost() : BigDecimal.ZERO);
+                BigDecimal znNeto = zn.subtract(popVrstice);
 
-                // Vrstica s količino, enoto, ceno in zneskom
-                // Primer: "   1,00*  1,00     4,50     4,50"
-                BigDecimal ep = poz.getEnotaProdajeId() != null ? poz.getEnotaProdajeId() : BigDecimal.ONE;
-                double kol = poz.getKolicina();
-                BigDecimal cena = poz.getCena() != null ? poz.getCena() : BigDecimal.ZERO;
-                BigDecimal zn = poz.getZnesek() != null ? poz.getZnesek() : cena.multiply(BigDecimal.valueOf(kol));
-
-                String rowLine = formatPositionRow(ep, kol, cena, zn, width);
-                writeLine(preview, printStream, rowLine, false, false, globals);
-
-                if (poz.getZnesekPopust() != null && poz.getZnesekPopust().abs().compareTo(BigDecimal.ZERO) > 0) {
-                    BigDecimal pop = poz.getZnesekPopust().abs();
-                    skupajPopust = skupajPopust.add(pop);
-                    writeLine(preview, printStream, "   Popust: -" + formatCurrency(pop), false, false, globals);
-                }
-
-                skupajZnesek = skupajZnesek.add(zn);
-
-                // Davčna evidenca
                 double stopnja = poz.getStopnjaDavka();
                 if (stopnja == 0.0 && poz.getTarifaId() != null) {
-                    // Fallback če stopnja ni bila nastavljena
                     if (poz.getTarifaId() == 1 || poz.getTarifaId() == 40) stopnja = 22.0;
                     else if (poz.getTarifaId() == 2) stopnja = 9.5;
                 }
-                if (stopnja == 0.0) stopnja = 22.0; // Privzeto 22%
+                if (stopnja == 0.0) stopnja = 22.0;
 
                 DavcnaPostavka dp = davkiMap.get(stopnja);
                 if (dp == null) {
@@ -225,9 +248,94 @@ public class RacunPrintBuilder {
                     dp.stopnja = stopnja;
                     davkiMap.put(stopnja, dp);
                 }
-                dp.znesek = dp.znesek.add(zn);
-                if (poz.getZnesekDavka() != null && poz.getZnesekDavka().compareTo(BigDecimal.ZERO) > 0) {
-                    dp.ddv = dp.ddv.add(poz.getZnesekDavka());
+                dp.znesek = dp.znesek.add(znNeto);
+
+                // 2. Tiskanje postavk: paketi (PAKET_DISTINCT > 0) se natisnejo združeno kot ena vrstica (Delphi PrintAll.pas)
+                if (poz.getPaketDistinct() != null && poz.getPaketDistinct() > 0) {
+                    int pDist = poz.getPaketDistinct();
+                    if (processedPaketi.contains(pDist)) {
+                        continue; // Ta paket je že bil natisnjen
+                    }
+                    processedPaketi.add(pDist);
+
+                    int pNivo4 = (poz.getPaketNivo4Id() != null && poz.getPaketNivo4Id() > 0) ? poz.getPaketNivo4Id() : 0;
+                    String pNaziv = (globals != null && pNivo4 > 0) ? globals.findNazivByNivo4Id(pNivo4) : "";
+                    if (pNaziv == null || pNaziv.trim().isEmpty()) {
+                        pNaziv = "Paket #" + pNivo4;
+                    }
+
+                    double pKol = (poz.getPaketKol() != null && poz.getPaketKol().compareTo(BigDecimal.ZERO) > 0)
+                            ? poz.getPaketKol().doubleValue() : 1.0;
+
+                    BigDecimal pZnesek = BigDecimal.ZERO;
+                    BigDecimal pPopust = BigDecimal.ZERO;
+
+                    for (PozicijaTp comp : racun.getRacPozic()) {
+                        if (comp != null && !comp.isRowDeleted() && comp.getPaketDistinct() != null && comp.getPaketDistinct() == pDist) {
+                            if (comp.getZnesek() != null) {
+                                pZnesek = pZnesek.add(comp.getZnesek());
+                            }
+                            if (comp.getZnesekPopust() != null && comp.getZnesekPopust().abs().compareTo(BigDecimal.ZERO) > 0) {
+                                pPopust = pPopust.add(comp.getZnesekPopust().abs());
+                            }
+                            if (comp.getZnesekLojalnost() != null && comp.getZnesekLojalnost().abs().compareTo(BigDecimal.ZERO) > 0) {
+                                pPopust = pPopust.add(comp.getZnesekLojalnost().abs());
+                            }
+                        }
+                    }
+
+                    BigDecimal pCena = pKol > 0
+                            ? pZnesek.add(pPopust).divide(BigDecimal.valueOf(pKol), 2, RoundingMode.HALF_UP)
+                            : pZnesek;
+
+                    if (pNaziv.length() > width) {
+                        pNaziv = pNaziv.substring(0, width);
+                    }
+                    writeLine(preview, printStream, pNaziv, false, false, globals);
+
+                    String pLine = formatPositionRow(BigDecimal.ONE, pKol, pCena, pZnesek, width);
+                    writeLine(preview, printStream, pLine, false, false, globals);
+
+                    if (pPopust.compareTo(BigDecimal.ZERO) > 0) {
+                        skupajPopust = skupajPopust.add(pPopust);
+                        writeLine(preview, printStream, "   Popust: -" + formatCurrency(pPopust), false, false, globals);
+                    }
+                    skupajZnesek = skupajZnesek.add(pZnesek);
+
+                } else {
+                    // Standardna posamezna postavka
+                    int nivo4 = (poz.getNivo4Id() != null) ? poz.getNivo4Id() : 0;
+                    String naziv = (poz.getNaziv() != null) ? poz.getNaziv().trim() : "";
+                    if ((naziv.isEmpty() || naziv.startsWith("Artikel #")) && nivo4 > 0 && globals != null) {
+                        String lookup = globals.findNazivByNivo4Id(nivo4);
+                        if (lookup != null && !lookup.trim().isEmpty()) {
+                            naziv = lookup.trim();
+                            poz.setNaziv(naziv);
+                        }
+                    }
+                    if (naziv.isEmpty()) {
+                        naziv = (nivo4 > 0) ? "Artikel #" + nivo4 : "Artikel";
+                        poz.setNaziv(naziv);
+                    }
+                    if (naziv.length() > width) {
+                        naziv = naziv.substring(0, width);
+                    }
+                    writeLine(preview, printStream, naziv, false, false, globals);
+
+                    BigDecimal ep = poz.getEnotaProdajeId() != null ? poz.getEnotaProdajeId() : BigDecimal.ONE;
+                    double kol = poz.getKolicina();
+                    BigDecimal cena = poz.getCena() != null ? poz.getCena() : BigDecimal.ZERO;
+
+                    String rowLine = formatPositionRow(ep, kol, cena, zn, width);
+                    writeLine(preview, printStream, rowLine, false, false, globals);
+
+                    if (poz.getZnesekPopust() != null && poz.getZnesekPopust().abs().compareTo(BigDecimal.ZERO) > 0) {
+                        BigDecimal pop = poz.getZnesekPopust().abs();
+                        skupajPopust = skupajPopust.add(pop);
+                        writeLine(preview, printStream, "   Popust: -" + formatCurrency(pop), false, false, globals);
+                    }
+
+                    skupajZnesek = skupajZnesek.add(zn);
                 }
             }
         }
@@ -239,18 +347,30 @@ public class RacunPrintBuilder {
             writeLine(preview, printStream, formatKeyValue("Popust", "-" + formatCurrency(skupajPopust), width), false, false, globals);
         }
 
-        // "Za plačilo" - povečano na tiskalniku
+        // "Za plačilo" - povečano na tiskalniku (Double Height font + Bold)
         String zaPlaciloVal = formatCurrency(racun.getZnesek() != null && racun.getZnesek().compareTo(BigDecimal.ZERO) > 0 ? racun.getZnesek() : skupajZnesek);
         String zaPlaciloLine = formatKeyValue("Za plačilo", zaPlaciloVal, width);
 
         // Preview: navadna vrstica
         preview.append(zaPlaciloLine).append("\n");
-        // Tiskalnik: Dvojna širina / krepko
-        writeEsc(printStream, globals.getEscWidth2xOn());
+
+        // Tiskalnik: Double Height font + Bold (enako kot v Delphi PrintAll.pas / ESC/POS)
+        writeEsc(printStream, globals.getEscAlignLeft());
         writeEsc(printStream, globals.getEscBoldOn());
-        printStream.write(zaPlaciloLine.getBytes(StandardCharsets.UTF_8), 0, zaPlaciloLine.getBytes(StandardCharsets.UTF_8).length);
-        printStream.write(0x0A);
-        writeEsc(printStream, globals.getEscWidth2xOff());
+        if (globals.getEscWidth2xOn() != null && !globals.getEscWidth2xOn().isEmpty()) {
+            writeEsc(printStream, globals.getEscWidth2xOn());
+        }
+        try {
+            // ESC ! 16 (0x1B, 0x21, 0x10) = Standard ESC/POS Double Height
+            printStream.write(new byte[]{0x1B, 0x21, 0x10});
+            printStream.write(zaPlaciloLine.getBytes(StandardCharsets.UTF_8));
+            printStream.write(0x0A);
+            // Ponastavitev nazaj na normalen font
+            printStream.write(new byte[]{0x1B, 0x21, 0x00});
+        } catch (Exception ignored) {}
+        if (globals.getEscWidth2xOff() != null && !globals.getEscWidth2xOff().isEmpty()) {
+            writeEsc(printStream, globals.getEscWidth2xOff());
+        }
         writeEsc(printStream, globals.getEscBoldOff());
 
         // 6. PLAČILA
@@ -259,9 +379,12 @@ public class RacunPrintBuilder {
         writeLine(preview, printStream, makeDashes(width), false, false, globals);
 
         boolean needsSignature = false;
+        boolean hasPrintedPayment = false;
         if (racun.getRacPlaci() != null && !racun.getRacPlaci().isEmpty()) {
             for (PlaciloTp pl : racun.getRacPlaci()) {
                 if (pl == null || pl.isRowDeleted()) continue;
+                if (pl.getPlaciloId() == 99) continue; // POPUST 99 ni plačilo, ampak popust (Delphi If dmgisorder.tblRacPlaciPLACILO_ID.AsInteger<>99)!
+
                 String plNaziv = "GOTOVINA";
                 NacPlacTp np = globals.getPlaciloById(pl.getPlaciloId());
                 if (np != null && !np.getNaziv().isEmpty()) {
@@ -271,13 +394,15 @@ public class RacunPrintBuilder {
                 }
                 BigDecimal plZn = pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) > 0 ? pl.getDelniZnesek() : pl.getZnesek();
                 writeLine(preview, printStream, formatKeyValue(plNaziv, formatCurrency(plZn), width), false, false, globals);
+                hasPrintedPayment = true;
 
                 // Če je dobavnica ali nepogodbeni kupec -> zahteva podpis
-                if (plNaziv.toUpperCase().contains("DOBAVNICA") || plNaziv.toUpperCase().contains("SOBA") || pl.getPartnerId() != null && pl.getPartnerId() > 0) {
+                if (plNaziv.toUpperCase().contains("DOBAVNICA") || plNaziv.toUpperCase().contains("SOBA") || (pl.getPartnerId() != null && pl.getPartnerId() > 0)) {
                     needsSignature = true;
                 }
             }
-        } else {
+        }
+        if (!hasPrintedPayment) {
             writeLine(preview, printStream, formatKeyValue("GOTOVINA", zaPlaciloVal, width), false, false, globals);
         }
 
@@ -293,13 +418,14 @@ public class RacunPrintBuilder {
 
         for (DavcnaPostavka dp : davkiMap.values()) {
             BigDecimal sto = BigDecimal.valueOf(dp.stopnja);
-            if (dp.ddv.compareTo(BigDecimal.ZERO) == 0 && sto.compareTo(BigDecimal.ZERO) > 0) {
-                // Izračun osnove in DDV: osnova = znesek / (1 + stopnja/100)
+            if (sto.compareTo(BigDecimal.ZERO) > 0) {
+                // Izračun osnove in DDV: osnova = round(znesek / (1 + stopnja/100), 2)
                 BigDecimal divisor = BigDecimal.ONE.add(sto.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
                 dp.osnova = dp.znesek.divide(divisor, 2, RoundingMode.HALF_UP);
                 dp.ddv = dp.znesek.subtract(dp.osnova);
             } else {
-                dp.osnova = dp.znesek.subtract(dp.ddv);
+                dp.osnova = dp.znesek;
+                dp.ddv = BigDecimal.ZERO;
             }
             writeLine(preview, printStream, formatTaxRow(dp.stopnja, dp.osnova, dp.ddv, dp.znesek, width), false, false, globals);
         }
@@ -339,12 +465,10 @@ public class RacunPrintBuilder {
 
         // 9. NOGA RAČUNA (STREGEL, ZAHVALE)
         writeBlankLine(preview, printStream);
-        String natakar = globals.getNazivStregelVasJe();
-        if (natakar == null || natakar.trim().isEmpty()) {
-            natakar = "ROS OSEBA";
+        String stregel = globals.getNazivStregelVasJe();
+        if (stregel != null && !stregel.trim().isEmpty()) {
+            writeLine(preview, printStream, stregel.trim(), false, false, globals);
         }
-        writeLine(preview, printStream, "Stregel/a vas je : " + natakar.trim(), false, false, globals);
-        writeLine(preview, printStream, "Hvala za vaš obisk !", false, false, globals);
 
         if (globals.getNazivZahvala1() != null && !globals.getNazivZahvala1().trim().isEmpty()) {
             writeLine(preview, printStream, globals.getNazivZahvala1().trim(), false, false, globals);
@@ -451,7 +575,11 @@ public class RacunPrintBuilder {
     }
 
     private static String formatTaxHeader(int width) {
-        // "Stopnja  Osnova   DDV     Znesek"
+        if (width >= 42) {
+            // Stopnja (7) + Osnova (13) + DDV (9) + Znesek (13) = 42 (enako kot Delphi PrintAll.pas)
+            return padRight("Stopnja", 7) + padLeft("Osnova", 13) + padLeft("DDV", 9) + padLeft("Znesek", 13);
+        }
+        // 32: Stopnja (8) + Osnova (8) + DDV (6) + Znesek (10)
         return padRight("Stopnja", 8) + padLeft("Osnova", 8) + padLeft("DDV", 6) + padLeft("Znesek", 10);
     }
 
@@ -461,6 +589,9 @@ public class RacunPrintBuilder {
         String dStr = formatCurrency(ddv);
         String zStr = formatCurrency(znesek);
 
+        if (width >= 42) {
+            return padLeft(sStr, 7) + padLeft(oStr, 13) + padLeft(dStr, 9) + padLeft(zStr, 13);
+        }
         return padLeft(sStr, 6) + "  " + padLeft(oStr, 8) + padLeft(dStr, 7) + padLeft(zStr, 9);
     }
 

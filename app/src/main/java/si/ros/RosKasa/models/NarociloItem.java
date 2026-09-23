@@ -16,6 +16,10 @@ public class NarociloItem {
     private int prihodkeStrmId;
     private double davekProc;
     private int dodatekId;
+    private int paketDistinct = 0;
+    private int paketNivo4Id = 0;
+    private BigDecimal znesekPopust = BigDecimal.ZERO;
+    private BigDecimal customZnesek = null;
 
     public NarociloItem(String naziv, BigDecimal cena, double kolicina) {
         this(0, naziv, cena, kolicina, 1.0, 0, 0, 0, 0, 0, 22.0, 0);
@@ -110,7 +114,27 @@ public class NarociloItem {
         return dodatekId;
     }
 
+    public int getPaketDistinct() { return paketDistinct; }
+    public void setPaketDistinct(int paketDistinct) { this.paketDistinct = paketDistinct; }
+
+    public int getPaketNivo4Id() { return paketNivo4Id; }
+    public void setPaketNivo4Id(int paketNivo4Id) { this.paketNivo4Id = paketNivo4Id; }
+
+    public BigDecimal getZnesekPopust() { return znesekPopust; }
+    public void setZnesekPopust(BigDecimal znesekPopust) { this.znesekPopust = znesekPopust; }
+
+    public void setCustomZnesek(BigDecimal customZnesek) { this.customZnesek = customZnesek; }
+
     public BigDecimal getZnesek() {
-        return cena.multiply(BigDecimal.valueOf(kolicina));
+        if (customZnesek != null) {
+            return customZnesek;
+        }
+        if (cena == null) return BigDecimal.ZERO;
+        BigDecimal base = cena.multiply(BigDecimal.valueOf(kolicina * (ep > 0 ? ep : 1.0))).setScale(2, java.math.RoundingMode.HALF_UP);
+        if (znesekPopust != null && znesekPopust.compareTo(BigDecimal.ZERO) > 0) {
+            base = base.subtract(znesekPopust);
+            if (base.compareTo(BigDecimal.ZERO) < 0) base = BigDecimal.ZERO;
+        }
+        return base;
     }
 }

@@ -22,6 +22,7 @@ public class PlaciloTp {
     private String bonId = "";
     private String kuponId = "";
     private BigDecimal napitnina = BigDecimal.ZERO;
+    private BigDecimal status = BigDecimal.ZERO;
 
     // Vgnezdeni predhodni objekt
     private PlaciloTp originalObject;
@@ -57,6 +58,7 @@ public class PlaciloTp {
         copy.bonId = this.bonId;
         copy.kuponId = this.kuponId;
         copy.napitnina = this.napitnina;
+        copy.status = this.status;
         if (this.originalObject != null) {
             copy.originalObject = this.originalObject.deepCopy();
         }
@@ -123,4 +125,7 @@ public class PlaciloTp {
 
     public Integer getPartnerId() { return partnerId; }
     public void setPartnerId(Integer partnerId) { this.partnerId = partnerId; }
+
+    public BigDecimal getStatus() { return status; }
+    public void setStatus(BigDecimal status) { this.status = status != null ? status : BigDecimal.ZERO; }
 }

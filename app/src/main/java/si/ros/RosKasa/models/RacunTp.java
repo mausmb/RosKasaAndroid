@@ -116,49 +116,75 @@ public class RacunTp {
         return copy;
     }
 
-    public void preracunajVsote() {
-        BigDecimal sumZnesek = BigDecimal.ZERO;
-        boolean hasActivePozic = false;
-        if (racPozic != null && !racPozic.isEmpty()) {
-            for (PozicijaTp p : racPozic) {
-                if (p != null && !p.isRowDeleted()) {
-                    BigDecimal pZnesek = p.getZnesek();
-                    if (pZnesek == null || pZnesek.compareTo(BigDecimal.ZERO) == 0) {
-                        if (p.getCena() != null && p.getKolicina() != 0) {
-                            pZnesek = p.getCena().multiply(BigDecimal.valueOf(p.getKolicina()));
-                            p.setZnesek(pZnesek);
-                        }
-                    }
-                    if (pZnesek != null) {
-                        sumZnesek = sumZnesek.add(pZnesek);
-                    }
-                    hasActivePozic = true;
-                }
+    /**
+     * Izracuna sumo narocila iz postavk skladno z Delphi TdmGisOrder.SumaNarocila:
+     * Vrednost := tblRacPozicZnesek - tblRacPozicZNESEK_POPUST - tblRacPozicZNESEK_LOJALNOST;
+     * Result := Result + Vrednost;
+     *
+     * To je VEDNO RACGLAVA.ZNESEK!
+     */
+    public BigDecimal izracunajSumoNarocila() {
+        if (racPozic == null || racPozic.isEmpty()) {
+            return this.znesek != null ? this.znesek : BigDecimal.ZERO;
+        }
+        BigDecimal suma = BigDecimal.ZERO;
+        boolean hasActive = false;
+        for (PozicijaTp p : racPozic) {
+            if (p != null && !p.isRowDeleted()) {
+                hasActive = true;
+                BigDecimal kol = BigDecimal.valueOf(p.getKolicina());
+                BigDecimal ep = (p.getEnotaProdajeId() != null && p.getEnotaProdajeId().compareTo(BigDecimal.ZERO) > 0)
+                        ? p.getEnotaProdajeId() : BigDecimal.ONE;
+                BigDecimal cena = p.getCena() != null ? p.getCena() : BigDecimal.ZERO;
+                BigDecimal polna = cena.multiply(kol).multiply(ep).setScale(2, java.math.RoundingMode.HALF_UP);
+
+                BigDecimal z = (p.getZnesek() != null && p.getZnesek().compareTo(BigDecimal.ZERO) > 0)
+                        ? p.getZnesek() : polna;
+                p.setZnesek(z);
+
+                BigDecimal pop = (p.getZnesekPopust() != null) ? p.getZnesekPopust().abs() : BigDecimal.ZERO;
+                BigDecimal loj = (p.getZnesekLojalnost() != null) ? p.getZnesekLojalnost().abs() : BigDecimal.ZERO;
+
+                BigDecimal vrednost = z.subtract(pop).subtract(loj);
+                suma = suma.add(vrednost);
             }
         }
-        if (hasActivePozic && sumZnesek.compareTo(BigDecimal.ZERO) > 0) {
-            this.znesek = sumZnesek;
-        } else if (this.znesek == null) {
-            this.znesek = sumZnesek;
-        }
+        return hasActive ? suma : (this.znesek != null ? this.znesek : BigDecimal.ZERO);
+    }
 
+    /**
+     * Posodobi RACGLAVA.ZNESEK iz postavk narocila (Delphi SumaNarocila).
+     */
+    public void posodobiZnesekIzNarocila() {
+        this.znesek = izracunajSumoNarocila();
+    }
+
+    public void preracunajPlacano() {
         BigDecimal sumPlacano = BigDecimal.ZERO;
-        boolean hasActivePlaci = false;
         if (racPlaci != null && !racPlaci.isEmpty()) {
             for (PlaciloTp pl : racPlaci) {
                 if (pl != null && !pl.isRowDeleted()) {
-                    BigDecimal amt = (pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) > 0)
-                            ? pl.getDelniZnesek()
-                            : (pl.getZnesek() != null ? pl.getZnesek() : BigDecimal.ZERO);
-                    sumPlacano = sumPlacano.add(amt);
-                    hasActivePlaci = true;
+                    // placilo_id == 99 is a discount, delni_znesek = 0, does not count towards placano
+                    if (pl.getPlaciloId() != 99) {
+                        BigDecimal amt = (pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) > 0)
+                                ? pl.getDelniZnesek()
+                                : (pl.getZnesek() != null ? pl.getZnesek() : BigDecimal.ZERO);
+                        sumPlacano = sumPlacano.add(amt);
+                    }
                 }
             }
         }
-        if (hasActivePlaci) {
-            this.placano = sumPlacano;
-        } else if (this.placano == null) {
-            this.placano = BigDecimal.ZERO;
+        this.placano = sumPlacano;
+    }
+
+    public void preracunajVsote() {
+        preracunajPlacano();
+        // 100% KONTROLA ZA RACGLAVA.ZNESEK:
+        // RACGLAVA.ZNESEK je VEDNO suma narocila.
+        // NIKOLI ga ne spreminjamo tukaj, ce je ze postavljen!
+        // Inicializiramo ga le, ce je se null ali 0 in imamo pozicije.
+        if (this.znesek == null || (this.znesek.compareTo(BigDecimal.ZERO) == 0 && racPozic != null && !racPozic.isEmpty())) {
+            this.znesek = izracunajSumoNarocila();
         }
     }
 
@@ -175,10 +201,10 @@ public class RacunTp {
     public String getMarker() { return marker; }
     public void setMarker(String marker) { this.marker = marker != null ? marker : ""; }
 
-    public BigDecimal getZnesek() { return znesek; }
+    public BigDecimal getZnesek() { return znesek != null ? znesek : BigDecimal.ZERO; }
     public void setZnesek(BigDecimal znesek) { this.znesek = znesek != null ? znesek : BigDecimal.ZERO; }
 
-    public BigDecimal getPlacano() { return placano; }
+    public BigDecimal getPlacano() { return placano != null ? placano : BigDecimal.ZERO; }
     public void setPlacano(BigDecimal placano) { this.placano = placano != null ? placano : BigDecimal.ZERO; }
 
     public boolean isPlacan() {

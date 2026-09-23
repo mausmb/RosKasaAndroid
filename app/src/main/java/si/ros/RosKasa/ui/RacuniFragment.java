@@ -1,5 +1,11 @@
 package si.ros.RosKasa.ui;
 
+import android.Manifest;
+import android.app.Dialog;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -8,16 +14,24 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
-import si.ros.RosKasa.Globals;
+import com.google.android.material.button.MaterialButton;
 
-import java.math.BigDecimal;
+import si.ros.RosKasa.Globals;
+import si.ros.RosKasa.R;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -29,7 +43,12 @@ import java.util.concurrent.Executors;
 import si.ros.RosKasa.AppPreferences;
 import si.ros.RosKasa.MainActivity;
 import si.ros.RosKasa.databinding.FragmentRacuniBinding;
+import si.ros.RosKasa.models.HitraTipkaTp;
+import si.ros.RosKasa.models.PozicijaTp;
 import si.ros.RosKasa.models.RacunSeznamItem;
+import si.ros.RosKasa.models.RacunTp;
+import si.ros.RosKasa.print.BluetoothPrintHelper;
+import si.ros.RosKasa.print.RacunPrintBuilder;
 import si.ros.RosKasa.soap.RosKasaSoapClient;
 
 public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnItemClickListener {
@@ -43,6 +62,15 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
 
     // Default STATUS: 1 = ODPRTI, 2 = IZPISANI
     private int currentStatusFilter = 1;
+
+    private final ActivityResultLauncher<String[]> bluetoothPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+                if (!result.containsValue(false)) {
+                    startTestPrint();
+                } else {
+                    Toast.makeText(requireContext(), "Dovoljenje za Bluetooth je obvezno za tiskanje!", Toast.LENGTH_LONG).show();
+                }
+            });
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -132,22 +160,18 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
             }
         });
 
-        binding.btnTestTiskanja.setOnClickListener(v -> {
-            checkPermissionsAndPrint();
-        });
+        binding.btnTestTiskanja.setOnClickListener(v -> checkPermissionsAndPrint());
     }
 
-    private static final int REQUEST_BT_PERMISSION_CODE = 1002;
-
     private void checkPermissionsAndPrint() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            if (androidx.core.content.ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED ||
-                androidx.core.content.ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.BLUETOOTH_SCAN) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                
-                requestPermissions(new String[]{
-                        android.Manifest.permission.BLUETOOTH_CONNECT,
-                        android.Manifest.permission.BLUETOOTH_SCAN
-                }, REQUEST_BT_PERMISSION_CODE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+
+                bluetoothPermissionLauncher.launch(new String[]{
+                        Manifest.permission.BLUETOOTH_CONNECT,
+                        Manifest.permission.BLUETOOTH_SCAN
+                });
                 return;
             }
         }
@@ -155,7 +179,7 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
     }
 
     private void startTestPrint() {
-        si.ros.RosKasa.print.BluetoothPrintHelper.printTestReceipt(requireContext(), new si.ros.RosKasa.print.BluetoothPrintHelper.OnPrintListener() {
+        BluetoothPrintHelper.printTestReceipt(requireContext(), new BluetoothPrintHelper.OnPrintListener() {
             @Override
             public void onStart() {
                 Toast.makeText(requireContext(), "Zapenjam Bluetooth tiskanje...", Toast.LENGTH_SHORT).show();
@@ -177,30 +201,11 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
         });
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_BT_PERMISSION_CODE) {
-            boolean allGranted = true;
-            for (int res : grantResults) {
-                if (res != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                    allGranted = false;
-                    break;
-                }
-            }
-            if (allGranted) {
-                startTestPrint();
-            } else {
-                Toast.makeText(requireContext(), "Dovoljenje za Bluetooth je obvezno za tiskanje!", Toast.LENGTH_LONG).show();
-            }
-        }
-    }
-
     private void updateToggleStatusButtonText() {
         if (currentStatusFilter == 1) {
-            binding.btnToggleStatus.setText("Izpisani (STATUS=2)");
+            binding.btnToggleStatus.setText(R.string.btn_toggle_status_izpisani);
         } else {
-            binding.btnToggleStatus.setText("Odprti (STATUS=1)");
+            binding.btnToggleStatus.setText(R.string.btn_toggle_status_odprti);
         }
     }
 
@@ -253,7 +258,7 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
                 mainHandler.post(() -> {
                     binding.pbLoading.setVisibility(View.GONE);
                     allItems.clear();
-                    if (result != null && !result.isEmpty()) {
+                    if (!result.isEmpty()) {
                         allItems.addAll(result);
                     }
                     applyFilters();
@@ -310,49 +315,49 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
     private void prikaziPredogledRacuna(RacunSeznamItem item) {
         if (getContext() == null) return;
 
-        android.app.Dialog dialog = new android.app.Dialog(requireContext());
-        dialog.setContentView(si.ros.RosKasa.R.layout.dialog_racun_preview);
+        Dialog dialog = new Dialog(requireContext());
+        dialog.setContentView(R.layout.dialog_racun_preview);
         if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         }
 
-        android.widget.TextView tvTitle = dialog.findViewById(si.ros.RosKasa.R.id.tvPreviewTitle);
-        android.widget.TextView tvText = dialog.findViewById(si.ros.RosKasa.R.id.tvPreviewText);
-        android.widget.ProgressBar pbLoading = dialog.findViewById(si.ros.RosKasa.R.id.pbPreviewLoading);
-        com.google.android.material.button.MaterialButton btnZapri = dialog.findViewById(si.ros.RosKasa.R.id.btnPreviewZapri);
-        com.google.android.material.button.MaterialButton btnStorno = dialog.findViewById(si.ros.RosKasa.R.id.btnPreviewStorno);
-        com.google.android.material.button.MaterialButton btnNatisni = dialog.findViewById(si.ros.RosKasa.R.id.btnPreviewNatisni);
+        TextView tvTitle = dialog.findViewById(R.id.tvPreviewTitle);
+        TextView tvText = dialog.findViewById(R.id.tvPreviewText);
+        ProgressBar pbLoading = dialog.findViewById(R.id.pbPreviewLoading);
+        MaterialButton btnZapri = dialog.findViewById(R.id.btnPreviewZapri);
+        MaterialButton btnStorno = dialog.findViewById(R.id.btnPreviewStorno);
+        MaterialButton btnNatisni = dialog.findViewById(R.id.btnPreviewNatisni);
 
-        tvTitle.setText("PREDOGLED RAČUNA #" + item.getRacunId());
-        tvText.setText("Nalaganje podatkov računa s strežnika...");
+        tvTitle.setText(getString(R.string.preview_racun_title, item.getRacunId()));
+        tvText.setText(R.string.preview_loading_data);
         pbLoading.setVisibility(View.VISIBLE);
         btnNatisni.setEnabled(false);
 
         btnZapri.setOnClickListener(v -> dialog.dismiss());
 
-        final si.ros.RosKasa.models.RacunTp[] racunHolder = new si.ros.RosKasa.models.RacunTp[1];
+        final RacunTp[] racunHolder = new RacunTp[1];
         final int[] stKopijHolder = new int[]{1};
 
         executor.execute(() -> {
             try {
-                si.ros.RosKasa.models.RacunTp r = RosKasaSoapClient.getRacun(prefs.getServerUrl(), prefs.getToken(), item.getRacunId());
+                RacunTp r = RosKasaSoapClient.getRacun(prefs.getServerUrl(), prefs.getToken(), item.getRacunId());
                 if (r != null) {
 
                     // Zagotovi, da je cenik naložen v predpomnilnik za lookup nazivov
                     if (!Globals.getInstance().hasCachedCenik()) {
                         int strmId = prefs.getHisObrat() > 0 ? prefs.getHisObrat() : 512200;
                         try {
-                            java.util.List<CenikListAdapter.CenikItem> cenik = RosKasaSoapClient.getCenik(prefs.getServerUrl(), prefs.getToken(), strmId);
-                            if (cenik != null && !cenik.isEmpty()) {
+                            List<CenikListAdapter.CenikItem> cenik = RosKasaSoapClient.getCenik(prefs.getServerUrl(), prefs.getToken(), strmId);
+                            if (!cenik.isEmpty()) {
                                 Globals.getInstance().setCachedCenik(cenik);
                             }
                         } catch (Exception ignored) {}
                     }
                     if (!Globals.getInstance().hasCachedHitreTipke() && prefs.getTipkePosId() > 0) {
                         try {
-                            java.util.List<si.ros.RosKasa.models.HitraTipkaTp> tipke = RosKasaSoapClient.getHitreTipke(prefs.getServerUrl(), prefs.getToken(), prefs.getTipkePosId());
-                            if (tipke != null && !tipke.isEmpty()) {
+                            List<HitraTipkaTp> tipke = RosKasaSoapClient.getHitreTipke(prefs.getServerUrl(), prefs.getToken(), prefs.getTipkePosId());
+                            if (!tipke.isEmpty()) {
                                 Globals.getInstance().setCachedHitreTipke(tipke);
                             }
                         } catch (Exception ignored) {}
@@ -360,7 +365,7 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
 
                     // Preveri manjkajoče nazive artiklov
                     if (r.getRacPozic() != null) {
-                        for (si.ros.RosKasa.models.PozicijaTp p : r.getRacPozic()) {
+                        for (PozicijaTp p : r.getRacPozic()) {
                             if (p != null && p.getNivo4Id() != null && p.getNivo4Id() > 0) {
                                 String lookupName = Globals.getInstance().findNazivByNivo4Id(p.getNivo4Id());
                                 if (lookupName != null && !lookupName.trim().isEmpty()) {
@@ -374,8 +379,8 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
                     int k = (r.getStKopij() != null && r.getStKopij() > 0) ? r.getStKopij() + 1 : 1;
                     stKopijHolder[0] = k;
 
-                    si.ros.RosKasa.print.RacunPrintBuilder.ReceiptResult printRes =
-                            si.ros.RosKasa.print.RacunPrintBuilder.buildReceipt(r, Globals.getInstance(), k);
+                    RacunPrintBuilder.ReceiptResult printRes =
+                            RacunPrintBuilder.buildReceipt(r, Globals.getInstance(), k);
 
                     mainHandler.post(() -> {
                         pbLoading.setVisibility(View.GONE);
@@ -385,13 +390,13 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
                 } else {
                     mainHandler.post(() -> {
                         pbLoading.setVisibility(View.GONE);
-                        tvText.setText("Računa ni bilo mogoče naložiti s strežnika.");
+                        tvText.setText(R.string.preview_error_load);
                     });
                 }
             } catch (Exception e) {
                 mainHandler.post(() -> {
                     pbLoading.setVisibility(View.GONE);
-                    tvText.setText("Napaka pri branju računa: " + e.getMessage());
+                    tvText.setText(getString(R.string.preview_error_read, e.getMessage()));
                 });
             }
         });
@@ -401,7 +406,7 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
             dialog.dismiss();
 
             Toast.makeText(requireContext(), "Tiskanje kopije računa #" + item.getRacunId() + "...", Toast.LENGTH_SHORT).show();
-            si.ros.RosKasa.print.BluetoothPrintHelper.printReceipt(requireContext(), racunHolder[0], stKopijHolder[0], new si.ros.RosKasa.print.BluetoothPrintHelper.OnPrintListener() {
+            BluetoothPrintHelper.printReceipt(requireContext(), racunHolder[0], stKopijHolder[0], new BluetoothPrintHelper.OnPrintListener() {
                 @Override
                 public void onStart() {}
 
@@ -423,12 +428,12 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
 
         btnStorno.setOnClickListener(v -> {
             dialog.dismiss();
-            new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            new AlertDialog.Builder(requireContext())
                     .setTitle("Storno računa")
                     .setMessage("Ali želite začeti postopek storna za račun #" + item.getRacunId() + "?")
-                    .setPositiveButton("Da", (d, w) -> {
-                        Toast.makeText(requireContext(), "Storno računa #" + item.getRacunId() + " se pripravlja.", Toast.LENGTH_SHORT).show();
-                    })
+                    .setPositiveButton("Da", (d, w) ->
+                            Toast.makeText(requireContext(), "Storno računa #" + item.getRacunId() + " se pripravlja.", Toast.LENGTH_SHORT).show()
+                    )
                     .setNegativeButton("Prekliči", null)
                     .show();
         });

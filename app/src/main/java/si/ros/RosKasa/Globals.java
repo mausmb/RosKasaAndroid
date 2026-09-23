@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.math.BigDecimal;
 import si.ros.RosKasa.models.MobileSetupTp;
 import si.ros.RosKasa.ui.CenikListAdapter;
 import si.ros.RosKasa.models.HitraTipkaTp;
@@ -16,6 +17,8 @@ import si.ros.RosKasa.models.RacunTp;
 import si.ros.RosKasa.models.PozicijaTp;
 import si.ros.RosKasa.models.NacPlacTp;
 import si.ros.RosKasa.models.PlaciloTp;
+import si.ros.RosKasa.models.CenikVrVrTp;
+import si.ros.RosKasa.models.DodatekTp;
 
 public class Globals {
     private static final String TAG = "Globals";
@@ -24,6 +27,8 @@ public class Globals {
     // Cache za statične šifrante (cenik in hitre tipke)
     private final List<CenikListAdapter.CenikItem> cachedCenik = new ArrayList<>();
     private final List<HitraTipkaTp> cachedHitreTipke = new ArrayList<>();
+    private final List<CenikVrVrTp> cachedCenikVrVr = new ArrayList<>();
+    private final List<DodatekTp> cachedDodatki = new ArrayList<>();
     private final Map<Integer, String> nivo4NazivLookup = new java.util.concurrent.ConcurrentHashMap<>();
 
     // Payment methods cache (getNacPlac2) in seznam dovoljenih plačilnih sredstev (MOBILE_SETUP_PLACILA)
@@ -1075,24 +1080,43 @@ public class Globals {
     }
 
     public String getEscAlignCenter() { return escAlignCenter; }
+    public void setEscAlignCenter(String val) { this.escAlignCenter = val; }
     public String getEscAlignLeft() { return escAlignLeft; }
+    public void setEscAlignLeft(String val) { this.escAlignLeft = val; }
     public String getEscAlignRight() { return escAlignRight; }
+    public void setEscAlignRight(String val) { this.escAlignRight = val; }
     public String getEscBoldOff() { return escBoldOff; }
+    public void setEscBoldOff(String val) { this.escBoldOff = val; }
     public String getEscBoldOn() { return escBoldOn; }
+    public void setEscBoldOn(String val) { this.escBoldOn = val; }
     public String getEscCpi16() { return escCpi16; }
+    public void setEscCpi16(String val) { this.escCpi16 = val; }
     public String getEscCpi20() { return escCpi20; }
+    public void setEscCpi20(String val) { this.escCpi20 = val; }
     public String getEscCut() { return escCut; }
+    public void setEscCut(String val) { this.escCut = val; }
     public String getEscEol() { return escEol; }
+    public void setEscEol(String val) { this.escEol = val; }
     public String getEscInitPrint() { return escInitPrint; }
+    public void setEscInitPrint(String val) { this.escInitPrint = val; }
     public String getEscInverseOff() { return escInverseOff; }
+    public void setEscInverseOff(String val) { this.escInverseOff = val; }
     public String getEscInverseOn() { return escInverseOn; }
+    public void setEscInverseOn(String val) { this.escInverseOn = val; }
     public String getEscNewLine() { return escNewLine; }
+    public void setEscNewLine(String val) { this.escNewLine = val; }
     public String getEscReset() { return escReset; }
+    public void setEscReset(String val) { this.escReset = val; }
     public String getEscUnderlineOff() { return escUnderlineOff; }
+    public void setEscUnderlineOff(String val) { this.escUnderlineOff = val; }
     public String getEscUnderlineOn() { return escUnderlineOn; }
+    public void setEscUnderlineOn(String val) { this.escUnderlineOn = val; }
     public String getEscWidth2xOff() { return escWidth2xOff; }
+    public void setEscWidth2xOff(String val) { this.escWidth2xOff = val; }
     public String getEscWidth2xOn() { return escWidth2xOn; }
+    public void setEscWidth2xOn(String val) { this.escWidth2xOn = val; }
     public String getEscPredal() { return escPredal; }
+    public void setEscPredal(String val) { this.escPredal = val; }
 
     public boolean isUpostevamZgorajSpodaj() { return upostevamZgorajSpodaj; }
     public boolean isCenikLokalno() { return cenikLokalno; }
@@ -1504,5 +1528,117 @@ public class Globals {
     public String getMobIniValue(String key) {
         if (key == null) return null;
         return mobIniValues.get(key.toUpperCase());
+    }
+
+    // Cache za CenikVrVr (sestavine paketov)
+    public List<CenikVrVrTp> getCachedCenikVrVr() {
+        return new ArrayList<>(cachedCenikVrVr);
+    }
+
+    public void setCachedCenikVrVr(List<CenikVrVrTp> items) {
+        cachedCenikVrVr.clear();
+        if (items != null) {
+            cachedCenikVrVr.addAll(items);
+        }
+    }
+
+    public boolean hasCachedCenikVrVr() {
+        return !cachedCenikVrVr.isEmpty();
+    }
+
+    public List<CenikVrVrTp> findCenikVrVrByPaketNivo4Id(int paketNivo4Id) {
+        List<CenikVrVrTp> res = new ArrayList<>();
+        for (CenikVrVrTp item : cachedCenikVrVr) {
+            if (item.getCenikvrnivo4Id() == paketNivo4Id) {
+                res.add(item);
+            }
+        }
+        return res;
+    }
+
+    // Cache za Dodatke (opombe naročila)
+    public List<DodatekTp> getCachedDodatki() {
+        return new ArrayList<>(cachedDodatki);
+    }
+
+    public void setCachedDodatki(List<DodatekTp> items) {
+        cachedDodatki.clear();
+        if (items != null) {
+            cachedDodatki.addAll(items);
+        }
+    }
+
+    public boolean hasCachedDodatki() {
+        return !cachedDodatki.isEmpty();
+    }
+
+    /**
+     * Razporedi popust 99 na vse aktivne postavke racuna po formuli iz Delphi PopustNaRacun.
+     */
+    public BigDecimal popustNaRacun(RacunTp racun, BigDecimal procent, BigDecimal znesek) {
+        if (racun == null || racun.getRacPozic() == null) return BigDecimal.ZERO;
+        BigDecimal skupniPopust = BigDecimal.ZERO;
+
+        for (PozicijaTp p : racun.getRacPozic()) {
+            if (p != null && !p.isRowDeleted()) {
+                BigDecimal pKol = BigDecimal.valueOf(p.getKolicina());
+                BigDecimal pEp = (p.getEnotaProdajeId() != null && p.getEnotaProdajeId().compareTo(BigDecimal.ZERO) > 0) ? p.getEnotaProdajeId() : BigDecimal.ONE;
+                BigDecimal polnaVrednost = p.getCena().multiply(pKol).multiply(pEp).setScale(2, java.math.RoundingMode.HALF_UP);
+
+                BigDecimal vrsticaPopust = BigDecimal.ZERO;
+                if (procent != null && procent.compareTo(BigDecimal.ZERO) > 0) {
+                    vrsticaPopust = polnaVrednost.multiply(procent).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                    p.setCenaNabavna(p.getCenaNabavna() != null ? p.getCenaNabavna().add(procent) : procent);
+                } else if (znesek != null && znesek.compareTo(BigDecimal.ZERO) > 0) {
+                    vrsticaPopust = znesek;
+                }
+
+                p.setZnesekPopust(vrsticaPopust);
+                // 100% KONTROLA: Za Popust 99 se ZNESEK in CENA na RACPOZIC NE spremenita!
+                // ZNESEK ostane polnaVrednost (kolicina * ep * cena), popust pa je zabelezen v ZNESEK_POPUST in CENA_NABAVNA.
+                // Glava racuna (RACGLAVA.ZNESEK) je VEDNO suma narocila in se NIKOLI ne spreminja pri popustu 99!
+                p.setZnesek(polnaVrednost);
+
+                if (p.getStopnjaDavka() > 0 && polnaVrednost.compareTo(BigDecimal.ZERO) > 0) {
+                    double davekProc = p.getStopnjaDavka();
+                    BigDecimal zd = polnaVrednost.multiply(BigDecimal.valueOf(davekProc)).divide(BigDecimal.valueOf(100.0 + davekProc), 4, java.math.RoundingMode.HALF_UP);
+                    p.setZnesekDavka(zd);
+                }
+
+                skupniPopust = skupniPopust.add(vrsticaPopust);
+            }
+        }
+
+        racun.posodobiZnesekIzNarocila();
+        racun.preracunajVsote();
+        return skupniPopust;
+    }
+
+    /**
+     * Razveljavi popust 99 na postavkah racuna (Delphi BrisiPopustNaRacun).
+     */
+    public void brisiPopustNaRacun(RacunTp racun, BigDecimal procent, BigDecimal znesek) {
+        if (racun == null || racun.getRacPozic() == null) return;
+
+        for (PozicijaTp p : racun.getRacPozic()) {
+            if (p != null && !p.isRowDeleted()) {
+                BigDecimal pKol = BigDecimal.valueOf(p.getKolicina());
+                BigDecimal pEp = (p.getEnotaProdajeId() != null && p.getEnotaProdajeId().compareTo(BigDecimal.ZERO) > 0) ? p.getEnotaProdajeId() : BigDecimal.ONE;
+                BigDecimal polnaVrednost = p.getCena().multiply(pKol).multiply(pEp).setScale(2, java.math.RoundingMode.HALF_UP);
+
+                p.setZnesekPopust(BigDecimal.ZERO);
+                p.setCenaNabavna(BigDecimal.ZERO);
+                p.setZnesek(polnaVrednost);
+
+                if (p.getStopnjaDavka() > 0 && polnaVrednost.compareTo(BigDecimal.ZERO) > 0) {
+                    double davekProc = p.getStopnjaDavka();
+                    BigDecimal zd = polnaVrednost.multiply(BigDecimal.valueOf(davekProc)).divide(BigDecimal.valueOf(100.0 + davekProc), 4, java.math.RoundingMode.HALF_UP);
+                    p.setZnesekDavka(zd);
+                }
+            }
+        }
+
+        racun.posodobiZnesekIzNarocila();
+        racun.preracunajVsote();
     }
 }

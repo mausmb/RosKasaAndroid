@@ -156,6 +156,7 @@ public class PlacilaFragment extends Fragment {
             case 6: return "VALU";
             case 7: return "mBills";
             case 8: return "GOST HOTELA";
+            case 99: return "POPUST NA RAČUN";
             case 399: return "KREDIT. KARTICA";
             default: return "PLAČILO #" + placiloId;
         }
@@ -164,6 +165,17 @@ public class PlacilaFragment extends Fragment {
     private void updatePlacilaSummary() {
         placilaAdapter.setItems(placilaItems);
 
+        BigDecimal popust99 = BigDecimal.ZERO;
+        if (currentRacun != null && currentRacun.getRacPlaci() != null) {
+            for (PlaciloTp pl : currentRacun.getRacPlaci()) {
+                if (pl != null && !pl.isRowDeleted() && pl.getPlaciloId() == 99) {
+                    if (pl.getZnesek() != null) {
+                        popust99 = popust99.add(pl.getZnesek());
+                    }
+                }
+            }
+        }
+
         BigDecimal znesekRacuna = (currentRacun != null && currentRacun.getZnesek() != null) ? currentRacun.getZnesek() : BigDecimal.ZERO;
         BigDecimal totalPlacano = (currentRacun != null && currentRacun.getPlacano() != null) ? currentRacun.getPlacano() : BigDecimal.ZERO;
 
@@ -171,13 +183,19 @@ public class PlacilaFragment extends Fragment {
                 ? currentRacun.getMarker()
                 : (activeMarker != null ? activeMarker : "");
 
-        binding.tvMizaStatus.setText(String.format(Locale.getDefault(), "M: %s  -  Zn: %.2f / Pl: %.2f", markerText, znesekRacuna, totalPlacano));
+        if (popust99.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal polnaVsota = znesekRacuna.add(popust99);
+            binding.tvMizaStatus.setText(String.format(Locale.getDefault(), "M: %s  -  Zn: %.2f (Popust: %.2f, ZaPl: %.2f / Pl: %.2f)", markerText, polnaVsota, popust99, znesekRacuna, totalPlacano));
+        } else {
+            binding.tvMizaStatus.setText(String.format(Locale.getDefault(), "M: %s  -  Zn: %.2f / Pl: %.2f", markerText, znesekRacuna, totalPlacano));
+        }
     }
 
     private BigDecimal getPreostanekZaPlacilo() {
         if (currentRacun == null) return BigDecimal.ZERO;
         currentRacun.preracunajVsote();
-        BigDecimal remaining = currentRacun.getZnesek().subtract(currentRacun.getPlacano());
+        BigDecimal zaPlacilo = currentRacun.getZnesek();
+        BigDecimal remaining = zaPlacilo.subtract(currentRacun.getPlacano());
         return remaining.compareTo(BigDecimal.ZERO) > 0 ? remaining : BigDecimal.ZERO;
     }
 
@@ -282,8 +300,8 @@ public class PlacilaFragment extends Fragment {
                         if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null && !currentRacun.getRacPlaci().isEmpty()) {
                             returned.setRacPlaci(currentRacun.getRacPlaci());
                         }
-                        // Ohrani znesek računa, če je strežniški 0
-                        if ((returned.getZnesek() == null || returned.getZnesek().compareTo(BigDecimal.ZERO) == 0) && currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
+                        // 100% KONTROLA: RACGLAVA.ZNESEK je vedno suma narocila in se NIKOLI ne spreminja ob placilih!
+                        if (currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
                             returned.setZnesek(currentRacun.getZnesek());
                         }
                         // Ohrani placano, če strežnik vrne 0 ali manj od lokalnega
@@ -438,6 +456,12 @@ public class PlacilaFragment extends Fragment {
                         mainHandler.post(() -> {
                             enableEkran();
                             if (refreshed != null) {
+                                if (currentRacun != null && currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
+                                    if (refreshed.getZnesek() == null || refreshed.getZnesek().compareTo(BigDecimal.ZERO) == 0) {
+                                        refreshed.setZnesek(currentRacun.getZnesek());
+                                    }
+                                }
+                                refreshed.preracunajVsote();
                                 currentRacun = refreshed;
                                 Globals.getInstance().setCurrentRacun(refreshed);
                                 populatePlacilaListFromCurrentRacun();
@@ -604,13 +628,19 @@ public class PlacilaFragment extends Fragment {
                     ? placiloZaBrisanje.getDelniZnesek()
                     : (placiloZaBrisanje.getZnesek() != null ? placiloZaBrisanje.getZnesek() : BigDecimal.ZERO);
 
+            String prompt = (placiloZaBrisanje.getPlaciloId() == 99)
+                    ? "Ali res želite stornirati popust na račun (" + String.format(Locale.getDefault(), "%.2f €", zn) + ")?"
+                    : "Ali res želite stornirati plačilo " + nacin + " (" + String.format(Locale.getDefault(), "%.2f €", zn) + ")?";
+
             new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                    .setTitle("Brisanje plačila")
-                    .setMessage("Ali res želite stornirati plačilo " + nacin + " (" + String.format(Locale.getDefault(), "%.2f €", zn) + ")?")
+                    .setTitle(placiloZaBrisanje.getPlaciloId() == 99 ? "Brisanje popusta" : "Brisanje plačila")
+                    .setMessage(prompt)
                     .setPositiveButton("Izbriši", (dialog, which) -> brisiPlaciloNaStrezniku(placiloZaBrisanje))
                     .setNegativeButton("Prekliči", null)
                     .show();
         });
+
+        binding.btnPopust.setOnClickListener(v -> handlePopust99Click());
 
         binding.btnIzpisRacuna.setOnClickListener(v -> handleIzpisRacuna());
     }
@@ -626,13 +656,18 @@ public class PlacilaFragment extends Fragment {
             pl.setOriginalObject(pl.deepCopy());
         }
 
+        if (pl.getPlaciloId() == 99) {
+            // Razveljavi popust 99 na postavkah računa (Delphi BrisiPopustNaRacun)
+            Globals.getInstance().brisiPopustNaRacun(currentRacun, pl.getStatus(), pl.getZnesek());
+        }
+
         BigDecimal znesekBrisanega = (pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) > 0)
                 ? pl.getDelniZnesek()
                 : (pl.getZnesek() != null ? pl.getZnesek() : BigDecimal.ZERO);
 
         pl.setRowDeleted(true);
 
-        // Sinhroniziraj RACGLAVA.PLACANO z zmanjšanim zneskom
+        // Sinhroniziraj RACGLAVA.PLACANO z zmanjšanim zneskom (za popust 99 je delni_znesek 0)
         BigDecimal novoPlacano = (currentRacun.getPlacano() != null ? currentRacun.getPlacano() : BigDecimal.ZERO).subtract(znesekBrisanega);
         if (novoPlacano.compareTo(BigDecimal.ZERO) < 0) {
             novoPlacano = BigDecimal.ZERO;
@@ -668,8 +703,8 @@ public class PlacilaFragment extends Fragment {
                         if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null && !currentRacun.getRacPlaci().isEmpty()) {
                             returned.setRacPlaci(currentRacun.getRacPlaci());
                         }
-                        // Ohrani znesek računa, če je strežniški 0
-                        if ((returned.getZnesek() == null || returned.getZnesek().compareTo(BigDecimal.ZERO) == 0) && currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
+                        // 100% KONTROLA: RACGLAVA.ZNESEK je vedno suma narocila in se NIKOLI ne spreminja ob brisanju placila!
+                        if (currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
                             returned.setZnesek(currentRacun.getZnesek());
                         }
                         if (returned.getRacPozic() != null) {
@@ -709,6 +744,176 @@ public class PlacilaFragment extends Fragment {
                     currentRacun.preracunajVsote();
                     populatePlacilaListFromCurrentRacun();
                     Toast.makeText(requireContext(), "Napaka pri brisanju plačila: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    private void handlePopust99Click() {
+        if (currentRacun == null || currentRacun.getRacPozic() == null || currentRacun.getRacPozic().isEmpty()) {
+            Toast.makeText(requireContext(), "Ni odprtega računa s postavkami za popust!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        boolean zeImaPopust = false;
+        if (currentRacun.getRacPlaci() != null) {
+            for (PlaciloTp pl : currentRacun.getRacPlaci()) {
+                if (pl != null && !pl.isRowDeleted() && pl.getPlaciloId() == 99) {
+                    zeImaPopust = true;
+                    break;
+                }
+            }
+        }
+        if (zeImaPopust) {
+            Toast.makeText(requireContext(), "Račun že ima vnesen popust (99)! Pred vnosom novega izbrišite obstoječega.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        currentRacun.preracunajVsote();
+        BigDecimal znesekRacuna = currentRacun.getZnesek();
+        if (znesekRacuna == null || znesekRacuna.compareTo(BigDecimal.ZERO) <= 0) {
+            Toast.makeText(requireContext(), "Znesek računa mora biti večji od 0!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Popust99Dialog.show(requireContext(), znesekRacuna, new Popust99Dialog.OnPopustAppliedListener() {
+            @Override
+            public void onPopustApplied(BigDecimal procent, BigDecimal znesek) {
+                applyPopust99(procent, znesek);
+            }
+
+            @Override
+            public void onCancelled() {}
+        });
+    }
+
+    private void applyPopust99(BigDecimal procent, BigDecimal znesek) {
+        if (currentRacun == null) return;
+
+        if (currentRacun.getOriginalObject() == null) {
+            currentRacun.setOriginalObject(currentRacun.deepCopy());
+        }
+
+        BigDecimal totalPopust = Globals.getInstance().popustNaRacun(currentRacun, procent, znesek);
+
+        int nextPozId = -1;
+        if (currentRacun.getRacPlaci() != null) {
+            for (PlaciloTp p : currentRacun.getRacPlaci()) {
+                if (p != null && p.getPozicijaId() <= nextPozId) {
+                    nextPozId = p.getPozicijaId() - 1;
+                }
+            }
+        }
+
+        final PlaciloTp pl = new PlaciloTp(currentRacun.getRacunId(), 99, totalPopust);
+        pl.setPlaciloId(99);
+        pl.setZnesek(totalPopust);
+        pl.setDelniZnesek(BigDecimal.ZERO); // Delphi popusti.md pravilo: delni_znesek = 0
+        pl.setStatus(procent != null ? procent : BigDecimal.ZERO);
+        pl.setPozicijaId(nextPozId);
+        pl.setVerzijaZapisa(0);
+        pl.setRowDeleted(false);
+        pl.setOriginalObject(null);
+
+        int tocId = (currentRacun.getTocilnicaId() != null && currentRacun.getTocilnicaId() > 0)
+                ? currentRacun.getTocilnicaId()
+                : (Globals.getInstance().getTocilnicaId() != null && Globals.getInstance().getTocilnicaId() > 0 ? Globals.getInstance().getTocilnicaId() : 512200);
+        pl.setTocilnicaId(tocId);
+
+        if (currentRacun.getRacPozic() != null) {
+            for (PozicijaTp p : currentRacun.getRacPozic()) {
+                if (p != null) p.setNeNarocaj(true);
+            }
+        }
+        currentRacun.setStatus(1);
+        currentRacun.setMarker(activeMarker);
+        currentRacun.setfPosId(prefs.getfPosId() > 0 ? prefs.getfPosId() : (Globals.getInstance().getfPosId() != null && Globals.getInstance().getfPosId() > 0 ? Globals.getInstance().getfPosId() : 500));
+        currentRacun.setfPoslovniProstorId(Globals.getInstance().getfPoslovniProstorId() != null && Globals.getInstance().getfPoslovniProstorId() > 0 ? Globals.getInstance().getfPoslovniProstorId() : 5000);
+        currentRacun.setTocilnicaId(tocId);
+        if (currentRacun.getKasiral() == null || currentRacun.getKasiral() <= 0) {
+            currentRacun.setKasiral(9999);
+        }
+        if (currentRacun.getTipRacuna() == null || currentRacun.getTipRacuna() <= 0) {
+            currentRacun.setTipRacuna(1);
+        }
+        if (currentRacun.getStPogrinjkov() == null || currentRacun.getStPogrinjkov() <= 0) {
+            currentRacun.setStPogrinjkov(1);
+        }
+        if (currentRacun.getStKopij() == null) {
+            currentRacun.setStKopij(0);
+        }
+
+        if (currentRacun.getRacPlaci() == null) {
+            currentRacun.setRacPlaci(new ArrayList<>());
+        }
+        currentRacun.getRacPlaci().add(pl);
+        currentRacun.preracunajVsote();
+
+        disableEkran("Knjiženje popusta na strežnik...");
+        executor.execute(() -> {
+            try {
+                String serverUrl = prefs.getServerUrl();
+                String token = prefs.getToken();
+                int mobileId = 1;
+                try { mobileId = Integer.parseInt(prefs.getMobileId()); } catch (Exception ignored) {}
+
+                GetRacunRsTp response = RosKasaSoapClient.setRacun(serverUrl, token, mobileId, currentRacun);
+
+                mainHandler.post(() -> {
+                    enableEkran();
+                    if (response != null && response.getRacGlava() != null) {
+                        RacunTp returned = response.getRacGlava();
+                        if ((returned.getRacPozic() == null || returned.getRacPozic().isEmpty()) && currentRacun.getRacPozic() != null && !currentRacun.getRacPozic().isEmpty()) {
+                            returned.setRacPozic(currentRacun.getRacPozic());
+                        }
+                        if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null && !currentRacun.getRacPlaci().isEmpty()) {
+                            returned.setRacPlaci(currentRacun.getRacPlaci());
+                        }
+                        // 100% KONTROLA: RACGLAVA.ZNESEK je vedno suma narocila in se NIKOLI ne spreminja ob popustu 99!
+                        if (currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
+                            returned.setZnesek(currentRacun.getZnesek());
+                        }
+                        if (returned.getRacPozic() != null) {
+                            for (PozicijaTp p : returned.getRacPozic()) {
+                                if (p != null && (p.getNaziv() == null || p.getNaziv().trim().isEmpty()) && p.getNivo4Id() != null && p.getNivo4Id() > 0) {
+                                    String lookupName = Globals.getInstance().findNazivByNivo4Id(p.getNivo4Id());
+                                    if (lookupName != null && !lookupName.trim().isEmpty()) {
+                                        p.setNaziv(lookupName.trim());
+                                    }
+                                }
+                            }
+                        }
+                        currentRacun = returned;
+                        currentRacun.preracunajVsote();
+                        currentRacun.setOriginalObject(currentRacun.deepCopy());
+                        Globals.getInstance().setCurrentRacun(currentRacun);
+                        prefs.setActiveRacunId(currentRacun.getRacunId());
+                        populatePlacilaListFromCurrentRacun();
+                        Toast.makeText(requireContext(), "Popust uspešno knjižen (-" + String.format(Locale.getDefault(), "%.2f €", totalPopust) + ")!", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(requireContext(), "Strežnik ni vrnil posodobljenega računa.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } catch (VersionConflictException vce) {
+                mainHandler.post(() -> {
+                    enableEkran();
+                    new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                            .setTitle("Konflikt verzije računa")
+                            .setMessage("Račun je medtem spremenil drug natakar. Podatki se bodo osvežili s strežnika.")
+                            .setPositiveButton("V redu", (dialog, which) -> loadRacunData())
+                            .setCancelable(false)
+                            .show();
+                });
+            } catch (Exception e) {
+                mainHandler.post(() -> {
+                    enableEkran();
+                    if (currentRacun != null && currentRacun.getRacPlaci() != null) {
+                        currentRacun.getRacPlaci().remove(pl);
+                        Globals.getInstance().brisiPopustNaRacun(currentRacun, procent, znesek);
+                        currentRacun.preracunajVsote();
+                    }
+                    populatePlacilaListFromCurrentRacun();
+                    Toast.makeText(requireContext(), "Napaka pri knjiženju popusta: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 });
             }
         });
@@ -781,6 +986,10 @@ public class PlacilaFragment extends Fragment {
                     }
                     if (returned.getFiskalizacija() == null && currentRacun.getFiskalizacija() != null) {
                         returned.setFiskalizacija(currentRacun.getFiskalizacija());
+                    }
+                    // 100% KONTROLA: RACGLAVA.ZNESEK je vedno suma narocila in se NIKOLI ne spreminja!
+                    if (currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
+                        returned.setZnesek(currentRacun.getZnesek());
                     }
                     racunZaTisk = returned;
                 }
