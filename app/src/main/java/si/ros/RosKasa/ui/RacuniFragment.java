@@ -146,12 +146,17 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
         });
 
         binding.btnOdjava.setOnClickListener(v -> {
+            Globals.getInstance().setTekocaOseba(null);
             if (getActivity() instanceof MainActivity) {
                 ((MainActivity) getActivity()).navigateToFragment(new LoginFragment());
             }
         });
 
         binding.btnStorno.setOnClickListener(v -> {
+            if (!Globals.getInstance().isDovoljeno(si.ros.RosKasa.models.PraviceConsts.SLahkoStorniraRacun)) {
+                Toast.makeText(requireContext(), "Nimate pravice za storno računa!", Toast.LENGTH_SHORT).show();
+                return;
+            }
             RacunSeznamItem selected = adapter.getSelectedItem();
             if (selected == null) {
                 Toast.makeText(requireContext(), "Prosim izberite račun za storno!", Toast.LENGTH_SHORT).show();
@@ -427,6 +432,10 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
         });
 
         btnStorno.setOnClickListener(v -> {
+            if (!Globals.getInstance().isDovoljeno(si.ros.RosKasa.models.PraviceConsts.SLahkoStorniraRacun)) {
+                Toast.makeText(requireContext(), "Nimate pravice za storno računa!", Toast.LENGTH_SHORT).show();
+                return;
+            }
             dialog.dismiss();
             new AlertDialog.Builder(requireContext())
                     .setTitle("Storno računa")

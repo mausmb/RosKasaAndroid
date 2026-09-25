@@ -45,13 +45,18 @@ public class PozicijaTp {
     public PozicijaTp() {}
 
     public PozicijaTp(int pozicijaId, int racunId, Integer nivo4Id, String naziv, BigDecimal cena, double kolicina) {
+        this(pozicijaId, racunId, nivo4Id, naziv, cena, kolicina, BigDecimal.ONE);
+    }
+
+    public PozicijaTp(int pozicijaId, int racunId, Integer nivo4Id, String naziv, BigDecimal cena, double kolicina, BigDecimal enotaProdajeId) {
         this.pozicijaId = pozicijaId;
         this.racunId = racunId;
         this.nivo4Id = nivo4Id;
         this.naziv = naziv != null ? naziv : "";
         this.cena = cena != null ? cena : BigDecimal.ZERO;
         this.kolicina = kolicina;
-        this.znesek = this.cena.multiply(BigDecimal.valueOf(kolicina));
+        this.enotaProdajeId = (enotaProdajeId != null && enotaProdajeId.compareTo(BigDecimal.ZERO) > 0) ? enotaProdajeId : BigDecimal.ONE;
+        recalculateZnesek();
     }
 
     public PozicijaTp deepCopy() {
@@ -133,18 +138,26 @@ public class PozicijaTp {
         }
     }
 
+    public void recalculateZnesek() {
+        if (this.cena == null) {
+            this.znesek = BigDecimal.ZERO;
+            return;
+        }
+        BigDecimal ep = (this.enotaProdajeId != null && this.enotaProdajeId.compareTo(BigDecimal.ZERO) > 0)
+                ? this.enotaProdajeId : BigDecimal.ONE;
+        this.znesek = this.cena.multiply(BigDecimal.valueOf(this.kolicina)).multiply(ep).setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
     public BigDecimal getCena() { return cena; }
     public void setCena(BigDecimal cena) {
         this.cena = cena != null ? cena : BigDecimal.ZERO;
-        this.znesek = this.cena.multiply(BigDecimal.valueOf(this.kolicina));
+        recalculateZnesek();
     }
 
     public double getKolicina() { return kolicina; }
     public void setKolicina(double kolicina) {
         this.kolicina = kolicina;
-        if (this.cena != null) {
-            this.znesek = this.cena.multiply(BigDecimal.valueOf(this.kolicina));
-        }
+        recalculateZnesek();
     }
 
     public BigDecimal getZnesek() { return znesek; }
@@ -178,7 +191,11 @@ public class PozicijaTp {
     public void setDodatniOpis(String dodatniOpis) { this.dodatniOpis = dodatniOpis != null ? dodatniOpis : ""; }
 
     public BigDecimal getEnotaProdajeId() { return enotaProdajeId; }
-    public void setEnotaProdajeId(BigDecimal enotaProdajeId) { this.enotaProdajeId = enotaProdajeId; }
+    public void setEnotaProdajeId(BigDecimal enotaProdajeId) {
+        this.enotaProdajeId = (enotaProdajeId != null && enotaProdajeId.compareTo(BigDecimal.ZERO) > 0)
+                ? enotaProdajeId : BigDecimal.ONE;
+        recalculateZnesek();
+    }
 
     public Integer getNatakarId() { return natakarId; }
     public void setNatakarId(Integer natakarId) { this.natakarId = natakarId; }

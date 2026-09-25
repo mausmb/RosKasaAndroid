@@ -138,7 +138,17 @@
             android:text="Prijava s PIN"
             android:backgroundTint="@color/pos_accent_green"
             android:textColor="#FFFFFF"
-            android:layout_marginBottom="12dp" />
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/tvNfcHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="💳  Prislonite NFC kartico za prijavo"
+            android:textColor="#80D8FF"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:layout_marginBottom="20dp" />
 
         <Button
             android:id="@+id/btnResetConfig"

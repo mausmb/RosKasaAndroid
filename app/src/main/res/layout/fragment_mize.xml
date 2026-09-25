@@ -103,21 +103,24 @@
             android:layout_columnWeight="1"
             android:layout_gravity="fill" />
 
-        <View
+        <TextView
+            android:id="@+id/tvNatakarInfo"
             android:layout_width="0dp"
             android:layout_height="50dp"
-            android:layout_columnWeight="1"
-            android:layout_gravity="fill" />
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="50dp"
-            android:layout_columnWeight="1"
-            android:layout_gravity="fill" />
+            android:layout_columnWeight="2"
+            android:layout_columnSpan="2"
+            android:layout_gravity="fill"
+            android:gravity="center_vertical|end"
+            android:paddingEnd="8dp"
+            android:text="👤 Natakar"
+            android:textColor="#FFEB3B"
+            android:textSize="13sp"
+            android:textStyle="bold" />
     </GridLayout>
 
     <!-- Sekcija Rajoni (Filter za mize) -->
     <HorizontalScrollView
+        android:id="@+id/scrollRajoni"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:scrollbars="none"
@@ -127,62 +130,7 @@
             android:id="@+id/containerRajoni"
             android:layout_width="wrap_content"
             android:layout_height="44dp"
-            android:orientation="horizontal">
-
-            <com.google.android.material.button.MaterialButton
-                style="@style/PosButtonStyle"
-                android:layout_width="72dp"
-                android:layout_height="match_parent"
-                android:backgroundTint="@color/pos_region_bg"
-                android:text="Vsi"
-                android:textColor="#000000"
-                android:textSize="12sp" />
-
-            <com.google.android.material.button.MaterialButton
-                style="@style/PosButtonStyle"
-                android:layout_width="72dp"
-                android:layout_height="match_parent"
-                android:backgroundTint="@color/pos_region_bg"
-                android:text="R 1"
-                android:textColor="#000000"
-                android:textSize="12sp" />
-
-            <com.google.android.material.button.MaterialButton
-                style="@style/PosButtonStyle"
-                android:layout_width="72dp"
-                android:layout_height="match_parent"
-                android:backgroundTint="@color/pos_region_bg"
-                android:text="R 2"
-                android:textColor="#000000"
-                android:textSize="12sp" />
-
-            <com.google.android.material.button.MaterialButton
-                style="@style/PosButtonStyle"
-                android:layout_width="72dp"
-                android:layout_height="match_parent"
-                android:backgroundTint="@color/pos_region_bg"
-                android:text="R 3"
-                android:textColor="#000000"
-                android:textSize="12sp" />
-
-            <com.google.android.material.button.MaterialButton
-                style="@style/PosButtonStyle"
-                android:layout_width="72dp"
-                android:layout_height="match_parent"
-                android:backgroundTint="@color/pos_region_bg"
-                android:text="R 4"
-                android:textColor="#000000"
-                android:textSize="12sp" />
-
-            <com.google.android.material.button.MaterialButton
-                style="@style/PosButtonStyle"
-                android:layout_width="72dp"
-                android:layout_height="match_parent"
-                android:backgroundTint="@color/pos_region_bg"
-                android:text="R 5"
-                android:textColor="#000000"
-                android:textSize="12sp" />
-        </LinearLayout>
+            android:orientation="horizontal" />
     </HorizontalScrollView>
 
     <!-- Mreža miz (Mize 1 do N) -->

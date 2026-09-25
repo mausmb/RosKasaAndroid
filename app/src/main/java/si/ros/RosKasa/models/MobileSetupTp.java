@@ -56,6 +56,11 @@ public class MobileSetupTp {
     private String escWidth2xOff;
     private String escWidth2xOn;
     private java.util.List<Integer> mobileSetupPlacila = new java.util.ArrayList<>();
+    private java.util.List<OsebaTp> osebe = new java.util.ArrayList<>();
+    private java.util.List<PrioritetaProjektaTp> prioriteteProjektov = new java.util.ArrayList<>();
+    private java.util.List<TarifaTp> tarife = new java.util.ArrayList<>();
+    private java.util.List<MizaTp> mobileSetupMize = new java.util.ArrayList<>();
+    private java.util.List<Integer> rajoniList = new java.util.ArrayList<>();
 
     public MobileSetupTp() {}
 
@@ -224,5 +229,43 @@ public class MobileSetupTp {
     public java.util.List<Integer> getMobileSetupPlacila() { return mobileSetupPlacila; }
     public void setMobileSetupPlacila(java.util.List<Integer> list) {
         this.mobileSetupPlacila = list != null ? list : new java.util.ArrayList<>();
+    }
+
+    public java.util.List<OsebaTp> getOsebe() { return osebe; }
+    public void setOsebe(java.util.List<OsebaTp> list) {
+        this.osebe = list != null ? list : new java.util.ArrayList<>();
+    }
+
+    public java.util.List<PrioritetaProjektaTp> getPrioriteteProjektov() { return prioriteteProjektov; }
+    public void setPrioriteteProjektov(java.util.List<PrioritetaProjektaTp> list) {
+        this.prioriteteProjektov = list != null ? list : new java.util.ArrayList<>();
+    }
+
+    public java.util.List<TarifaTp> getTarife() { return tarife; }
+    public void setTarife(java.util.List<TarifaTp> list) {
+        this.tarife = list != null ? list : new java.util.ArrayList<>();
+    }
+
+    public java.util.List<MizaTp> getMobileSetupMize() { return mobileSetupMize; }
+    public void setMobileSetupMize(java.util.List<MizaTp> list) {
+        this.mobileSetupMize = list != null ? list : new java.util.ArrayList<>();
+        posodobiRajone();
+    }
+
+    public java.util.List<Integer> getRajoniList() { return rajoniList; }
+    public void setRajoniList(java.util.List<Integer> list) {
+        this.rajoniList = list != null ? list : new java.util.ArrayList<>();
+    }
+
+    public void posodobiRajone() {
+        java.util.Set<Integer> unique = new java.util.TreeSet<>();
+        if (mobileSetupMize != null) {
+            for (MizaTp m : mobileSetupMize) {
+                if (m.getRajon() != null && m.getRajon() > 0) {
+                    unique.add(m.getRajon());
+                }
+            }
+        }
+        this.rajoniList = new java.util.ArrayList<>(unique);
     }
 }

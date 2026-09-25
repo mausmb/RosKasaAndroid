@@ -268,19 +268,20 @@ public class RacpozicEditDialog {
                                 ? p.getEnotaProdajeId().doubleValue() : 1.0;
                         BigDecimal pPolna = p.getCena().multiply(BigDecimal.valueOf(p.getKolicina() * pEp)).setScale(2, RoundingMode.HALF_UP);
 
+                        BigDecimal pPop = BigDecimal.ZERO;
                         if (novPopProc.compareTo(BigDecimal.ZERO) > 0) {
-                            BigDecimal pPop = pPolna.multiply(novPopProc).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                            pPop = pPolna.multiply(novPopProc).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
                             p.setCenaNabavna(novPopProc);
                             p.setZnesekPopust(pPop);
-                            p.setZnesek(pPolna.subtract(pPop));
                         } else {
                             p.setCenaNabavna(BigDecimal.ZERO);
                             p.setZnesekPopust(BigDecimal.ZERO);
-                            p.setZnesek(pPolna);
                         }
+                        p.setZnesek(pPolna);
 
-                        if (p.getStopnjaDavka() > 0 && p.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
-                            BigDecimal zd = p.getZnesek().multiply(BigDecimal.valueOf(p.getStopnjaDavka()))
+                        BigDecimal pNeto = pPolna.subtract(pPop);
+                        if (p.getStopnjaDavka() > 0 && pNeto.compareTo(BigDecimal.ZERO) > 0) {
+                            BigDecimal zd = pNeto.multiply(BigDecimal.valueOf(p.getStopnjaDavka()))
                                     .divide(BigDecimal.valueOf(100.0 + p.getStopnjaDavka()), 4, RoundingMode.HALF_UP);
                             p.setZnesekDavka(zd);
                         }
@@ -293,19 +294,20 @@ public class RacpozicEditDialog {
                     poz.setDodatniOpis(novaOpomba);
 
                     BigDecimal polna = poz.getCena().multiply(BigDecimal.valueOf(novaKol * novEP)).setScale(2, RoundingMode.HALF_UP);
+                    BigDecimal popZ = BigDecimal.ZERO;
                     if (novPopProc.compareTo(BigDecimal.ZERO) > 0) {
-                        BigDecimal popZ = polna.multiply(novPopProc).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                        popZ = polna.multiply(novPopProc).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
                         poz.setCenaNabavna(novPopProc);
                         poz.setZnesekPopust(popZ);
-                        poz.setZnesek(polna.subtract(popZ));
                     } else {
                         poz.setCenaNabavna(BigDecimal.ZERO);
                         poz.setZnesekPopust(BigDecimal.ZERO);
-                        poz.setZnesek(polna);
                     }
+                    poz.setZnesek(polna);
 
-                    if (poz.getStopnjaDavka() > 0 && poz.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
-                        BigDecimal zd = poz.getZnesek().multiply(BigDecimal.valueOf(poz.getStopnjaDavka()))
+                    BigDecimal neto = polna.subtract(popZ);
+                    if (poz.getStopnjaDavka() > 0 && neto.compareTo(BigDecimal.ZERO) > 0) {
+                        BigDecimal zd = neto.multiply(BigDecimal.valueOf(poz.getStopnjaDavka()))
                                 .divide(BigDecimal.valueOf(100.0 + poz.getStopnjaDavka()), 4, RoundingMode.HALF_UP);
                         poz.setZnesekDavka(zd);
                     }

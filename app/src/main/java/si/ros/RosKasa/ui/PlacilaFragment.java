@@ -220,8 +220,8 @@ public class PlacilaFragment extends Fragment {
 
         final PlaciloTp pl = new PlaciloTp(currentRacun.getRacunId(), placiloId, znesek);
         pl.setPlaciloId(placiloId);
-        pl.setZnesek(znesek);
         pl.setDelniZnesek(znesek);
+        pl.setZnesek(BigDecimal.ZERO);
 
         int nextPozId = -1;
         if (currentRacun.getRacPlaci() != null) {
@@ -597,6 +597,7 @@ public class PlacilaFragment extends Fragment {
         });
 
         binding.btnOdjava.setOnClickListener(v -> {
+            Globals.getInstance().setTekocaOseba(null);
             if (getActivity() instanceof MainActivity) {
                 ((MainActivity) getActivity()).navigateToFragment(new LoginFragment());
             }

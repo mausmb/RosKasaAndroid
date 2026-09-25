@@ -40,9 +40,11 @@ public class AppPreferences {
     private static final String KEY_NAZIV_ZAHVALA_4 = "naziv_zahvala_4";
 
     private final SharedPreferences prefs;
+    private final Context context;
 
     public AppPreferences(Context context) {
-        prefs = context.getApplicationContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        this.context = context.getApplicationContext();
+        prefs = this.context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
 
     public void saveRegistration(String serverUrl, String mobileId, String token, String naziv) {
@@ -102,10 +104,17 @@ public class AppPreferences {
         try { mobId = Integer.parseInt(getMobileId()); } catch (Exception ignored) {}
         Globals.getInstance().loadFromMobileSetup(setup, mobId);
 
+        // Shrani šifrante tudi lokalno v JSON datoteko
+        si.ros.RosKasa.cache.LocalCacheManager.saveSifranti(context, setup);
+
         String savedPrinter = getPrinterRacuni();
         if ((Globals.getInstance().getPrinterRacuni() == null || Globals.getInstance().getPrinterRacuni().isEmpty()) && !savedPrinter.isEmpty()) {
             Globals.getInstance().setPrinterRacuni(savedPrinter);
         }
+    }
+
+    public boolean loadSavedSifranti() {
+        return si.ros.RosKasa.cache.LocalCacheManager.loadSifrantiIfValid(context);
     }
 
     public void loadSavedPrinterSetup(Globals g) {

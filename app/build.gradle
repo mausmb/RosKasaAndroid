@@ -2,6 +2,10 @@ plugins {
     id 'com.android.application'
 }
 
+base {
+    archivesName.set("RosKasa")
+}
+
 android {
     namespace 'si.ros.RosKasa'
     compileSdk 34

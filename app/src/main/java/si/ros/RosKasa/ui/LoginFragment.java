@@ -21,6 +21,9 @@ import si.ros.RosKasa.MainActivity;
 import si.ros.RosKasa.databinding.FragmentLoginBinding;
 import si.ros.RosKasa.models.MobileSetupTp;
 import si.ros.RosKasa.models.OsebaTokenResult;
+import si.ros.RosKasa.models.OsebaTp;
+import si.ros.RosKasa.models.PraviceConsts;
+import si.ros.RosKasa.nfc.NfcHelper;
 import si.ros.RosKasa.soap.RosKasaSoapClient;
 
 public class LoginFragment extends Fragment {
@@ -45,8 +48,29 @@ public class LoginFragment extends Fragment {
 
         updateUiMode();
 
+        if (prefs.isRegistered()) {
+            if (Globals.getInstance().getCachedOsebje().isEmpty()) {
+                prefs.loadSavedSifranti();
+            }
+            if (Globals.getInstance().getCachedOsebje().isEmpty()) {
+                executor.execute(() -> {
+                    try {
+                        int mId = 1;
+                        try { mId = Integer.parseInt(prefs.getMobileId()); } catch (Exception ignored) {}
+                        MobileSetupTp setup = RosKasaSoapClient.getAppConfig(prefs.getServerUrl(), prefs.getToken(), mId);
+                        prefs.saveMobileSetup(setup);
+                    } catch (Exception ignored) {}
+                });
+            }
+        }
+
         binding.btnRegister.setOnClickListener(v -> handleRegistration());
         binding.btnLoginPin.setOnClickListener(v -> handlePinLogin());
+        binding.etPinCode.setOnEditorActionListener((v, actionId, event) -> {
+            handlePinLogin();
+            return true;
+        });
+
         binding.btnResetConfig.setOnClickListener(v -> {
             prefs.clearAll();
             updateUiMode();
@@ -58,6 +82,9 @@ public class LoginFragment extends Fragment {
         if (prefs.isRegistered()) {
             binding.containerFirstRun.setVisibility(View.GONE);
             binding.containerRegularLogin.setVisibility(View.VISIBLE);
+            binding.etPinCode.post(() -> {
+                if (binding != null) binding.etPinCode.requestFocus();
+            });
         } else {
             binding.containerFirstRun.setVisibility(View.VISIBLE);
             binding.containerRegularLogin.setVisibility(View.GONE);
@@ -84,10 +111,19 @@ public class LoginFragment extends Fragment {
                 if (result.isSuccess()) {
                     prefs.saveDeviceInfo(url, mobileId, result.getToken());
 
+                    int mId = 1;
+                    try { mId = Integer.parseInt(mobileId); } catch (Exception ignored) {}
+
+                    // Delphi: Odgovor := R16K.Servis.aktivirajMobile(StrToInt(edMobileId.text), Token);
+                    // Strežnik s tem postavi mobile.aktivnost na 'D'
+                    try {
+                        RosKasaSoapClient.aktivirajMobile(url, mId, result.getToken());
+                    } catch (Exception aktEx) {
+                        android.util.Log.w("LoginFragment", "aktivirajMobile opozorilo: " + aktEx.getMessage());
+                    }
+
                     // Pridobi še zagonske nastavitve strežnika (MobileSetup)
                     try {
-                        int mId = 1;
-                        try { mId = Integer.parseInt(mobileId); } catch (Exception ignored) {}
                         MobileSetupTp setup = RosKasaSoapClient.getAppConfig(url, result.getToken(), mId);
                         prefs.saveMobileSetup(setup);
                     } catch (Exception setupEx) {
@@ -117,6 +153,54 @@ public class LoginFragment extends Fragment {
         });
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (getActivity() instanceof MainActivity) {
+            ((MainActivity) getActivity()).setOnNfcTagReadListener(cardInfo -> {
+                mainHandler.post(() -> handleNfcLogin(cardInfo));
+            });
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (getActivity() instanceof MainActivity) {
+            ((MainActivity) getActivity()).setOnNfcTagReadListener(null);
+        }
+    }
+
+    private void handleNfcLogin(NfcHelper.NfcCardInfo cardInfo) {
+        if (cardInfo == null) return;
+        android.util.Log.d("LoginFragment", "NFC kartica zaznana: " + cardInfo);
+
+        Globals g = Globals.getInstance();
+        if (g.getCachedOsebje().isEmpty()) {
+            prefs.loadSavedSifranti();
+        }
+
+        // Poskusi najti osebo po standardni decimalni in hex obliki
+        OsebaTp oseba = g.najdiOseboZaKartico(cardInfo.decimalId);
+        if (oseba == null) {
+            oseba = g.najdiOseboZaKartico(cardInfo.hexId);
+        }
+        // Poskusi še z obrnjenim vrstnim redom bajtov (Little Endian)
+        if (oseba == null && cardInfo.reversedDecimalId != null && !cardInfo.reversedDecimalId.isEmpty()) {
+            oseba = g.najdiOseboZaKartico(cardInfo.reversedDecimalId);
+        }
+        if (oseba == null && cardInfo.reversedHexId != null && !cardInfo.reversedHexId.isEmpty()) {
+            oseba = g.najdiOseboZaKartico(cardInfo.reversedHexId);
+        }
+
+        if (oseba == null) {
+            Toast.makeText(requireContext(), "Neznana RFID / NFC kartica (HEX: " + cardInfo.hexId + " / DEC: " + cardInfo.decimalId + ")", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        potrdiPrijavoOsebe(oseba);
+    }
+
     private void handlePinLogin() {
         String pin = binding.etPinCode.getText().toString().trim();
         if (pin.isEmpty()) {
@@ -124,12 +208,44 @@ public class LoginFragment extends Fragment {
             return;
         }
 
+        Globals g = Globals.getInstance();
+        if (g.getCachedOsebje().isEmpty()) {
+            prefs.loadSavedSifranti();
+        }
+
+        OsebaTp oseba = g.najdiOseboZaPin(pin);
+        if (oseba == null) {
+            binding.etPinCode.setText("");
+            Toast.makeText(requireContext(), "Napačna PIN koda!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        binding.etPinCode.setText("");
+        potrdiPrijavoOsebe(oseba);
+    }
+
+    private void potrdiPrijavoOsebe(OsebaTp oseba) {
+        Globals g = Globals.getInstance();
+        if (g.ispCheckPinPotekel() && oseba.isPinPotekel()) {
+            Toast.makeText(requireContext(), "PIN kodi je potekel datum veljavnosti!", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        if (!g.osebiDovoljeno(oseba.getOsebaId(), PraviceConsts.SLahkoDelaSKaso)) {
+            Toast.makeText(requireContext(), "Oseba '" + oseba.getNaziv() + "' nima pravice za delo s kaso!", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        g.setTekocaOseba(oseba);
+        Toast.makeText(requireContext(), "Prijava uspešna: " + oseba.getNaziv(), Toast.LENGTH_SHORT).show();
+
         // Osveži nastavitve in naloži plačila ter cenik v ozadju
         if (prefs.isRegistered()) {
             executor.execute(() -> {
                 try {
                     int mId = 1;
                     try { mId = Integer.parseInt(prefs.getMobileId()); } catch (Exception ignored) {}
+
                     MobileSetupTp setup = RosKasaSoapClient.getAppConfig(prefs.getServerUrl(), prefs.getToken(), mId);
                     prefs.saveMobileSetup(setup);
 

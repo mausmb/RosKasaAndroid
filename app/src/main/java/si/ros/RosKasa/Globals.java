@@ -19,6 +19,10 @@ import si.ros.RosKasa.models.NacPlacTp;
 import si.ros.RosKasa.models.PlaciloTp;
 import si.ros.RosKasa.models.CenikVrVrTp;
 import si.ros.RosKasa.models.DodatekTp;
+import si.ros.RosKasa.models.MizaTp;
+import si.ros.RosKasa.models.OsebaTp;
+import si.ros.RosKasa.models.PrioritetaProjektaTp;
+import si.ros.RosKasa.models.TarifaTp;
 
 public class Globals {
     private static final String TAG = "Globals";
@@ -30,6 +34,20 @@ public class Globals {
     private final List<CenikVrVrTp> cachedCenikVrVr = new ArrayList<>();
     private final List<DodatekTp> cachedDodatki = new ArrayList<>();
     private final Map<Integer, String> nivo4NazivLookup = new java.util.concurrent.ConcurrentHashMap<>();
+
+    // Šifranti iz MobileSetup
+    private final List<OsebaTp> cachedOsebje = new ArrayList<>();
+    private final List<PrioritetaProjektaTp> cachedPrioritete = new ArrayList<>();
+    private final List<TarifaTp> cachedTarife = new ArrayList<>();
+    private final List<MizaTp> cachedMize = new ArrayList<>();
+    private final List<Integer> cachedRajoni = new ArrayList<>();
+
+    // Trenutno prijavljena oseba (natakar)
+    private OsebaTp tekocaOseba;
+    private int tekocaOsebaId = 0;
+    private String tekocaOsebaNaziv = "";
+    private int vlogaOsebe = 1;
+    private int maxPopOseba = 0;
 
     // Payment methods cache (getNacPlac2) in seznam dovoljenih plačilnih sredstev (MOBILE_SETUP_PLACILA)
     private final List<NacPlacTp> cachedPlacila = new ArrayList<>();
@@ -427,6 +445,28 @@ public class Globals {
         if (setup.getMobileSetupPlacila() != null && !setup.getMobileSetupPlacila().isEmpty()) {
             this.placilnaSredstva.clear();
             this.placilnaSredstva.addAll(setup.getMobileSetupPlacila());
+        }
+
+        if (setup.getOsebe() != null && !setup.getOsebe().isEmpty()) {
+            this.cachedOsebje.clear();
+            this.cachedOsebje.addAll(setup.getOsebe());
+        }
+
+        if (setup.getPrioriteteProjektov() != null && !setup.getPrioriteteProjektov().isEmpty()) {
+            this.cachedPrioritete.clear();
+            this.cachedPrioritete.addAll(setup.getPrioriteteProjektov());
+        }
+
+        if (setup.getTarife() != null && !setup.getTarife().isEmpty()) {
+            this.cachedTarife.clear();
+            this.cachedTarife.addAll(setup.getTarife());
+        }
+
+        if (setup.getMobileSetupMize() != null && !setup.getMobileSetupMize().isEmpty()) {
+            this.cachedMize.clear();
+            this.cachedMize.addAll(setup.getMobileSetupMize());
+            this.cachedRajoni.clear();
+            this.cachedRajoni.addAll(setup.getRajoniList());
         }
 
         // Sequential reading of MOBINI: MOBINI0 -> MOBINI -> MOBINI2
@@ -1640,5 +1680,180 @@ public class Globals {
 
         racun.posodobiZnesekIzNarocila();
         racun.preracunajVsote();
+    }
+
+    public synchronized List<OsebaTp> getCachedOsebje() {
+        return new ArrayList<>(cachedOsebje);
+    }
+
+    public synchronized List<PrioritetaProjektaTp> getCachedPrioritete() {
+        return new ArrayList<>(cachedPrioritete);
+    }
+
+    public synchronized List<TarifaTp> getCachedTarife() {
+        return new ArrayList<>(cachedTarife);
+    }
+
+    public synchronized List<MizaTp> getCachedMize() {
+        return new ArrayList<>(cachedMize);
+    }
+
+    public synchronized List<Integer> getCachedRajoni() {
+        return new ArrayList<>(cachedRajoni);
+    }
+
+    public synchronized void setCachedSifranti(List<OsebaTp> osebe, List<PrioritetaProjektaTp> prioritete, List<TarifaTp> tarife, List<MizaTp> mize) {
+        if (osebe != null) {
+            this.cachedOsebje.clear();
+            this.cachedOsebje.addAll(osebe);
+        }
+        if (prioritete != null) {
+            this.cachedPrioritete.clear();
+            this.cachedPrioritete.addAll(prioritete);
+        }
+        if (tarife != null) {
+            this.cachedTarife.clear();
+            this.cachedTarife.addAll(tarife);
+        }
+        if (mize != null) {
+            this.cachedMize.clear();
+            this.cachedMize.addAll(mize);
+            java.util.Set<Integer> unique = new java.util.TreeSet<>();
+            for (MizaTp m : mize) {
+                if (m.getRajon() != null && m.getRajon() > 0) unique.add(m.getRajon());
+            }
+            this.cachedRajoni.clear();
+            this.cachedRajoni.addAll(unique);
+        }
+    }
+
+    public synchronized OsebaTp getTekocaOseba() {
+        return tekocaOseba;
+    }
+
+    public synchronized int getTekocaOsebaId() {
+        return tekocaOsebaId;
+    }
+
+    public synchronized String getTekocaOsebaNaziv() {
+        return tekocaOsebaNaziv != null ? tekocaOsebaNaziv : "";
+    }
+
+    public synchronized int getVlogaOsebe() {
+        return vlogaOsebe;
+    }
+
+    public synchronized int getMaxPopOseba() {
+        return maxPopOseba;
+    }
+
+    public synchronized void setTekocaOseba(OsebaTp oseba) {
+        this.tekocaOseba = oseba;
+        if (oseba != null) {
+            this.tekocaOsebaId = oseba.getOsebaId();
+            this.tekocaOsebaNaziv = oseba.getNaziv();
+            this.vlogaOsebe = oseba.getVlogaOsebe();
+            this.maxPopOseba = (oseba.getPrioriteta() != null) ? oseba.getPrioriteta() : 0;
+        } else {
+            this.tekocaOsebaId = 0;
+            this.tekocaOsebaNaziv = "";
+            this.vlogaOsebe = 1;
+            this.maxPopOseba = 0;
+        }
+    }
+
+    public synchronized OsebaTp najdiOseboZaPin(String pin) {
+        if (pin == null || pin.trim().isEmpty()) return null;
+        String trimmed = pin.trim();
+        for (OsebaTp o : cachedOsebje) {
+            if (o.getPin() != null && trimmed.equals(o.getPin().trim())) {
+                return o;
+            }
+        }
+        return null;
+    }
+
+    public synchronized OsebaTp najdiOseboZaKartico(String cardCode) {
+        if (cardCode == null || cardCode.trim().isEmpty()) return null;
+        for (OsebaTp o : cachedOsebje) {
+            if (o.ujemaSeKartica(cardCode)) {
+                return o;
+            }
+        }
+        return null;
+    }
+
+    public synchronized OsebaTp najdiOseboById(int osebaId) {
+        if (osebaId <= 0) return null;
+        for (OsebaTp o : cachedOsebje) {
+            if (o.getOsebaId() == osebaId) {
+                return o;
+            }
+        }
+        return null;
+    }
+
+    public synchronized TarifaTp najdiTarifoZaId(int tarifaId) {
+        for (TarifaTp t : cachedTarife) {
+            if (t.getTarifaId() == tarifaId) {
+                return t;
+            }
+        }
+        return null;
+    }
+
+    public synchronized MizaTp najdiMizoZaNaziv(String naziv) {
+        if (naziv == null || naziv.trim().isEmpty()) return null;
+        String trimmed = naziv.trim();
+        for (MizaTp m : cachedMize) {
+            if (trimmed.equalsIgnoreCase(m.getNaziv())) {
+                return m;
+            }
+        }
+        return null;
+    }
+
+    public synchronized boolean osebiDovoljeno(int osebaId, String pravicaCaption) {
+        if (pravicaCaption == null || pravicaCaption.trim().isEmpty()) return false;
+        OsebaTp oseba = null;
+        if (tekocaOseba != null && tekocaOseba.getOsebaId() == osebaId) {
+            oseba = tekocaOseba;
+        } else {
+            for (OsebaTp o : cachedOsebje) {
+                if (o.getOsebaId() == osebaId) {
+                    oseba = o;
+                    break;
+                }
+            }
+        }
+        if (oseba == null) return false;
+
+        // Admin ima vse pravice
+        if ("XXL".equalsIgnoreCase(oseba.getPrivilegiji()) || "ADMIN".equalsIgnoreCase(oseba.getOddelek())) {
+            return true;
+        }
+
+        // Poišči POZICIJA_ID v PRIORITETE_PROJEKTOV
+        int pozicijaId = -1;
+        for (PrioritetaProjektaTp p : cachedPrioritete) {
+            if (pravicaCaption.equalsIgnoreCase(p.getCaption().trim())) {
+                pozicijaId = p.getPozicijaId();
+                break;
+            }
+        }
+        if (pozicijaId <= 0) return false;
+
+        // V Delphi: if pomString[pomPozicija_ID] = '1' (1-based indeks)
+        // V Javi: pravice.charAt(pozicijaId - 1) == '1'
+        int idx = pozicijaId - 1;
+        String pravice = oseba.getPravice();
+        if (pravice != null && idx >= 0 && idx < pravice.length()) {
+            return pravice.charAt(idx) == '1';
+        }
+        return false;
+    }
+
+    public synchronized boolean isDovoljeno(String pravicaCaption) {
+        return osebiDovoljeno(this.tekocaOsebaId, pravicaCaption);
     }
 }

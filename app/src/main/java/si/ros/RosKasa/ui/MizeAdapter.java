@@ -23,12 +23,25 @@ public class MizeAdapter extends RecyclerView.Adapter<MizeAdapter.ViewHolder> {
         public boolean isOccupied;
         public BigDecimal znesek;
         public int racunId;
+        public int kasiralOsebaId;
+        public String kasiralNaziv = "";
+        public String kasiralInicialke = "";
+        public boolean isMyTable = false;
 
         public MizaItem(String naziv, boolean isOccupied, BigDecimal znesek, int racunId) {
+            this(naziv, isOccupied, znesek, racunId, 0, "", "", false);
+        }
+
+        public MizaItem(String naziv, boolean isOccupied, BigDecimal znesek, int racunId,
+                        int kasiralOsebaId, String kasiralNaziv, String kasiralInicialke, boolean isMyTable) {
             this.naziv = naziv;
             this.isOccupied = isOccupied;
             this.znesek = znesek;
             this.racunId = racunId;
+            this.kasiralOsebaId = kasiralOsebaId;
+            this.kasiralNaziv = kasiralNaziv != null ? kasiralNaziv : "";
+            this.kasiralInicialke = kasiralInicialke != null ? kasiralInicialke : "";
+            this.isMyTable = isMyTable;
         }
     }
 
@@ -65,17 +78,33 @@ public class MizeAdapter extends RecyclerView.Adapter<MizeAdapter.ViewHolder> {
 
         if (item.isOccupied) {
             holder.tvMizaName.setTextColor(Color.WHITE);
-            holder.itemView.setBackgroundColor(Color.parseColor("#B71C1C"));
+
+            // Barva glede na to, ali je mizo odprl trenutno prijavljeni natakar ali drug natakar
+            if (item.isMyTable) {
+                holder.itemView.setBackgroundColor(Color.parseColor("#1565C0")); // Modra - moja miza
+            } else {
+                holder.itemView.setBackgroundColor(Color.parseColor("#B71C1C")); // Rdeča - zasedena miza drugega
+            }
+
             if (item.znesek != null && item.znesek.compareTo(BigDecimal.ZERO) > 0) {
                 holder.tvMizaZnesek.setText(String.format(Locale.getDefault(), "%.2f €", item.znesek));
                 holder.tvMizaZnesek.setVisibility(View.VISIBLE);
             } else {
                 holder.tvMizaZnesek.setVisibility(View.GONE);
             }
+
+            String natakarStr = !item.kasiralInicialke.isEmpty() ? item.kasiralInicialke : item.kasiralNaziv;
+            if (!natakarStr.isEmpty()) {
+                holder.tvMizaNatakar.setText("👤 " + natakarStr);
+                holder.tvMizaNatakar.setVisibility(View.VISIBLE);
+            } else {
+                holder.tvMizaNatakar.setVisibility(View.GONE);
+            }
         } else {
             holder.tvMizaName.setTextColor(Color.parseColor("#ECEFF1"));
             holder.itemView.setBackgroundColor(Color.parseColor("#37474F"));
             holder.tvMizaZnesek.setVisibility(View.GONE);
+            holder.tvMizaNatakar.setVisibility(View.GONE);
         }
 
         holder.itemView.setOnClickListener(v -> {
@@ -91,11 +120,13 @@ public class MizeAdapter extends RecyclerView.Adapter<MizeAdapter.ViewHolder> {
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView tvMizaName;
         TextView tvMizaZnesek;
+        TextView tvMizaNatakar;
 
         ViewHolder(View itemView) {
             super(itemView);
             tvMizaName = itemView.findViewById(R.id.tvMizaName);
             tvMizaZnesek = itemView.findViewById(R.id.tvMizaZnesek);
+            tvMizaNatakar = itemView.findViewById(R.id.tvMizaNatakar);
         }
     }
 }

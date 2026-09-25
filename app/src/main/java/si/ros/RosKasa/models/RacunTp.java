@@ -138,14 +138,13 @@ public class RacunTp {
                 BigDecimal cena = p.getCena() != null ? p.getCena() : BigDecimal.ZERO;
                 BigDecimal polna = cena.multiply(kol).multiply(ep).setScale(2, java.math.RoundingMode.HALF_UP);
 
-                BigDecimal z = (p.getZnesek() != null && p.getZnesek().compareTo(BigDecimal.ZERO) > 0)
-                        ? p.getZnesek() : polna;
-                p.setZnesek(z);
+                // ZNESEK na racpozic vedno odraža cena * kolicina * ep (cena ostane iz cenika, ep se upošteva v znesku)
+                p.setZnesek(polna);
 
                 BigDecimal pop = (p.getZnesekPopust() != null) ? p.getZnesekPopust().abs() : BigDecimal.ZERO;
                 BigDecimal loj = (p.getZnesekLojalnost() != null) ? p.getZnesekLojalnost().abs() : BigDecimal.ZERO;
 
-                BigDecimal vrednost = z.subtract(pop).subtract(loj);
+                BigDecimal vrednost = polna.subtract(pop).subtract(loj);
                 suma = suma.add(vrednost);
             }
         }

@@ -312,9 +312,6 @@ public class NarocilaFragment extends Fragment {
                     if (p.getZnesekPopust() != null && p.getZnesekPopust().abs().compareTo(BigDecimal.ZERO) > 0) {
                         item.setZnesekPopust(p.getZnesekPopust().abs());
                     }
-                    if (p.getZnesek() != null) {
-                        item.setCustomZnesek(p.getZnesek());
-                    }
                     orderItems.add(item);
                 }
             }
@@ -595,11 +592,8 @@ public class NarocilaFragment extends Fragment {
             LestvicaPolnjenjaDialog.show(requireContext(), key.title + " (Lestvica točenja)", nacinProdaje, pomPolnjenje, new LestvicaPolnjenjaDialog.OnScaleSelectedListener() {
                 @Override
                 public void onScaleSelected(double epScale) {
-                    BigDecimal calcPrice = basePrice;
-                    if (Globals.getInstance().getCenaPolnjenje() != null && Globals.getInstance().getCenaPolnjenje().equalsIgnoreCase("D")) {
-                        calcPrice = basePrice.multiply(BigDecimal.valueOf(epScale));
-                    }
-                    knjiziVNarocilo(finalNivo4Id, key.title, calcPrice, 1.0, epScale, key.paket);
+                    // Cena ostane iz cenika, epScale pa se prenese kot enota prodaje
+                    knjiziVNarocilo(finalNivo4Id, key.title, basePrice, 1.0, epScale, key.paket);
                 }
 
                 @Override
@@ -632,11 +626,8 @@ public class NarocilaFragment extends Fragment {
             LestvicaPolnjenjaDialog.show(requireContext(), item.getFormattedNaziv(), item.nacinProdaje, item.polnjenje, new LestvicaPolnjenjaDialog.OnScaleSelectedListener() {
                 @Override
                 public void onScaleSelected(double epScale) {
-                    BigDecimal calcPrice = item.cena;
-                    if (item.polnjenje > 0 && epScale != item.polnjenje) {
-                        calcPrice = item.cena.multiply(BigDecimal.valueOf(epScale)).divide(BigDecimal.valueOf(item.polnjenje), 2, RoundingMode.HALF_UP);
-                    }
-                    knjiziVNarocilo(item.nivo4Id, item.naziv, calcPrice, 1.0, epScale, item.paket);
+                    // Cena ostane iz cenika, epScale pa se prenese kot enota prodaje
+                    knjiziVNarocilo(item.nivo4Id, item.naziv, item.cena, 1.0, epScale, item.paket);
                 }
 
                 @Override
@@ -1154,6 +1145,7 @@ public class NarocilaFragment extends Fragment {
                         .setMessage("Imate neshranjeno naročilo. Ali ga želite shraniti pred odjavo?")
                         .setPositiveButton("Shrani in odjavi", (dialog, which) -> handlePostNarocilo(new LoginFragment()))
                         .setNegativeButton("Zavrzi in odjavi", (dialog, which) -> {
+                            Globals.getInstance().setTekocaOseba(null);
                             if (getActivity() instanceof MainActivity) {
                                 ((MainActivity) getActivity()).navigateToFragment(new LoginFragment());
                             }
@@ -1161,6 +1153,7 @@ public class NarocilaFragment extends Fragment {
                         .setNeutralButton("Prekliči", null)
                         .show();
             } else {
+                Globals.getInstance().setTekocaOseba(null);
                 if (getActivity() instanceof MainActivity) {
                     ((MainActivity) getActivity()).navigateToFragment(new LoginFragment());
                 }
@@ -1224,6 +1217,15 @@ public class NarocilaFragment extends Fragment {
             int selPos = orderAdapter.getSelectedPosition();
             if (selPos < 0 || selPos >= orderItems.size()) {
                 selPos = orderItems.size() - 1;
+            }
+
+            NarociloItem itemToDelete = orderItems.get(selPos);
+            if (itemToDelete.getPozicijaId() > 0) {
+                if (!Globals.getInstance().isDovoljeno(si.ros.RosKasa.models.PraviceConsts.SLahkoStorniraPozicijoRacuna)
+                        && !Globals.getInstance().isDovoljeno(si.ros.RosKasa.models.PraviceConsts.SStorniraPoslanoNarocilo)) {
+                    Toast.makeText(requireContext(), "Nimate pravice za storniranje že poslanega artikla!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
             }
 
             NarociloItem removed = orderItems.remove(selPos);

@@ -27,10 +27,13 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import android.widget.LinearLayout;
 import si.ros.RosKasa.AppPreferences;
 import si.ros.RosKasa.Globals;
 import si.ros.RosKasa.MainActivity;
 import si.ros.RosKasa.databinding.FragmentMizeBinding;
+import si.ros.RosKasa.models.MizaTp;
+import si.ros.RosKasa.models.OsebaTp;
 import si.ros.RosKasa.models.RacunSeznamItem;
 import si.ros.RosKasa.soap.RosKasaSoapClient;
 
@@ -74,17 +77,106 @@ public class MizeFragment extends Fragment {
         });
 
         binding.btnOdjava.setOnClickListener(v -> {
+            Globals.getInstance().setTekocaOseba(null);
             if (getActivity() instanceof MainActivity) {
                 ((MainActivity) getActivity()).navigateToFragment(new LoginFragment());
             }
         });
 
+        updateNatakarInfo();
+        setupRajoniBar();
         setupMizeGrid();
         loadOpenTablesData();
     }
 
+    private void updateNatakarInfo() {
+        OsebaTp tekoca = Globals.getInstance().getTekocaOseba();
+        if (tekoca != null && !tekoca.getNaziv().isEmpty()) {
+            binding.tvNatakarInfo.setText("👤 " + tekoca.getNaziv() + " (" + tekoca.getInicialke() + ")");
+        } else {
+            binding.tvNatakarInfo.setText("");
+        }
+    }
+
+    private int selectedRajon = 0; // 0 = vsi
+    private List<RacunSeznamItem> lastLoadedOpenAccounts = new ArrayList<>();
+
+    private void setupRajoniBar() {
+        binding.containerRajoni.removeAllViews();
+        Globals g = Globals.getInstance();
+        List<Integer> rajoni = g.getCachedRajoni();
+
+        if (rajoni.isEmpty() && !g.isRajoni()) {
+            binding.scrollRajoni.setVisibility(View.GONE);
+            return;
+        }
+        binding.scrollRajoni.setVisibility(View.VISIBLE);
+
+        // Gumb Vsi
+        addRajonButton("Vsi", 0);
+
+        for (Integer r : rajoni) {
+            addRajonButton("R " + r, r);
+        }
+
+        if (g.getRajonDefault() > 0 && rajoni.contains(g.getRajonDefault())) {
+            selectedRajon = g.getRajonDefault();
+        } else {
+            selectedRajon = 0;
+        }
+        updateRajonButtonStyles();
+    }
+
+    private void addRajonButton(String label, int rajonId) {
+        com.google.android.material.button.MaterialButton btn = new com.google.android.material.button.MaterialButton(requireContext());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                (int) (76 * getResources().getDisplayMetrics().density),
+                LinearLayout.LayoutParams.MATCH_PARENT
+        );
+        lp.setMargins(4, 0, 4, 0);
+        btn.setLayoutParams(lp);
+        btn.setText(label);
+        btn.setTextSize(12);
+        btn.setTag(rajonId);
+        btn.setPadding(4, 0, 4, 0);
+        btn.setCornerRadius((int) (4 * getResources().getDisplayMetrics().density));
+        btn.setOnClickListener(v -> {
+            selectedRajon = rajonId;
+            updateRajonButtonStyles();
+            populateMizeGrid(lastLoadedOpenAccounts);
+        });
+        binding.containerRajoni.addView(btn);
+    }
+
+    private void updateRajonButtonStyles() {
+        for (int i = 0; i < binding.containerRajoni.getChildCount(); i++) {
+            View child = binding.containerRajoni.getChildAt(i);
+            if (child instanceof com.google.android.material.button.MaterialButton) {
+                com.google.android.material.button.MaterialButton b = (com.google.android.material.button.MaterialButton) child;
+                int rId = (int) b.getTag();
+                if (rId == selectedRajon) {
+                    b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF2196F3));
+                    b.setTextColor(0xFFFFFFFF);
+                } else {
+                    b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFE0E0E0));
+                    b.setTextColor(0xFF000000);
+                }
+            }
+        }
+    }
+
     private void setupMizeGrid() {
         mizeAdapter = new MizeAdapter(miza -> {
+            Globals g = Globals.getInstance();
+            // Preveri pravico SVidiVseRacune, če je mizo odprl drug natakar
+            if (miza.isOccupied && miza.kasiralOsebaId > 0 && miza.kasiralOsebaId != g.getTekocaOsebaId()) {
+                if (!g.isDovoljeno(si.ros.RosKasa.models.PraviceConsts.SVidiVseRacune)) {
+                    String natakarIme = !miza.kasiralNaziv.isEmpty() ? miza.kasiralNaziv : miza.kasiralInicialke;
+                    Toast.makeText(requireContext(), "Miza je zasedena (odprl: " + natakarIme + ")!\nNimate pravice za odpiranje računov drugih natakarjev.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+            }
+
             prefs.setActiveMarker(miza.naziv);
             prefs.setActiveRacunId(miza.racunId);
             Globals.getInstance().setActiveRacunId(miza.racunId);
@@ -101,6 +193,7 @@ public class MizeFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+        updateNatakarInfo();
         loadOpenTablesData();
     }
 
@@ -141,6 +234,8 @@ public class MizeFragment extends Fragment {
     }
 
     private void populateMizeGrid(List<RacunSeznamItem> openAccounts) {
+        this.lastLoadedOpenAccounts = openAccounts != null ? openAccounts : new ArrayList<>();
+
         // Filtriramo le aktivne odprte račune (STATUS == 1 ter brez stornacije)
         List<RacunSeznamItem> activeOpenAccounts = new ArrayList<>();
         if (openAccounts != null) {
@@ -167,56 +262,113 @@ public class MizeFragment extends Fragment {
         List<MizeAdapter.MizaItem> mizeList = new ArrayList<>();
         Map<String, Integer> markerCounts = new HashMap<>();
 
-        // 1. Obdelava standardnih miz "Miza 1" .. "Miza 30"
-        for (int i = 1; i <= 30; i++) {
-            String mizaName = "Miza " + i;
-            String keyFull = mizaName.toLowerCase(Locale.getDefault());
-            String keyNum = String.valueOf(i);
-
-            List<RacunSeznamItem> matches = null;
-            if (markerMap.containsKey(keyFull) && !markerMap.get(keyFull).isEmpty()) {
-                matches = markerMap.get(keyFull);
-            } else if (markerMap.containsKey(keyNum) && !markerMap.get(keyNum).isEmpty()) {
-                matches = markerMap.get(keyNum);
+        List<MizaTp> cachedMize = Globals.getInstance().getCachedMize();
+        if (cachedMize != null && !cachedMize.isEmpty()) {
+            // Uporabi šifrant miz iz MobileSetup
+            List<MizaTp> filtered = new ArrayList<>();
+            for (MizaTp m : cachedMize) {
+                if (selectedRajon == 0 || (m.getRajon() != null && m.getRajon() == selectedRajon)) {
+                    filtered.add(m);
+                }
             }
+            filtered.sort((m1, m2) -> Integer.compare(m1.getZap() != null ? m1.getZap() : 0, m2.getZap() != null ? m2.getZap() : 0));
 
-            if (matches != null && !matches.isEmpty()) {
-                RacunSeznamItem firstAcc = matches.get(0);
-                mizeList.add(new MizeAdapter.MizaItem(mizaName, true, firstAcc.getZnesek(), firstAcc.getRacunId()));
-                processedRacunIds.add(firstAcc.getRacunId());
-                markerCounts.put(mizaName.toLowerCase(Locale.getDefault()), 1);
-            } else {
-                mizeList.add(new MizeAdapter.MizaItem(mizaName, false, BigDecimal.ZERO, 0));
+            for (MizaTp m : filtered) {
+                String mizaName = m.getNaziv();
+                String keyFull = mizaName.toLowerCase(Locale.getDefault());
+                String keyNum = mizaName.replaceAll("[^0-9]", "");
+
+                List<RacunSeznamItem> matches = null;
+                if (markerMap.containsKey(keyFull) && !markerMap.get(keyFull).isEmpty()) {
+                    matches = markerMap.get(keyFull);
+                } else if (!keyNum.isEmpty() && markerMap.containsKey(keyNum) && !markerMap.get(keyNum).isEmpty()) {
+                    matches = markerMap.get(keyNum);
+                }
+
+                if (matches != null && !matches.isEmpty()) {
+                    RacunSeznamItem firstAcc = matches.get(0);
+                    int kasiralId = firstAcc.getKasiral() != null ? firstAcc.getKasiral() : 0;
+                    OsebaTp kasiralOseba = Globals.getInstance().najdiOseboById(kasiralId);
+                    String kasiralNaziv = kasiralOseba != null ? kasiralOseba.getNaziv() : "";
+                    String kasiralIni = kasiralOseba != null ? kasiralOseba.getInicialke() : "";
+                    boolean isMy = kasiralId > 0 && kasiralId == Globals.getInstance().getTekocaOsebaId();
+
+                    mizeList.add(new MizeAdapter.MizaItem(mizaName, true, firstAcc.getZnesek(), firstAcc.getRacunId(),
+                            kasiralId, kasiralNaziv, kasiralIni, isMy));
+                    processedRacunIds.add(firstAcc.getRacunId());
+                    markerCounts.put(mizaName.toLowerCase(Locale.getDefault()), 1);
+                } else {
+                    mizeList.add(new MizeAdapter.MizaItem(mizaName, false, BigDecimal.ZERO, 0));
+                }
+            }
+        } else {
+            // Fallback: standardne mize 1..30
+            for (int i = 1; i <= 30; i++) {
+                String mizaName = "Miza " + i;
+                String keyFull = mizaName.toLowerCase(Locale.getDefault());
+                String keyNum = String.valueOf(i);
+
+                List<RacunSeznamItem> matches = null;
+                if (markerMap.containsKey(keyFull) && !markerMap.get(keyFull).isEmpty()) {
+                    matches = markerMap.get(keyFull);
+                } else if (markerMap.containsKey(keyNum) && !markerMap.get(keyNum).isEmpty()) {
+                    matches = markerMap.get(keyNum);
+                }
+
+                if (matches != null && !matches.isEmpty()) {
+                    RacunSeznamItem firstAcc = matches.get(0);
+                    int kasiralId = firstAcc.getKasiral() != null ? firstAcc.getKasiral() : 0;
+                    OsebaTp kasiralOseba = Globals.getInstance().najdiOseboById(kasiralId);
+                    String kasiralNaziv = kasiralOseba != null ? kasiralOseba.getNaziv() : "";
+                    String kasiralIni = kasiralOseba != null ? kasiralOseba.getInicialke() : "";
+                    boolean isMy = kasiralId > 0 && kasiralId == Globals.getInstance().getTekocaOsebaId();
+
+                    mizeList.add(new MizeAdapter.MizaItem(mizaName, true, firstAcc.getZnesek(), firstAcc.getRacunId(),
+                            kasiralId, kasiralNaziv, kasiralIni, isMy));
+                    processedRacunIds.add(firstAcc.getRacunId());
+                    markerCounts.put(mizaName.toLowerCase(Locale.getDefault()), 1);
+                } else {
+                    mizeList.add(new MizeAdapter.MizaItem(mizaName, false, BigDecimal.ZERO, 0));
+                }
             }
         }
 
-        // 2. Obdelava preostalih neobdelanih odprtih računov (prazni ali podvojeni markerji)
-        int emptyMarkerIndex = 1;
+        // 2. Obdelava preostalih neobdelanih odprtih računov (če gledamo "Vsi", selectedRajon == 0)
+        if (selectedRajon == 0) {
+            int emptyMarkerIndex = 1;
 
-        for (RacunSeznamItem acc : activeOpenAccounts) {
-            if (processedRacunIds.contains(acc.getRacunId())) {
-                continue;
-            }
-
-            String rawMarker = (acc.getMarker() != null) ? acc.getMarker().trim() : "";
-            String buttonName;
-
-            if (rawMarker.isEmpty()) {
-                buttonName = "Brez oznake #" + (emptyMarkerIndex++);
-            } else {
-                String markerKey = rawMarker.toLowerCase(Locale.getDefault());
-                int currentCount = markerCounts.containsKey(markerKey) ? markerCounts.get(markerKey) + 1 : 1;
-                markerCounts.put(markerKey, currentCount);
-
-                if (currentCount == 1) {
-                    buttonName = rawMarker;
-                } else {
-                    buttonName = rawMarker + " (#" + currentCount + ")";
+            for (RacunSeznamItem acc : activeOpenAccounts) {
+                if (processedRacunIds.contains(acc.getRacunId())) {
+                    continue;
                 }
-            }
 
-            mizeList.add(new MizeAdapter.MizaItem(buttonName, true, acc.getZnesek(), acc.getRacunId()));
-            processedRacunIds.add(acc.getRacunId());
+                String rawMarker = (acc.getMarker() != null) ? acc.getMarker().trim() : "";
+                String buttonName;
+
+                if (rawMarker.isEmpty()) {
+                    buttonName = "Brez oznake #" + (emptyMarkerIndex++);
+                } else {
+                    String markerKey = rawMarker.toLowerCase(Locale.getDefault());
+                    int currentCount = markerCounts.containsKey(markerKey) ? markerCounts.get(markerKey) + 1 : 1;
+                    markerCounts.put(markerKey, currentCount);
+
+                    if (currentCount == 1) {
+                        buttonName = rawMarker;
+                    } else {
+                        buttonName = rawMarker + " (#" + currentCount + ")";
+                    }
+                }
+
+                int kasiralId = acc.getKasiral() != null ? acc.getKasiral() : 0;
+                OsebaTp kasiralOseba = Globals.getInstance().najdiOseboById(kasiralId);
+                String kasiralNaziv = kasiralOseba != null ? kasiralOseba.getNaziv() : "";
+                String kasiralIni = kasiralOseba != null ? kasiralOseba.getInicialke() : "";
+                boolean isMy = kasiralId > 0 && kasiralId == Globals.getInstance().getTekocaOsebaId();
+
+                mizeList.add(new MizeAdapter.MizaItem(buttonName, true, acc.getZnesek(), acc.getRacunId(),
+                        kasiralId, kasiralNaziv, kasiralIni, isMy));
+                processedRacunIds.add(acc.getRacunId());
+            }
         }
 
         mizeAdapter.setItems(mizeList);

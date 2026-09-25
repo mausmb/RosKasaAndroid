@@ -24,13 +24,17 @@ import si.ros.RosKasa.models.DodatekTp;
 import si.ros.RosKasa.models.GetRacunRsTp;
 import si.ros.RosKasa.models.HitraTipkaTp;
 import si.ros.RosKasa.models.KronologijaTp;
+import si.ros.RosKasa.models.MizaTp;
 import si.ros.RosKasa.models.MobileSetupTp;
 import si.ros.RosKasa.models.NacPlacTp;
 import si.ros.RosKasa.models.OsebaTokenResult;
+import si.ros.RosKasa.models.OsebaTp;
 import si.ros.RosKasa.models.PlaciloTp;
 import si.ros.RosKasa.models.PozicijaTp;
+import si.ros.RosKasa.models.PrioritetaProjektaTp;
 import si.ros.RosKasa.models.RacunSeznamItem;
 import si.ros.RosKasa.models.RacunTp;
+import si.ros.RosKasa.models.TarifaTp;
 import si.ros.RosKasa.ui.CenikListAdapter;
 
 public class RosKasaSoapClient {
@@ -173,6 +177,41 @@ public class RosKasaSoapClient {
         vpisKronologijeAsync(serverUrl, result.getToken() != null ? result.getToken() : "", "", opis, 9999, 512200);
 
         return result;
+    }
+
+    public static boolean aktivirajMobile(String serverUrl, int mobileId, String token) throws Exception {
+        String methodName = "aktivirajMobile";
+        String soapAction = NAMESPACE + "/" + methodName;
+
+        SoapObject request = new SoapObject(NAMESPACE, methodName);
+        request.addProperty("mobileId", mobileId > 0 ? mobileId : 1);
+        if (token != null && !token.isEmpty()) {
+            request.addProperty("token", token);
+        }
+
+        SoapSerializationEnvelope envelope = createEnvelope(request);
+        String fullEndpoint = formatEndpoint(serverUrl);
+        HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+        transport.debug = true;
+
+        try {
+            transport.call(soapAction, envelope);
+            if (transport.requestDump != null) Log.d(TAG, methodName + " Request XML: " + transport.requestDump);
+            if (transport.responseDump != null) Log.d(TAG, methodName + " Response XML: " + transport.responseDump);
+
+            checkResponseFault(envelope, methodName);
+
+            Log.d(TAG, "aktivirajMobile USPEŠNO za mobileId=" + mobileId);
+            String opis = "Klic aktivirajMobile za mobileId=" + mobileId + " -> uspeh";
+            vpisKronologijeAsync(serverUrl, token != null ? token : "", String.valueOf(mobileId), opis, 9999, 512200);
+            return true;
+        } catch (Exception e) {
+            String msg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+            String errorMsg = "aktivirajMobile napaka: " + msg;
+            Log.e(TAG, errorMsg, e);
+            notifyError(methodName, errorMsg);
+            throw e;
+        }
     }
 
     public static MobileSetupTp getAppConfig(String serverUrl, String token) throws Exception {
@@ -392,6 +431,71 @@ public class RosKasaSoapClient {
                     } catch (Exception ignored) {}
                 }
             }
+        }
+
+        // OSEBE
+        Object osebeObj = getPropertyObjSafe(soap, "OSEBE");
+        if (osebeObj instanceof SoapObject) {
+            SoapObject osebeSoap = (SoapObject) osebeObj;
+            int count = osebeSoap.getPropertyCount();
+            for (int i = 0; i < count; i++) {
+                Object itemObj = osebeSoap.getProperty(i);
+                if (itemObj instanceof SoapObject) {
+                    OsebaTp o = parseOsebaTp((SoapObject) itemObj);
+                    if (o != null) {
+                        setup.getOsebe().add(o);
+                    }
+                }
+            }
+        }
+
+        // PRIORITETE_PROJEKTOV
+        Object priorObj = getPropertyObjSafe(soap, "PRIORITETE_PROJEKTOV");
+        if (priorObj instanceof SoapObject) {
+            SoapObject priorSoap = (SoapObject) priorObj;
+            int count = priorSoap.getPropertyCount();
+            for (int i = 0; i < count; i++) {
+                Object itemObj = priorSoap.getProperty(i);
+                if (itemObj instanceof SoapObject) {
+                    PrioritetaProjektaTp p = parsePrioritetaProjektaTp((SoapObject) itemObj);
+                    if (p != null) {
+                        setup.getPrioriteteProjektov().add(p);
+                    }
+                }
+            }
+        }
+
+        // TARIFE
+        Object tarifeObj = getPropertyObjSafe(soap, "TARIFE");
+        if (tarifeObj instanceof SoapObject) {
+            SoapObject tarifeSoap = (SoapObject) tarifeObj;
+            int count = tarifeSoap.getPropertyCount();
+            for (int i = 0; i < count; i++) {
+                Object itemObj = tarifeSoap.getProperty(i);
+                if (itemObj instanceof SoapObject) {
+                    TarifaTp t = parseTarifaTp((SoapObject) itemObj);
+                    if (t != null) {
+                        setup.getTarife().add(t);
+                    }
+                }
+            }
+        }
+
+        // MOBILE_SETUP_MIZE
+        Object mizeObj = getPropertyObjSafe(soap, "MOBILE_SETUP_MIZE");
+        if (mizeObj instanceof SoapObject) {
+            SoapObject mizeSoap = (SoapObject) mizeObj;
+            int count = mizeSoap.getPropertyCount();
+            for (int i = 0; i < count; i++) {
+                Object itemObj = mizeSoap.getProperty(i);
+                if (itemObj instanceof SoapObject) {
+                    MizaTp m = parseMizaTp((SoapObject) itemObj);
+                    if (m != null) {
+                        setup.getMobileSetupMize().add(m);
+                    }
+                }
+            }
+            setup.posodobiRajone();
         }
 
         return setup;
@@ -1143,6 +1247,125 @@ public class RosKasaSoapClient {
         return null;
     }
 
+    private static Object getPropertyObjSafe(SoapObject soap, String name) {
+        if (soap == null || name == null) return null;
+        if (soap.hasProperty(name)) {
+            Object obj = soap.getProperty(name);
+            if (obj != null && !obj.toString().equals("anyType{}")) {
+                return obj;
+            }
+        }
+        for (int i = 0; i < soap.getPropertyCount(); i++) {
+            PropertyInfo info = new PropertyInfo();
+            soap.getPropertyInfo(i, info);
+            if (info.name != null && info.name.equalsIgnoreCase(name)) {
+                Object obj = soap.getProperty(i);
+                if (obj != null && !obj.toString().equals("anyType{}")) {
+                    return obj;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static OsebaTp parseOsebaTp(SoapObject soap) {
+        if (soap == null) return null;
+        OsebaTp o = new OsebaTp();
+        String idStr = getPropertyStringSafe(soap, "OSEBA_ID");
+        if (idStr != null) {
+            try { o.setOsebaId(Integer.parseInt(idStr)); } catch (Exception ignored) {}
+        }
+        o.setNaziv(getPropertyStringSafe(soap, "NAZIV"));
+        o.setUporabniskoIme(getPropertyStringSafe(soap, "UPORABNISKO_IME"));
+        o.setPin(getPropertyStringSafe(soap, "PIN"));
+        o.setPrivilegiji(getPropertyStringSafe(soap, "PRIVILEGIJI"));
+        o.setOddelek(getPropertyStringSafe(soap, "ODDELEK"));
+        o.setKarticaId(getPropertyStringSafe(soap, "KARTICA_ID"));
+        o.setKartica2Id(getPropertyStringSafe(soap, "KARTICA2_ID"));
+        String pravice = getPropertyStringSafe(soap, "Pravice");
+        if (pravice == null || pravice.isEmpty()) {
+            pravice = getPropertyStringSafe(soap, "PRAVICE");
+        }
+        o.setPravice(pravice != null ? pravice : "");
+        String prioStr = getPropertyStringSafe(soap, "prioriteta");
+        if (prioStr == null) prioStr = getPropertyStringSafe(soap, "PRIORITETA");
+        if (prioStr != null) {
+            try { o.setPrioriteta(Integer.parseInt(prioStr)); } catch (Exception ignored) {}
+        }
+        String veljStr = getPropertyStringSafe(soap, "VELJAVNOSTPIN");
+        if (veljStr != null) {
+            try { o.setVeljavnostPin(Integer.parseInt(veljStr)); } catch (Exception ignored) {}
+        }
+        String datumStr = getPropertyStringSafe(soap, "DATUM_SPREMEMBEPIN");
+        if (datumStr != null && !datumStr.trim().isEmpty()) {
+            o.setDatumSpremembePin(parseSoapDateSafe(datumStr));
+        }
+        return o;
+    }
+
+    private static PrioritetaProjektaTp parsePrioritetaProjektaTp(SoapObject soap) {
+        if (soap == null) return null;
+        PrioritetaProjektaTp p = new PrioritetaProjektaTp();
+        p.setCaption(getPropertyStringSafe(soap, "CAPTION"));
+        String posStr = getPropertyStringSafe(soap, "POZICIJA_ID");
+        if (posStr != null) {
+            try { p.setPozicijaId(Integer.parseInt(posStr)); } catch (Exception ignored) {}
+        }
+        return p;
+    }
+
+    private static TarifaTp parseTarifaTp(SoapObject soap) {
+        if (soap == null) return null;
+        TarifaTp t = new TarifaTp();
+        String idStr = getPropertyStringSafe(soap, "TARIFA_ID");
+        if (idStr != null) {
+            try { t.setTarifaId(Integer.parseInt(idStr)); } catch (Exception ignored) {}
+        }
+        t.setNaziv(getPropertyStringSafe(soap, "NAZIV"));
+        t.setOznaka(getPropertyStringSafe(soap, "OZNAKA"));
+        String metStr = getPropertyStringSafe(soap, "METODA_ID");
+        if (metStr != null) {
+            try { t.setMetodaId(Integer.parseInt(metStr)); } catch (Exception ignored) {}
+        }
+        String davekStr = getPropertyStringSafe(soap, "DAVEK_PROC");
+        if (davekStr != null) {
+            try { t.setDavekProc(new BigDecimal(davekStr.replace(',', '.'))); } catch (Exception ignored) {}
+        }
+        return t;
+    }
+
+    private static MizaTp parseMizaTp(SoapObject soap) {
+        if (soap == null) return null;
+        MizaTp m = new MizaTp();
+        m.setNaziv(getPropertyStringSafe(soap, "NAZIV"));
+        String rajStr = getPropertyStringSafe(soap, "RAJON");
+        if (rajStr != null) {
+            try { m.setRajon(Integer.parseInt(rajStr)); } catch (Exception ignored) {}
+        }
+        String zapStr = getPropertyStringSafe(soap, "ZAP");
+        if (zapStr != null) {
+            try { m.setZap(Integer.parseInt(zapStr)); } catch (Exception ignored) {}
+        }
+        return m;
+    }
+
+    private static java.util.Date parseSoapDateSafe(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) return null;
+        String[] formats = new String[] {
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd"
+        };
+        for (String f : formats) {
+            try {
+                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat(f, java.util.Locale.US);
+                return sdf.parse(dateStr.trim());
+            } catch (Exception ignored) {}
+        }
+        return null;
+    }
+
     private static void notifyError(String method, String errorMsg) {
         if (errorMsg == null) errorMsg = "Neznana napaka (null)";
         final String finalMsg = errorMsg;
@@ -1435,11 +1658,10 @@ public class RosKasaSoapClient {
             soap.addProperty("CRM_ID", racun.getCrmId());
         }
 
-        // DATUM: yyyy-MM-ddT00:00:00Z
+        // DATUM: yyyy-MM-ddT00:00:00Z (lokalni datum naprave)
         String datumStr = racun.getDatum();
         if (datumStr == null || datumStr.trim().isEmpty()) {
             java.text.SimpleDateFormat sdfDate = new java.text.SimpleDateFormat("yyyy-MM-dd'T'00:00:00'Z'", java.util.Locale.US);
-            sdfDate.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
             datumStr = sdfDate.format(new java.util.Date());
         }
         soap.addProperty("DATUM", datumStr);
@@ -1553,21 +1775,19 @@ public class RosKasaSoapClient {
                 : (Globals.getInstance().getTocilnicaId() != null && Globals.getInstance().getTocilnicaId() > 0 ? Globals.getInstance().getTocilnicaId() : 512200);
         soap.addProperty("TOCILNICA_ID", tocilnicaId);
 
-        // URA: 1899-12-30THH:mm:ssZ
+        // URA: 1899-12-30THH:mm:ssZ (lokalni čas naprave, enako kot Kronologija)
         String uraStr = racun.getUra();
         if (uraStr == null || uraStr.trim().isEmpty()) {
             java.text.SimpleDateFormat sdfTime = new java.text.SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", java.util.Locale.US);
-            sdfTime.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
             uraStr = sdfTime.format(new java.util.Date());
         }
         soap.addProperty("URA", uraStr);
 
-        // URA_PLACILA: 1899-12-30THH:mm:ssZ (ko je račun plačan ali ima nastavljeno uro plačila)
+        // URA_PLACILA: 1899-12-30THH:mm:ssZ (lokalni čas ob plačilu)
         if (racun.getUraPlacila() != null && !racun.getUraPlacila().isEmpty()) {
             soap.addProperty("URA_PLACILA", racun.getUraPlacila());
         } else if (racun.getPlacano() != null && racun.getPlacano().compareTo(BigDecimal.ZERO) > 0) {
             java.text.SimpleDateFormat sdfUraPlacila = new java.text.SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", java.util.Locale.US);
-            sdfUraPlacila.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
             soap.addProperty("URA_PLACILA", sdfUraPlacila.format(new java.util.Date()));
         }
 
@@ -1737,13 +1957,26 @@ public class RosKasaSoapClient {
     private static SoapObject buildSoapPlaciloTp(PlaciloTp pl, int parentRacunId, int defaultPlId, int depth) {
         SoapObject soap = new SoapObject(NAMESPACE, "PlaciloTp");
 
-        // 1. DATUM: yyyy-MM-ddT00:00:00Z
+        // 1. DATUM: yyyy-MM-ddT00:00:00Z (lokalni datum naprave)
         java.text.SimpleDateFormat sdfDate = new java.text.SimpleDateFormat("yyyy-MM-dd'T'00:00:00'Z'", java.util.Locale.US);
-        sdfDate.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
         soap.addProperty("DATUM", sdfDate.format(new java.util.Date()));
 
-        // 2. DELNI_ZNESEK
-        soap.addProperty("DELNI_ZNESEK", pl.getDelniZnesek() != null ? pl.getDelniZnesek().toPlainString() : (pl.getZnesek() != null ? pl.getZnesek().toPlainString() : "0.00"));
+        // 6. PLACILO_ID: šifra načina plačila (1=Gotovina, 2=Kreditna POS, itd.)
+        int placiloId = pl.getPlaciloId();
+        if (placiloId <= 0 && pl.getVrstaReklame() != null && pl.getVrstaReklame() > 0) {
+            placiloId = pl.getVrstaReklame();
+        }
+        if (placiloId <= 0) {
+            placiloId = 1;
+        }
+
+        // 2. DELNI_ZNESEK (Za Popust 99 je delni_znesek vedno 0, za ostala plačila pa je tukaj znesek)
+        BigDecimal delniZn = (placiloId == 99)
+                ? BigDecimal.ZERO
+                : (pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) > 0
+                    ? pl.getDelniZnesek()
+                    : (pl.getZnesek() != null ? pl.getZnesek() : BigDecimal.ZERO));
+        soap.addProperty("DELNI_ZNESEK", delniZn.toPlainString());
 
         // 3. GOST_PRIJAVA_ID
         soap.addProperty("GOST_PRIJAVA_ID", 0);
@@ -1756,14 +1989,6 @@ public class RosKasaSoapClient {
             soap.addProperty("PARTNER_ID", pl.getPartnerId());
         }
 
-        // 6. PLACILO_ID: šifra načina plačila (1=Gotovina, 2=Kreditna POS, itd.)
-        int placiloId = pl.getPlaciloId();
-        if (placiloId <= 0 && pl.getVrstaReklame() != null && pl.getVrstaReklame() > 0) {
-            placiloId = pl.getVrstaReklame();
-        }
-        if (placiloId <= 0) {
-            placiloId = 1;
-        }
         soap.addProperty("PLACILO_ID", placiloId);
 
         // 7. POZICIJA_ID: zaporedna številka pozicije plačila (-1, -2, ...)
@@ -1795,14 +2020,12 @@ public class RosKasaSoapClient {
                 : (Globals.getInstance().getTocilnicaId() != null && Globals.getInstance().getTocilnicaId() > 0 ? Globals.getInstance().getTocilnicaId() : 512200);
         soap.addProperty("TOCILNICA_ID", tocilnicaId);
 
-        // 14. URA: yyyy-MM-ddTHH:mm:ssZ (npr. "2026-09-21T19:51:23Z")
-        java.text.SimpleDateFormat sdfUra = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US);
-        sdfUra.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+        // 14. URA: 1899-12-30THH:mm:ssZ (lokalni čas naprave)
+        java.text.SimpleDateFormat sdfUra = new java.text.SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", java.util.Locale.US);
         soap.addProperty("URA", sdfUra.format(new java.util.Date()));
 
-        // 15. URA_PLACILA: 1899-12-30THH:mm:ssZ (Delphi: "1899-12-30T19:51:23Z")
+        // 15. URA_PLACILA: 1899-12-30THH:mm:ssZ (lokalni čas naprave)
         java.text.SimpleDateFormat sdfUraPlacila = new java.text.SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", java.util.Locale.US);
-        sdfUraPlacila.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
         soap.addProperty("URA_PLACILA", sdfUraPlacila.format(new java.util.Date()));
 
         // 16. VALUTA_ID
@@ -1818,8 +2041,9 @@ public class RosKasaSoapClient {
             soap.addProperty("VRSTA_REKLAME", pl.getVrstaReklame());
         }
 
-        // 19. ZNESEK (opcijsko)
-        if (pl.getZnesek() != null && pl.getZnesek().compareTo(BigDecimal.ZERO) != 0) {
+        // 19. ZNESEK: V Delphi se polje ZNESEK v RACPLACI piše samo pri popustu (placiloId == 99).
+        // Pri običajnih plačilih gre znesek v DELNI_ZNESEK, polje ZNESEK pa ostane 0 oz. se ne pošilja.
+        if (placiloId == 99 && pl.getZnesek() != null && pl.getZnesek().compareTo(BigDecimal.ZERO) != 0) {
             soap.addProperty("ZNESEK", pl.getZnesek().toPlainString());
         }
 
@@ -2001,6 +2225,14 @@ public class RosKasaSoapClient {
             } catch (Exception ignored) {}
         }
 
+        String epStr = getPropertyStringSafe(soap, "ENOTA_PRODAJE_ID");
+        if (epStr != null) {
+            try {
+                epStr = epStr.replace(",", ".").trim();
+                poz.setEnotaProdajeId(new BigDecimal(epStr));
+            } catch (Exception ignored) {}
+        }
+
         String znesekStr = getPropertyStringSafe(soap, "ZNESEK");
         if (znesekStr != null) {
             try {
@@ -2009,7 +2241,7 @@ public class RosKasaSoapClient {
             } catch (Exception ignored) {}
         }
         if ((poz.getZnesek() == null || poz.getZnesek().compareTo(BigDecimal.ZERO) == 0) && poz.getCena() != null) {
-            poz.setZnesek(poz.getCena().multiply(BigDecimal.valueOf(poz.getKolicina())));
+            poz.recalculateZnesek();
         }
 
         String davekStr = getPropertyStringSafe(soap, "STOPNJA_DAVKA");
@@ -2023,14 +2255,6 @@ public class RosKasaSoapClient {
         String tarifaStr = getPropertyStringSafe(soap, "TARIFA_ID");
         if (tarifaStr != null) {
             try { poz.setTarifaId(Integer.parseInt(tarifaStr)); } catch (Exception ignored) {}
-        }
-
-        String epStr = getPropertyStringSafe(soap, "ENOTA_PRODAJE_ID");
-        if (epStr != null) {
-            try {
-                epStr = epStr.replace(",", ".").trim();
-                poz.setEnotaProdajeId(new BigDecimal(epStr));
-            } catch (Exception ignored) {}
         }
 
         String statusStr = getPropertyStringSafe(soap, "STATUS");
@@ -2215,12 +2439,10 @@ public class RosKasaSoapClient {
         }
 
         if (pl.getPlaciloId() != 99) {
-            if ((pl.getZnesek() == null || pl.getZnesek().compareTo(BigDecimal.ZERO) == 0) && pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) > 0) {
-                pl.setZnesek(pl.getDelniZnesek());
-            }
             if ((pl.getDelniZnesek() == null || pl.getDelniZnesek().compareTo(BigDecimal.ZERO) == 0) && pl.getZnesek() != null && pl.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
                 pl.setDelniZnesek(pl.getZnesek());
             }
+            pl.setZnesek(BigDecimal.ZERO);
         } else {
             // Popust 99: delni_znesek je vedno 0 po pravilih iz popusti.md
             pl.setDelniZnesek(BigDecimal.ZERO);

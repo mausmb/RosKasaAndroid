@@ -33,8 +33,13 @@ public class PlaciloTp {
         this.racunId = racunId;
         this.placiloId = vrstaReklame != null ? vrstaReklame : 1;
         this.vrstaReklame = this.placiloId;
-        this.znesek = znesek != null ? znesek : BigDecimal.ZERO;
-        this.delniZnesek = this.znesek;
+        if (this.placiloId == 99) {
+            this.znesek = znesek != null ? znesek : BigDecimal.ZERO;
+            this.delniZnesek = BigDecimal.ZERO;
+        } else {
+            this.delniZnesek = znesek != null ? znesek : BigDecimal.ZERO;
+            this.znesek = BigDecimal.ZERO;
+        }
     }
 
     public PlaciloTp deepCopy() {
