@@ -49,7 +49,157 @@ public class BluetoothPrintHelper {
 
     public static void printReceipt(Context context, si.ros.RosKasa.models.RacunTp racun, int stKopij, OnPrintListener listener) {
         si.ros.RosKasa.print.RacunPrintBuilder.ReceiptResult result = si.ros.RosKasa.print.RacunPrintBuilder.buildReceipt(racun, Globals.getInstance(), stKopij);
-        printReceiptBytes(context, result.getPrintBytes(), listener);
+        printReceiptBytes(context, result.getPrintBytes(), new OnPrintListener() {
+            @Override
+            public void onStart() {
+                if (listener != null) listener.onStart();
+            }
+
+            @Override
+            public void onSuccess(String message) {
+                // Šele ko je tiskanje dejansko uspelo, pošljemo racIzpisan na strežnik!
+                sendRacIzpisanNaServer(context, racun, result.getTextPreview(), stKopij);
+                if (listener != null) listener.onSuccess(message);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (listener != null) listener.onError(errorMessage);
+            }
+        });
+    }
+
+    public static void sendRacIzpisanNaServer(Context context, si.ros.RosKasa.models.RacunTp racun, String vsebina, int stKopij) {
+        if (racun == null || racun.getRacunId() <= 0) return;
+        executor.execute(() -> {
+            try {
+                si.ros.RosKasa.AppPreferences prefs = new si.ros.RosKasa.AppPreferences(context);
+                String serverUrl = prefs.getServerUrl();
+                String token = prefs.getToken();
+                if (serverUrl == null || serverUrl.isEmpty() || token == null || token.isEmpty()) {
+                    serverUrl = Globals.getInstance().getServerUrl();
+                    token = Globals.getInstance().getToken();
+                }
+                if (serverUrl == null || serverUrl.isEmpty() || token == null || token.isEmpty()) return;
+
+                Globals g = Globals.getInstance();
+                int tocilnicaId = (racun.getTocilnicaId() != null && racun.getTocilnicaId() > 0)
+                        ? racun.getTocilnicaId()
+                        : (g.getTocilnicaId() != null && g.getTocilnicaId() > 0 ? g.getTocilnicaId() : 512200);
+
+                int osebaId = g.getTekocaOsebaId() > 0
+                        ? g.getTekocaOsebaId()
+                        : (racun.getKasiral() != null && racun.getKasiral() > 0 ? racun.getKasiral() : 1);
+
+                si.ros.RosKasa.models.IzpisanTp izpisan = new si.ros.RosKasa.models.IzpisanTp();
+                izpisan.setRacunId(racun.getRacunId());
+                izpisan.setStatus(2);
+                izpisan.setZakljucen(1);
+                izpisan.setTocilnicaId(tocilnicaId);
+                izpisan.setOsebaId(osebaId);
+                izpisan.setVsebina(vsebina != null ? vsebina : "");
+
+                long nowMs = System.currentTimeMillis() + ((long) (stKopij + 1) * 1000L);
+                java.text.SimpleDateFormat sdfCas = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US);
+                izpisan.setCasIzpisa(sdfCas.format(new java.util.Date(nowMs)));
+
+                java.text.SimpleDateFormat sdfDate = new java.text.SimpleDateFormat("yyyy-MM-dd'T'00:00:00'Z'", java.util.Locale.US);
+                String datumStr = racun.getDatum();
+                if (datumStr != null && !datumStr.trim().isEmpty()) {
+                    datumStr = datumStr.trim();
+                    if (!datumStr.contains("T")) {
+                        try {
+                            if (datumStr.contains(".")) {
+                                java.text.SimpleDateFormat sdfDot = new java.text.SimpleDateFormat("dd.MM.yyyy", java.util.Locale.US);
+                                java.util.Date parsed = sdfDot.parse(datumStr);
+                                datumStr = sdfDate.format(parsed);
+                            } else if (datumStr.contains("-")) {
+                                java.text.SimpleDateFormat sdfDash = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+                                java.util.Date parsed = sdfDash.parse(datumStr);
+                                datumStr = sdfDate.format(parsed);
+                            } else {
+                                datumStr = sdfDate.format(new java.util.Date());
+                            }
+                        } catch (Exception ignored) {
+                            datumStr = sdfDate.format(new java.util.Date());
+                        }
+                    }
+                } else {
+                    datumStr = sdfDate.format(new java.util.Date());
+                }
+                izpisan.setDatum(datumStr);
+
+                String uraStr = racun.getUra();
+                if (uraStr != null && !uraStr.trim().isEmpty()) {
+                    uraStr = uraStr.trim();
+                    if (!uraStr.contains("T")) {
+                        if (uraStr.length() == 8) {
+                            uraStr = "1899-12-30T" + uraStr + "Z";
+                        } else if (uraStr.length() == 5) {
+                            uraStr = "1899-12-30T" + uraStr + ":00Z";
+                        } else {
+                            java.text.SimpleDateFormat sdfUra = new java.text.SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", java.util.Locale.US);
+                            uraStr = sdfUra.format(new java.util.Date());
+                        }
+                    }
+                } else {
+                    java.text.SimpleDateFormat sdfUra = new java.text.SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", java.util.Locale.US);
+                    uraStr = sdfUra.format(new java.util.Date());
+                }
+                izpisan.setUra(uraStr);
+
+                // Kronologija pred pošiljanjem (Delphi skladnost)
+                g.vpisiKronologijoDebugL1(serverUrl, token, prefs.getMobileId(),
+                        "RacIzpisanNaServer R:" + racun.getRacunId() + " stk: " + stKopij,
+                        osebaId, tocilnicaId);
+
+                if (vsebina != null && !vsebina.isEmpty()) {
+                    g.vpisiKronologijoDebugL1(serverUrl, token, prefs.getMobileId(),
+                            "RacIzpisanNaServer stringlist memo R:" + racun.getRacunId(),
+                            osebaId, tocilnicaId);
+                }
+
+                g.vpisiKronologijoDebugL1(serverUrl, token, prefs.getMobileId(),
+                        "RacIzpisanNaServer ws post R:" + racun.getRacunId(),
+                        osebaId, tocilnicaId);
+
+                si.ros.RosKasa.soap.RosKasaSoapClient.insertIzpisan(serverUrl, token, izpisan);
+                Log.d(TAG, "sendRacIzpisanNaServer: uspešno poslan izpisan račun R:" + racun.getRacunId());
+
+                g.vpisiKronologijoDebugL1(serverUrl, token, prefs.getMobileId(),
+                        "RacIzpisanNaServer ws post USPEH R:" + racun.getRacunId(),
+                        osebaId, tocilnicaId);
+
+                // Vedno ko izpišemo račun, ki ima status=1, ga postavimo v status=2 (Delphi uPrintData.pas:856-871)
+                if (racun.getStatus() == 1) {
+                    try {
+                        racun.setStatus(2);
+                        int konStKopij = stKopij > 0 ? stKopij : (racun.getStKopij() != null && racun.getStKopij() > 0 ? racun.getStKopij() : 1);
+                        racun.setStKopij(konStKopij);
+                        int mobileId = 0;
+                        try {
+                            mobileId = Integer.parseInt(prefs.getMobileId());
+                        } catch (Exception ignored) {}
+
+                        si.ros.RosKasa.soap.RosKasaSoapClient.setRacun(serverUrl, token, mobileId, racun);
+                        Log.d(TAG, "UpdateInvoiceStatus: račun R:" + racun.getRacunId() + " uspešno postavljen na status 2 (STKOPIJ=" + konStKopij + ")");
+
+                        g.vpisiKronologijoDebugL1(serverUrl, token, prefs.getMobileId(),
+                                "UpdateInvoiceStatus R:" + racun.getRacunId() + " na status 2 STKOPIJ:" + konStKopij,
+                                g.getTekocaOsebaId(), g.getTocilnicaId());
+                    } catch (Exception exStatus) {
+                        Log.e(TAG, "Napaka pri UpdateInvoiceStatus na status 2 za R:" + racun.getRacunId() + ": " + exStatus.getMessage(), exStatus);
+                        g.vpisiKronologijoDebugL1(serverUrl, token, prefs.getMobileId(),
+                                "Napaka UpdateInvoiceStatus za R:" + racun.getRacunId() + " " + exStatus.getMessage(),
+                                g.getTekocaOsebaId(), g.getTocilnicaId());
+                    }
+                }
+            } catch (Exception e) {
+                String errMsg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+                Log.w(TAG, "sendRacIzpisanNaServer napaka za R:" + racun.getRacunId() + ": " + errMsg);
+                Globals.getInstance().vpisiKronologijoDebugL1("Napaka PostRacIzpisan za R:" + racun.getRacunId() + " " + errMsg);
+            }
+        });
     }
 
     public static void printReceiptBytes(Context context, byte[] bytesToPrint, OnPrintListener listener) {
@@ -117,8 +267,20 @@ public class BluetoothPrintHelper {
                 final String deviceName = selectedDevice.getName() != null ? selectedDevice.getName() : "Neznana naprava";
 
                 bluetoothAdapter.cancelDiscovery();
-                socket = selectedDevice.createRfcommSocketToServiceRecord(SPP_UUID);
-                socket.connect();
+                try {
+                    socket = selectedDevice.createRfcommSocketToServiceRecord(SPP_UUID);
+                    socket.connect();
+                } catch (Exception e1) {
+                    Log.w(TAG, "Standard SPP povezava ni uspela (" + e1.getMessage() + "), poskušam z nadomestno metodo (reflection)...");
+                    try {
+                        java.lang.reflect.Method m = selectedDevice.getClass().getMethod("createRfcommSocket", int.class);
+                        socket = (BluetoothSocket) m.invoke(selectedDevice, 1);
+                        socket.connect();
+                    } catch (Exception e2) {
+                        Log.e(TAG, "Tudi nadomestna metoda povezave ni uspela (" + e2.getMessage() + ")");
+                        throw e1;
+                    }
+                }
                 outputStream = socket.getOutputStream();
 
                 if (bytesToPrint != null && bytesToPrint.length > 0) {

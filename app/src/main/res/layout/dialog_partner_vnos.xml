@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#1E272C"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvPartnerTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="VNOS PARTNERJA - DOBAVNICA"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/tvPartnerZnesekSubtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Znesek za plačilo: 0,00 €"
+        android:textColor="#80CBC4"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginTop="2dp"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Partner Naziv + Search Button -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Naziv partnerja: *"
+        android:textColor="#B0BEC5"
+        android:textSize="12sp"
+        android:layout_marginBottom="2dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+
+        <EditText
+            android:id="@+id/etPartnerNaziv"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="#263238"
+            android:hint="Vnesite naziv partnerja..."
+            android:textColor="#FFFFFF"
+            android:textColorHint="#78909C"
+            android:textSize="14sp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:singleLine="true"
+            android:imeOptions="actionNext" />
+
+        <Button
+            android:id="@+id/btnSearchPartner"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:text="Išči"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:backgroundTint="#00897B"
+            android:layout_marginStart="6dp" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/pbPartnerLoading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        android:layout_marginBottom="6dp" />
+
+    <!-- Live Search Results List -->
+    <TextView
+        android:id="@+id/tvPartnerResultsCount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Najdeni partnerji (izberite s seznama):"
+        android:textColor="#80CBC4"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        android:layout_marginBottom="4dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvPartnerji"
+        android:layout_width="match_parent"
+        android:layout_height="160dp"
+        android:scrollbars="vertical"
+        android:background="#263238"
+        android:padding="4dp"
+        android:visibility="gone"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Partner Naslov -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Naslov (Ulica, Pošta): *"
+        android:textColor="#B0BEC5"
+        android:textSize="12sp"
+        android:layout_marginBottom="2dp" />
+
+    <EditText
+        android:id="@+id/etPartnerNaslov"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:background="#263238"
+        android:hint="Ulica in pošta partnerja..."
+        android:textColor="#FFFFFF"
+        android:textColorHint="#78909C"
+        android:textSize="14sp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:singleLine="true"
+        android:imeOptions="actionNext"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Partner Davčna + Št Naročilnice in two columns -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginEnd="4dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Davčna št. (ID za DDV): *"
+                android:textColor="#B0BEC5"
+                android:textSize="12sp"
+                android:layout_marginBottom="2dp" />
+
+            <EditText
+                android:id="@+id/etPartnerDavcna"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="#263238"
+                android:hint="npr. SI12345678"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#78909C"
+                android:textSize="14sp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:imeOptions="actionNext" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="4dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Št. naročilnice / dob.:"
+                android:textColor="#B0BEC5"
+                android:textSize="12sp"
+                android:layout_marginBottom="2dp" />
+
+            <EditText
+                android:id="@+id/etPartnerNarocilnica"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="#263238"
+                android:hint="Št. naročilnice..."
+                android:textColor="#FFFFFF"
+                android:textColorHint="#78909C"
+                android:textSize="14sp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:imeOptions="actionDone" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="2"
+        android:layout_marginTop="4dp">
+
+        <Button
+            android:id="@+id/btnPartnerCancel"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="Prekliči"
+            android:textColor="#ECEFF1"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:backgroundTint="#455A64"
+            android:layout_marginEnd="6dp" />
+
+        <Button
+            android:id="@+id/btnPartnerPotrdi"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="Potrdi"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:backgroundTint="#00897B"
+            android:layout_marginStart="6dp" />
+    </LinearLayout>
+
+</LinearLayout>

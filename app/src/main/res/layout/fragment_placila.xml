@@ -115,11 +115,16 @@
             android:text="Opis"
             android:textColor="#FFFFFF" />
 
-        <View
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDelovniNalog"
+            style="@style/PosButtonStyle"
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_columnWeight="1"
-            android:layout_gravity="fill" />
+            android:layout_gravity="fill"
+            android:backgroundTint="@color/pos_btn_normal"
+            android:text="Delovni\nnalog"
+            android:textColor="#FFFFFF" />
 
         <View
             android:layout_width="0dp"

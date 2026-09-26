@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/pos_bg_dark"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Opomba računa"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:paddingBottom="12dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Vrstica 1:"
+        android:textColor="#CCCCCC"
+        android:textSize="12sp" />
+
+    <EditText
+        android:id="@+id/etOp1"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:background="#333333"
+        android:textColor="#FFFFFF"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:inputType="text" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Vrstica 2:"
+        android:textColor="#CCCCCC"
+        android:textSize="12sp" />
+
+    <EditText
+        android:id="@+id/etOp2"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:background="#333333"
+        android:textColor="#FFFFFF"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:inputType="text" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Vrstica 3:"
+        android:textColor="#CCCCCC"
+        android:textSize="12sp" />
+
+    <EditText
+        android:id="@+id/etOp3"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:background="#333333"
+        android:textColor="#FFFFFF"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:layout_marginBottom="12dp"
+        android:inputType="text" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btnCancel"
+            style="@style/PosButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:backgroundTint="#555555"
+            android:text="Prekliči"
+            android:textColor="#FFFFFF"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btnPotrdiOpombo"
+            style="@style/PosButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:backgroundTint="@color/pos_accent_blue"
+            android:text="Shrani opombo"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+</LinearLayout>

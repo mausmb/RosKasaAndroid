@@ -23,6 +23,7 @@ import si.ros.RosKasa.models.MizaTp;
 import si.ros.RosKasa.models.OsebaTp;
 import si.ros.RosKasa.models.PrioritetaProjektaTp;
 import si.ros.RosKasa.models.TarifaTp;
+import si.ros.RosKasa.models.StornoRazlogTp;
 
 public class Globals {
     private static final String TAG = "Globals";
@@ -33,6 +34,7 @@ public class Globals {
     private final List<HitraTipkaTp> cachedHitreTipke = new ArrayList<>();
     private final List<CenikVrVrTp> cachedCenikVrVr = new ArrayList<>();
     private final List<DodatekTp> cachedDodatki = new ArrayList<>();
+    private final List<StornoRazlogTp> cachedStornoRazlogi = new ArrayList<>();
     private final Map<Integer, String> nivo4NazivLookup = new java.util.concurrent.ConcurrentHashMap<>();
 
     // Šifranti iz MobileSetup
@@ -68,6 +70,17 @@ public class Globals {
 
     public static int getNextNegativeRacunId() {
         return localNegativeRacunCounter.getAndDecrement();
+    }
+
+    public static String preveriMarker(String pvstop) {
+        if (pvstop == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (char c : pvstop.toCharArray()) {
+            if (Character.isLetterOrDigit(c) || Character.isWhitespace(c)) {
+                sb.append(c);
+            }
+        }
+        return sb.toString().trim();
     }
 
     // NFC Settings
@@ -145,6 +158,7 @@ public class Globals {
     private int zamudaMinute = 0;
     private int valutId = 0;
     private boolean kronologIzklop = false;
+    private boolean debugL0 = true;
     private boolean debugL1 = false;
     private boolean debugL2 = false;
     private boolean debugL3 = false;
@@ -418,16 +432,50 @@ public class Globals {
     /**
      * Vpisi operacijo ali napako v kronologijo
      */
-    public void vpisiKronologijo(String opisOperacije) {
+    public void vpisiKronologijo(String serverUrl, String token, String mobileId, String opisOperacije, Integer osebaId, Integer obratId) {
         if (this.kronologIzklop) return;
+        String sUrl = (serverUrl != null && !serverUrl.isEmpty()) ? serverUrl : this.serverUrl;
+        String tok = (token != null && !token.isEmpty()) ? token : this.token;
+        String mob = (mobileId != null && !mobileId.isEmpty()) ? mobileId : String.valueOf(this.mobileId);
+        int osId = (osebaId != null && osebaId != 0) ? osebaId : (this.tekocaOsebaId != 0 ? this.tekocaOsebaId : 9999);
+        int obId = (obratId != null && obratId != 0) ? obratId : (this.tocilnicaId != 0 ? this.tocilnicaId : (this.hisObrat != 0 ? this.hisObrat : 512200));
+
         si.ros.RosKasa.soap.RosKasaSoapClient.vpisKronologijeAsync(
-                this.serverUrl != null ? this.serverUrl : "",
-                this.token != null ? this.token : "",
-                String.valueOf(this.mobileId),
+                sUrl != null ? sUrl : "",
+                tok != null ? tok : "",
+                mob,
                 opisOperacije,
-                9999,
-                this.hisObrat != 0 ? this.hisObrat : 512200
+                osId,
+                obId
         );
+    }
+
+    public void vpisiKronologijoDebugL1(String serverUrl, String token, String mobileId, String opisOperacije, Integer osebaId, Integer obratId) {
+        if (this.kronologIzklop) return;
+        if (!this.debugL1) return;
+        vpisiKronologijo(serverUrl, token, mobileId, opisOperacije, osebaId, obratId);
+    }
+
+    public void vpisiKronologijoDebugL0(String serverUrl, String token, String mobileId, String opisOperacije, Integer osebaId, Integer obratId) {
+        if (this.kronologIzklop) return;
+        if (!this.debugL0) return;
+        vpisiKronologijo(serverUrl, token, mobileId, opisOperacije, osebaId, obratId);
+    }
+
+    public void vpisiKronologijo(String opisOperacije) {
+        vpisiKronologijo(this.serverUrl, this.token, String.valueOf(this.mobileId), opisOperacije, this.tekocaOsebaId, this.tocilnicaId);
+    }
+
+    public void vpisiKronologijoDebugL1(String opisOperacije) {
+        if (this.kronologIzklop) return;
+        if (!this.debugL1) return;
+        vpisiKronologijo(opisOperacije);
+    }
+
+    public void vpisiKronologijoDebugL0(String opisOperacije) {
+        if (this.kronologIzklop) return;
+        if (!this.debugL0) return;
+        vpisiKronologijo(opisOperacije);
     }
 
     /**
@@ -627,6 +675,7 @@ public class Globals {
         if (kvPairs.containsKey("ZAMUDAMINUTE")) { try { this.zamudaMinute = Integer.parseInt(kvPairs.get("ZAMUDAMINUTE")); } catch (Exception ignored) {} }
         if (kvPairs.containsKey("VALUTID")) { try { this.valutId = Integer.parseInt(kvPairs.get("VALUTID")); } catch (Exception ignored) {} }
         if (kvPairs.containsKey("KRONOLOGIZKLOP")) this.kronologIzklop = "D".equalsIgnoreCase(kvPairs.get("KRONOLOGIZKLOP"));
+        if (kvPairs.containsKey("DEBUGL0")) this.debugL0 = "D".equalsIgnoreCase(kvPairs.get("DEBUGL0"));
         if (kvPairs.containsKey("DEBUGL1")) this.debugL1 = "D".equalsIgnoreCase(kvPairs.get("DEBUGL1"));
         if (kvPairs.containsKey("DEBUGL2")) this.debugL2 = "D".equalsIgnoreCase(kvPairs.get("DEBUGL2"));
         if (kvPairs.containsKey("DEBUGL3")) this.debugL3 = "D".equalsIgnoreCase(kvPairs.get("DEBUGL3"));
@@ -1171,6 +1220,8 @@ public class Globals {
     public int getZamudaMinute() { return zamudaMinute; }
     public int getValutId() { return valutId; }
     public boolean isKronologIzklop() { return kronologIzklop; }
+    public boolean isDebugL0() { return debugL0; }
+    public void setDebugL0(boolean debugL0) { this.debugL0 = debugL0; }
     public boolean isDebugL1() { return debugL1; }
     public boolean isDebugL2() { return debugL2; }
     public boolean isDebugL3() { return debugL3; }
@@ -1813,6 +1864,20 @@ public class Globals {
         return null;
     }
 
+    private boolean isPravicaCaptionMatch(String p1, String p2) {
+        if (p1 == null || p2 == null) return false;
+        String s1 = p1.trim();
+        String s2 = p2.trim();
+        if (s1.equalsIgnoreCase(s2)) return true;
+        String n1 = java.text.Normalizer.normalize(s1, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(java.util.Locale.ROOT);
+        String n2 = java.text.Normalizer.normalize(s2, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(java.util.Locale.ROOT);
+        return n1.equalsIgnoreCase(n2) || n1.contains(n2) || n2.contains(n1);
+    }
+
     public synchronized boolean osebiDovoljeno(int osebaId, String pravicaCaption) {
         if (pravicaCaption == null || pravicaCaption.trim().isEmpty()) return false;
         OsebaTp oseba = null;
@@ -1828,15 +1893,17 @@ public class Globals {
         }
         if (oseba == null) return false;
 
-        // Admin ima vse pravice
-        if ("XXL".equalsIgnoreCase(oseba.getPrivilegiji()) || "ADMIN".equalsIgnoreCase(oseba.getOddelek())) {
-            return true;
+        // Admin ima vse pravice (razen restriktivnih omejitev kot je SpreprecimEditStornoPozicij, ki zahtevajo eksplicitno nastavitev bita)
+        if (!isPravicaCaptionMatch(si.ros.RosKasa.models.PraviceConsts.SpreprecimEditStornoPozicij, pravicaCaption)) {
+            if ("XXL".equalsIgnoreCase(oseba.getPrivilegiji()) || "ADMIN".equalsIgnoreCase(oseba.getOddelek())) {
+                return true;
+            }
         }
 
         // Poišči POZICIJA_ID v PRIORITETE_PROJEKTOV
         int pozicijaId = -1;
         for (PrioritetaProjektaTp p : cachedPrioritete) {
-            if (pravicaCaption.equalsIgnoreCase(p.getCaption().trim())) {
+            if (p != null && p.getCaption() != null && isPravicaCaptionMatch(pravicaCaption, p.getCaption())) {
                 pozicijaId = p.getPozicijaId();
                 break;
             }
@@ -1855,5 +1922,36 @@ public class Globals {
 
     public synchronized boolean isDovoljeno(String pravicaCaption) {
         return osebiDovoljeno(this.tekocaOsebaId, pravicaCaption);
+    }
+
+    public synchronized boolean hasCachedStornoRazlogi() {
+        return !cachedStornoRazlogi.isEmpty();
+    }
+
+    public synchronized List<StornoRazlogTp> getCachedStornoRazlogi() {
+        if (cachedStornoRazlogi.isEmpty()) {
+            return getDefaultStornoRazlogi();
+        }
+        return new ArrayList<>(cachedStornoRazlogi);
+    }
+
+    public synchronized void setCachedStornoRazlogi(List<StornoRazlogTp> razlogi) {
+        cachedStornoRazlogi.clear();
+        if (razlogi != null) {
+            cachedStornoRazlogi.addAll(razlogi);
+        }
+    }
+
+    public static List<StornoRazlogTp> getDefaultStornoRazlogi() {
+        List<StornoRazlogTp> list = new ArrayList<>();
+        list.add(new StornoRazlogTp(1, "NAPAKA VNOSA"));
+        list.add(new StornoRazlogTp(2, "GOST JE ODŠEL"));
+        list.add(new StornoRazlogTp(3, "GOST JE ZAVRNIL RAČUN"));
+        list.add(new StornoRazlogTp(4, "NAPAČNO PLAČILNO SREDSTVO"));
+        list.add(new StornoRazlogTp(5, "NAPAKA PRI IZDAJI RAČUNA - PLAČILO"));
+        list.add(new StornoRazlogTp(6, "STORNO HOTEL KREDIT"));
+        list.add(new StornoRazlogTp(7, "NAPAKA PRI IZDAJI RAČUNA - ARTIKEL"));
+        list.add(new StornoRazlogTp(10, "LOKALNO"));
+        return list;
     }
 }

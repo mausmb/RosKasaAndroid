@@ -41,6 +41,7 @@ public class RacunTp {
     private String crmId = "";
     private String dnId = "";
     private String lokator = "";
+    private Integer partnerId;
 
     private List<PozicijaTp> racPozic = new ArrayList<>();
     private List<PlaciloTp> racPlaci = new ArrayList<>();
@@ -94,6 +95,7 @@ public class RacunTp {
         copy.crmId = this.crmId;
         copy.dnId = this.dnId;
         copy.lokator = this.lokator;
+        copy.partnerId = this.partnerId;
 
         if (this.originalObject != null) {
             copy.originalObject = this.originalObject.deepCopy();
@@ -312,4 +314,8 @@ public class RacunTp {
 
     public String getUraPlacila() { return uraPlacila; }
     public void setUraPlacila(String uraPlacila) { this.uraPlacila = uraPlacila != null ? uraPlacila : ""; }
+
+    public Integer getPartnerId() { return partnerId; }
+    public void setPartnerId(Integer partnerId) { this.partnerId = partnerId; }
 }
+

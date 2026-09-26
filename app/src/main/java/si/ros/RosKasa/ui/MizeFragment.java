@@ -83,6 +83,8 @@ public class MizeFragment extends Fragment {
             }
         });
 
+        binding.btnMarker.setOnClickListener(v -> odpriNovMarkerNarocilo());
+
         updateNatakarInfo();
         setupRajoniBar();
         setupMizeGrid();
@@ -372,6 +374,37 @@ public class MizeFragment extends Fragment {
         }
 
         mizeAdapter.setItems(mizeList);
+    }
+
+    private void odpriNovMarkerNarocilo() {
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(requireContext());
+        builder.setTitle("Nov marker");
+        builder.setMessage("Vnesite marker za novo naročilo:");
+        final android.widget.EditText input = new android.widget.EditText(requireContext());
+        input.setHint("npr. Šank, Terasa 1, VIP...");
+        input.setPadding(32, 16, 32, 16);
+        builder.setView(input);
+
+        builder.setPositiveButton("Odpri", (d, w) -> {
+            String raw = input.getText() != null ? input.getText().toString() : "";
+            String clean = Globals.preveriMarker(raw);
+            if (clean.isEmpty()) {
+                Toast.makeText(requireContext(), "Marker ne sme biti prazen!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            prefs.setActiveMarker(clean);
+            prefs.setActiveRacunId(0);
+            Globals.getInstance().setActiveRacunId(0);
+            Globals.getInstance().setCurrentRacun(null);
+
+            Toast.makeText(requireContext(), "Odprto naročilo za marker: " + clean, Toast.LENGTH_SHORT).show();
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).navigateToFragment(new NarocilaFragment());
+            }
+        });
+        builder.setNegativeButton("Prekliči", null);
+        builder.show();
     }
 
     @Override

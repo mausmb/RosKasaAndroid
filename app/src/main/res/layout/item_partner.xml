@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/llPartnerItem"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_storno_item_unselected"
+    android:padding="10dp"
+    android:layout_marginBottom="4dp">
+
+    <TextView
+        android:id="@+id/tvPartnerNaziv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Naziv Partnerja d.o.o."
+        android:textColor="#FFFFFF"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvPartnerNaslov"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Dunajska cesta 100, 1000 Ljubljana"
+        android:textColor="#B0BEC5"
+        android:textSize="13sp"
+        android:layout_marginTop="2dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="2dp">
+
+        <TextView
+            android:id="@+id/tvPartnerDavcna"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Davčna: SI12345678"
+            android:textColor="#80CBC4"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/tvPartnerRabat"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Rabat: 5 %"
+            android:textColor="#FFD54F"
+            android:textSize="12sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+</LinearLayout>

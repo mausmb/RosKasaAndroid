@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#1E272C"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvStornoTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="RAZLOG ZA STORNO"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/tvStornoSubtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Izberite razlog ali nadaljujte brez razloga (opcijsko)"
+        android:textColor="#90A4AE"
+        android:textSize="13sp"
+        android:gravity="center"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="12dp" />
+
+    <ProgressBar
+        android:id="@+id/pbStornoLoading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        android:layout_marginBottom="8dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvStornoRazlogi"
+        android:layout_width="match_parent"
+        android:layout_height="240dp"
+        android:scrollbars="vertical"
+        android:layout_marginBottom="12dp" />
+
+    <com.google.android.material.checkbox.MaterialCheckBox
+        android:id="@+id/cbNovRacun"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ustvari nov račun iz storna (kopija)"
+        android:textColor="#ECEFF1"
+        android:textSize="14sp"
+        android:checked="true"
+        android:visibility="gone"
+        android:layout_marginBottom="16dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="2">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnStornoPreklici"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:backgroundTint="#546E7A"
+            android:text="PREKLIČI"
+            android:textColor="#FFFFFF"
+            android:layout_marginEnd="6dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnStornoPotrdi"
+            style="@style/PosButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:backgroundTint="#D32F2F"
+            android:text="POTRDI STORNO"
+            android:textColor="#FFFFFF"
+            android:layout_marginStart="6dp" />
+    </LinearLayout>
+
+</LinearLayout>

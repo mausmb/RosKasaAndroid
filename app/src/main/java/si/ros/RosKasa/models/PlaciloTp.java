@@ -23,6 +23,9 @@ public class PlaciloTp {
     private String kuponId = "";
     private BigDecimal napitnina = BigDecimal.ZERO;
     private BigDecimal status = BigDecimal.ZERO;
+    private Integer gostPrijavaId;
+    private String stNarocilnice = "";
+    private Integer kupecId;
 
     // Vgnezdeni predhodni objekt
     private PlaciloTp originalObject;
@@ -64,6 +67,9 @@ public class PlaciloTp {
         copy.kuponId = this.kuponId;
         copy.napitnina = this.napitnina;
         copy.status = this.status;
+        copy.gostPrijavaId = this.gostPrijavaId;
+        copy.stNarocilnice = this.stNarocilnice;
+        copy.kupecId = this.kupecId;
         if (this.originalObject != null) {
             copy.originalObject = this.originalObject.deepCopy();
         }
@@ -133,4 +139,14 @@ public class PlaciloTp {
 
     public BigDecimal getStatus() { return status; }
     public void setStatus(BigDecimal status) { this.status = status != null ? status : BigDecimal.ZERO; }
+
+    public Integer getGostPrijavaId() { return gostPrijavaId; }
+    public void setGostPrijavaId(Integer gostPrijavaId) { this.gostPrijavaId = gostPrijavaId; }
+
+    public String getStNarocilnice() { return stNarocilnice; }
+    public void setStNarocilnice(String stNarocilnice) { this.stNarocilnice = stNarocilnice != null ? stNarocilnice : ""; }
+
+    public Integer getKupecId() { return kupecId; }
+    public void setKupecId(Integer kupecId) { this.kupecId = kupecId; }
 }
+

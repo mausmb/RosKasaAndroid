@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#1E272C"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvHotelTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="HOTEL KREDIT - IZBIRA SOBE"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/tvHotelZnesekSubtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Znesek bremenitve: 0,00 €"
+        android:textColor="#80CBC4"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginTop="2dp"
+        android:layout_marginBottom="10dp" />
+
+    <!-- NFC badge / info banner -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="#263238"
+        android:padding="8dp"
+        android:layout_marginBottom="10dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="💳 "
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tvNfcHint"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Prislonite hotelsko NFC kartico ali vnesite številko sobe / priimek gosta."
+            android:textColor="#B0BEC5"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- Search input row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <EditText
+            android:id="@+id/etSearchSobe"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="#263238"
+            android:hint="Številka sobe, priimek ali NFC..."
+            android:textColor="#FFFFFF"
+            android:textColorHint="#78909C"
+            android:textSize="14sp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:singleLine="true"
+            android:imeOptions="actionSearch" />
+
+        <Button
+            android:id="@+id/btnSearchSobe"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:text="Išči"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:backgroundTint="#00897B"
+            android:layout_marginStart="6dp" />
+
+        <Button
+            android:id="@+id/btnSearchDestinacija"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:text="Destinacija"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:backgroundTint="#37474F"
+            android:layout_marginStart="4dp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/pbSobeLoading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:id="@+id/tvEmptySobeMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Vnesite iskalni niz ali prislonite kartico za prikaz sob."
+        android:textColor="#78909C"
+        android:textSize="13sp"
+        android:gravity="center"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvSobe"
+        android:layout_width="match_parent"
+        android:layout_height="220dp"
+        android:scrollbars="vertical"
+        android:visibility="gone"
+        android:layout_marginBottom="12dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="2"
+        android:layout_marginTop="4dp">
+
+        <Button
+            android:id="@+id/btnSobeCancel"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="Prekliči"
+            android:textColor="#ECEFF1"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:backgroundTint="#455A64"
+            android:layout_marginEnd="6dp" />
+
+        <Button
+            android:id="@+id/btnSobePotrdi"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="Potrdi"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:backgroundTint="#00897B"
+            android:layout_marginStart="6dp"
+            android:enabled="false" />
+    </LinearLayout>
+
+</LinearLayout>

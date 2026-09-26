@@ -8,6 +8,7 @@ public class RacunSeznamItem {
     private String marker;
     private Integer status;
     private Integer stornoRacunId;
+    private Integer stornoOriginal;
     private BigDecimal znesek;
 
     public RacunSeznamItem() {
@@ -60,6 +61,14 @@ public class RacunSeznamItem {
 
     public void setStornoRacunId(Integer stornoRacunId) {
         this.stornoRacunId = stornoRacunId;
+    }
+
+    public Integer getStornoOriginal() {
+        return stornoOriginal;
+    }
+
+    public void setStornoOriginal(Integer stornoOriginal) {
+        this.stornoOriginal = stornoOriginal;
     }
 
     public BigDecimal getZnesek() {

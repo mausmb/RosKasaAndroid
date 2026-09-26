@@ -129,7 +129,8 @@ public class RacunPrintBuilder {
         writeBlankLine(preview, printStream);
 
         // 2. ŠTEVILKA DOKUMENTA IN REFERENCA
-        boolean isFiskal = (racun.getFiskalizacija() != null && racun.getFiskalizacija() == 1);
+        boolean isFiskal = (racun.getFiskalizacija() != null && racun.getFiskalizacija() == 1)
+                || (racun.getfPodpis() != null && !racun.getfPodpis().trim().isEmpty());
         String docTitle;
         if (isFiskal) {
             int pId = (racun.getfPoslovniProstorId() != null && racun.getfPoslovniProstorId() > 0) ? racun.getfPoslovniProstorId() : 5000;
@@ -143,8 +144,11 @@ public class RacunPrintBuilder {
         writeLine(preview, printStream, "Referenčna številka " + racun.getRacunId(), false, false, globals);
 
         // Storno oznaka
-        if (racun.getStornoRacunId() != null && racun.getStornoRacunId() > 0) {
-            writeLine(preview, printStream, "Storno računa: " + racun.getStornoRacunId(), true, false, globals);
+        int stornoRef = (racun.getStornoOriginal() != null && racun.getStornoOriginal() > 0)
+                ? racun.getStornoOriginal()
+                : (racun.getStornoRacunId() != null && racun.getStornoRacunId() > 0 ? racun.getStornoRacunId() : 0);
+        if (stornoRef > 0) {
+            writeLine(preview, printStream, "Storno računa: " + stornoRef, true, false, globals);
         }
 
         // Kopija oznaka
@@ -481,6 +485,19 @@ public class RacunPrintBuilder {
         }
         if (globals.getNazivZahvala4() != null && !globals.getNazivZahvala4().trim().isEmpty()) {
             writeLine(preview, printStream, globals.getNazivZahvala4().trim(), false, false, globals);
+        }
+
+        if (racun.getZnesek() != null && racun.getZnesek().compareTo(BigDecimal.ZERO) < 0 && globals.getTekocaOsebaNaziv() != null && !globals.getTekocaOsebaNaziv().trim().isEmpty()) {
+            writeLine(preview, printStream, "Storniral: " + globals.getTekocaOsebaNaziv().trim(), false, false, globals);
+        }
+
+        if (globals.getDpoVr1() != null && !globals.getDpoVr1().trim().isEmpty()) {
+            writeLine(preview, printStream, globals.getDpoVr1().trim(), false, false, globals);
+            if (globals.getDpoVr2() != null && !globals.getDpoVr2().trim().isEmpty()) writeLine(preview, printStream, globals.getDpoVr2().trim(), false, false, globals);
+            if (globals.getDpoVr3() != null && !globals.getDpoVr3().trim().isEmpty()) writeLine(preview, printStream, globals.getDpoVr3().trim(), false, false, globals);
+            if (globals.getDpoVr4() != null && !globals.getDpoVr4().trim().isEmpty()) writeLine(preview, printStream, globals.getDpoVr4().trim(), false, false, globals);
+            if (globals.getDpoVr5() != null && !globals.getDpoVr5().trim().isEmpty()) writeLine(preview, printStream, globals.getDpoVr5().trim(), false, false, globals);
+            if (globals.getDpoVr6() != null && !globals.getDpoVr6().trim().isEmpty()) writeLine(preview, printStream, globals.getDpoVr6().trim(), false, false, globals);
         }
 
         // Odrez papirja

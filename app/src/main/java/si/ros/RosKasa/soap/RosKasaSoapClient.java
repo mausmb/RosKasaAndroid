@@ -34,8 +34,18 @@ import si.ros.RosKasa.models.PozicijaTp;
 import si.ros.RosKasa.models.PrioritetaProjektaTp;
 import si.ros.RosKasa.models.RacunSeznamItem;
 import si.ros.RosKasa.models.RacunTp;
+import si.ros.RosKasa.models.StornoRazlogTp;
+import si.ros.RosKasa.models.StornoResult;
 import si.ros.RosKasa.models.TarifaTp;
+import si.ros.RosKasa.models.KartprijTp;
+import si.ros.RosKasa.models.PartnerTp;
+import si.ros.RosKasa.models.IzpisanTp;
+import si.ros.RosKasa.models.DelovniNalogTp;
+import si.ros.RosKasa.models.SoapReportResult;
 import si.ros.RosKasa.ui.CenikListAdapter;
+import android.util.Base64;
+import java.io.ByteArrayOutputStream;
+import java.util.Locale;
 
 public class RosKasaSoapClient {
     public static final String NAMESPACE = "http://ros.si/R16";
@@ -1071,6 +1081,890 @@ public class RosKasaSoapClient {
         return list;
     }
 
+    public static List<StornoRazlogTp> getStornoRazlogi(String serverUrl, String token) throws Exception {
+        String methodName = "getStornoRazlogi";
+        String soapAction = NAMESPACE + "/" + methodName;
+
+        SoapObject request = new SoapObject(NAMESPACE, methodName);
+        if (token != null && !token.isEmpty()) {
+            request.addProperty("token", token);
+        }
+
+        SoapSerializationEnvelope envelope = createEnvelope(request);
+        String fullEndpoint = formatEndpoint(serverUrl);
+        HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+        transport.debug = true;
+
+        List<StornoRazlogTp> list = new ArrayList<>();
+        try {
+            transport.call(soapAction, envelope);
+            if (transport.requestDump != null) Log.d(TAG, methodName + " Request XML: " + transport.requestDump);
+            if (transport.responseDump != null) Log.d(TAG, methodName + " Response XML: " + transport.responseDump);
+
+            checkResponseFault(envelope, methodName);
+
+            SoapObject response = null;
+            if (envelope.bodyIn instanceof SoapObject) {
+                response = (SoapObject) envelope.bodyIn;
+                if (response.hasProperty("getStornoRazlogiResult")) {
+                    Object resObj = response.getProperty("getStornoRazlogiResult");
+                    if (resObj instanceof SoapObject) response = (SoapObject) resObj;
+                }
+            }
+
+            if (response != null && response.hasProperty("StornoRazlogi")) {
+                Object razlogiProp = response.getProperty("StornoRazlogi");
+                if (razlogiProp instanceof SoapObject) {
+                    SoapObject razlogiSoap = (SoapObject) razlogiProp;
+                    int count = razlogiSoap.getPropertyCount();
+                    for (int i = 0; i < count; i++) {
+                        Object itemObj = razlogiSoap.getProperty(i);
+                        if (itemObj instanceof SoapObject) {
+                            SoapObject itemSoap = (SoapObject) itemObj;
+                            StornoRazlogTp r = new StornoRazlogTp();
+                            String idStr = getPropertyStringSafe(itemSoap, "STORNO_RAZLOG_ID");
+                            if (idStr != null) {
+                                try { r.setStornoRazlogId(Integer.parseInt(idStr)); } catch (Exception ignored) {}
+                            }
+                            String nazivStr = getPropertyStringSafe(itemSoap, "NAZIV");
+                            if (nazivStr != null) r.setNaziv(nazivStr);
+                            list.add(r);
+                        }
+                    }
+                }
+            }
+            Log.d(TAG, "getStornoRazlogi USPEŠNO: pridobljenih " + list.size() + " razlogov.");
+        } catch (Exception e) {
+            String msg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+            Log.e(TAG, "getStornoRazlogi napaka: " + msg, e);
+            throw e;
+        }
+
+        return list;
+    }
+
+    public static StornoResult setStornoRacuna(String serverUrl, String token, int racunId, int verzijaZapisa, int osebaId, Integer stornoRazlogId, boolean novoNarocilo, Integer novoNarociloUrejamStorno) throws Exception {
+        String methodName = "setStornoRacuna";
+        String soapAction = NAMESPACE + "/" + methodName;
+
+        SoapObject request = new SoapObject(NAMESPACE, methodName);
+        SoapObject rq = new SoapObject(NAMESPACE, "SetStornoRacunaRqTp");
+        rq.addProperty("RACUN_ID", racunId);
+        rq.addProperty("VERZIJA_ZAPISA", verzijaZapisa);
+        rq.addProperty("OSEBA_ID", osebaId);
+        if (stornoRazlogId != null && stornoRazlogId > 0) {
+            rq.addProperty("STORNO_RAZLOG_ID", stornoRazlogId);
+        }
+        rq.addProperty("NovoNarocilo", novoNarocilo);
+        if (novoNarociloUrejamStorno != null) {
+            rq.addProperty("NovoNarocilo_UREJAMSTORNO", novoNarociloUrejamStorno);
+        }
+
+        request.addProperty("rq", rq);
+        if (token != null && !token.isEmpty()) {
+            request.addProperty("token", token);
+        }
+
+        SoapSerializationEnvelope envelope = createEnvelope(request);
+        String fullEndpoint = formatEndpoint(serverUrl);
+        HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+        transport.debug = true;
+
+        StornoResult res = new StornoResult();
+        try {
+            transport.call(soapAction, envelope);
+            if (transport.requestDump != null) Log.d(TAG, methodName + " Request XML: " + transport.requestDump);
+            if (transport.responseDump != null) Log.d(TAG, methodName + " Response XML: " + transport.responseDump);
+
+            if (envelope.bodyIn instanceof SoapFault) {
+                SoapFault fault = (SoapFault) envelope.bodyIn;
+                String faultMsg = fault.faultstring != null ? fault.faultstring : fault.toString();
+                res.setSuccess(false);
+                res.setFault(faultMsg);
+                notifyError(methodName, faultMsg);
+                return res;
+            }
+
+            if (envelope.bodyIn instanceof SoapObject) {
+                SoapObject response = (SoapObject) envelope.bodyIn;
+                if (response.hasProperty("setStornoRacunaResult")) {
+                    Object resObj = response.getProperty("setStornoRacunaResult");
+                    if (resObj instanceof SoapObject) response = (SoapObject) resObj;
+                }
+
+                String faultStr = getPropertyStringSafe(response, "fault");
+                String data1Str = getPropertyStringSafe(response, "data1");
+                String data2Str = getPropertyStringSafe(response, "data2");
+
+                res.setFault(faultStr != null ? faultStr : "");
+                res.setData1(data1Str != null ? data1Str : "");
+                res.setData2(data2Str != null ? data2Str : "");
+
+                if (faultStr != null && !faultStr.isEmpty() && !faultStr.contains("JSON")) {
+                    res.setSuccess(false);
+                } else {
+                    res.setSuccess(true);
+                }
+            }
+
+            String opis = "Klic setStornoRacuna (RACUN_ID=" + racunId + ", RAZLOG=" + stornoRazlogId + ", NOVO=" + novoNarocilo + ") -> data1=" + res.getData1() + ", data2=" + res.getData2() + ", fault=" + res.getFault();
+            vpisKronologijeAsync(serverUrl, token, "", opis, 9999, 512200);
+
+        } catch (Exception e) {
+            String msg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+            Log.e(TAG, "setStornoRacuna napaka: " + msg, e);
+            res.setSuccess(false);
+            res.setFault(msg);
+            notifyError(methodName, msg);
+            throw e;
+        }
+
+        return res;
+    }
+
+    public static List<KartprijTp> getKartprij(String serverUrl, String token, String najdi, int obratId, Integer destinacijaId, String hisObratiCsv, boolean isDestinacijaSearch) throws Exception {
+        String methodName = "getKartprij";
+        String soapAction = NAMESPACE + "/" + methodName;
+        List<KartprijTp> list = new ArrayList<>();
+
+        try {
+            SoapObject request = new SoapObject(NAMESPACE, methodName);
+            SoapObject rq = new SoapObject(NAMESPACE, "GetKartprijRqTp");
+
+            if (najdi != null && !najdi.trim().isEmpty()) {
+                rq.addProperty("Najdi", najdi.trim().toUpperCase(Locale.ROOT));
+            } else {
+                rq.addProperty("Najdi", "");
+            }
+
+            if (isDestinacijaSearch || obratId == 0) {
+                if (hisObratiCsv != null && !hisObratiCsv.trim().isEmpty()) {
+                    SoapObject obratiSoap = new SoapObject(NAMESPACE, "ArrayOfInt1");
+                    String[] parts = hisObratiCsv.split(",");
+                    for (String part : parts) {
+                        try {
+                            int oId = Integer.parseInt(part.trim());
+                            obratiSoap.addProperty("int", oId);
+                        } catch (Exception ignored) {}
+                    }
+                    rq.addProperty("OBRATI", obratiSoap);
+                } else if (destinacijaId != null && destinacijaId > 0) {
+                    rq.addProperty("DESTINACIJA_ID", destinacijaId);
+                } else if (obratId > 0) {
+                    rq.addProperty("OBRAT_ID", obratId);
+                }
+            } else {
+                if (obratId > 0) {
+                    rq.addProperty("OBRAT_ID", obratId);
+                }
+            }
+
+            request.addProperty("rq", rq);
+            if (token != null && !token.isEmpty()) {
+                request.addProperty("token", token);
+            }
+
+            SoapSerializationEnvelope envelope = createEnvelope(request);
+            String fullEndpoint = formatEndpoint(serverUrl);
+            HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+            transport.debug = true;
+            transport.call(soapAction, envelope);
+            if (transport.requestDump != null) Log.d(TAG, methodName + " Request XML: " + transport.requestDump);
+            if (transport.responseDump != null) Log.d(TAG, methodName + " Response XML: " + transport.responseDump);
+
+            if (envelope.bodyIn instanceof SoapFault) {
+                SoapFault fault = (SoapFault) envelope.bodyIn;
+                String faultMsg = "SoapFault: " + fault.faultstring;
+                Log.e(TAG, methodName + " SoapFault: " + faultMsg);
+                throw new Exception(faultMsg);
+            }
+
+            if (envelope.bodyIn instanceof SoapObject) {
+                SoapObject response = (SoapObject) envelope.bodyIn;
+                if (response.hasProperty("getKartprijResult")) {
+                    Object resObj = response.getProperty("getKartprijResult");
+                    if (resObj instanceof SoapObject) response = (SoapObject) resObj;
+                } else if (response.hasProperty("GetKartprijResult")) {
+                    Object resObj = response.getProperty("GetKartprijResult");
+                    if (resObj instanceof SoapObject) response = (SoapObject) resObj;
+                }
+
+                if (response != null) {
+                    SoapObject container = null;
+                    if (response.hasProperty("KARTPRIJ")) {
+                        Object o = response.getProperty("KARTPRIJ");
+                        if (o instanceof SoapObject) container = (SoapObject) o;
+                    } else if (response.hasProperty("Kartprij")) {
+                        Object o = response.getProperty("Kartprij");
+                        if (o instanceof SoapObject) container = (SoapObject) o;
+                    }
+
+                    if (container != null) {
+                        for (int i = 0; i < container.getPropertyCount(); i++) {
+                            Object prop = container.getProperty(i);
+                            if (prop instanceof SoapObject) {
+                                KartprijTp kp = parseKartprijTp((SoapObject) prop);
+                                if (kp != null && (kp.getPrijavaId() > 0 || kp.getProstorId() > 0 || (kp.getImeGosta() != null && !kp.getImeGosta().isEmpty()))) {
+                                    list.add(kp);
+                                }
+                            }
+                        }
+                    }
+
+                    if (list.isEmpty()) {
+                        for (int i = 0; i < response.getPropertyCount(); i++) {
+                            Object prop = response.getProperty(i);
+                            if (prop instanceof SoapObject) {
+                                SoapObject itemSoap = (SoapObject) prop;
+                                String name = itemSoap.getName();
+                                if ("KARTPRIJ".equalsIgnoreCase(name) || "ArrayOfKartprijTp".equalsIgnoreCase(name)) {
+                                    for (int j = 0; j < itemSoap.getPropertyCount(); j++) {
+                                        Object sub = itemSoap.getProperty(j);
+                                        if (sub instanceof SoapObject) {
+                                            KartprijTp kp = parseKartprijTp((SoapObject) sub);
+                                            if (kp != null && (kp.getPrijavaId() > 0 || kp.getProstorId() > 0 || (kp.getImeGosta() != null && !kp.getImeGosta().isEmpty()))) {
+                                                list.add(kp);
+                                            }
+                                        }
+                                    }
+                                } else if ("KartprijTp".equalsIgnoreCase(name)) {
+                                    KartprijTp kp = parseKartprijTp(itemSoap);
+                                    if (kp != null && (kp.getPrijavaId() > 0 || kp.getProstorId() > 0 || (kp.getImeGosta() != null && !kp.getImeGosta().isEmpty()))) {
+                                        list.add(kp);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Log.d(TAG, "getKartprij USPEŠNO: pridobljenih " + list.size() + " sob/prijav.");
+        } catch (Exception e) {
+            String msg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+            Log.e(TAG, "getKartprij napaka: " + msg, e);
+            throw e;
+        }
+
+        return list;
+    }
+
+    private static KartprijTp parseKartprijTp(SoapObject soap) {
+        if (soap == null) return null;
+        KartprijTp kp = new KartprijTp();
+
+        String prijIdStr = getPropertyStringSafe(soap, "PRIJAVA_ID");
+        if (prijIdStr != null) {
+            try { kp.setPrijavaId(Integer.parseInt(prijIdStr)); } catch (Exception ignored) {}
+        }
+
+        String prostorIdStr = getPropertyStringSafe(soap, "PROSTOR_ID");
+        if (prostorIdStr != null) {
+            try { kp.setProstorId(Integer.parseInt(prostorIdStr)); } catch (Exception ignored) {}
+        }
+
+        String obratIdStr = getPropertyStringSafe(soap, "OBRAT_ID");
+        if (obratIdStr != null) {
+            try { kp.setObratId(Integer.parseInt(obratIdStr)); } catch (Exception ignored) {}
+        }
+
+        String imeGosta = getPropertyStringSafe(soap, "IMEGOSTA");
+        if (imeGosta != null) kp.setImeGosta(imeGosta.trim());
+
+        String storitev = getPropertyStringSafe(soap, "NAZIVSTORITVE");
+        if (storitev != null) kp.setNazivStoritve(storitev.trim());
+
+        String strm = getPropertyStringSafe(soap, "NAZIV_STRM");
+        if (strm != null) kp.setNazivStrm(strm.trim());
+
+        String tipKart = getPropertyStringSafe(soap, "TIP_KART");
+        if (tipKart != null) kp.setTipKart(tipKart.trim());
+
+        return kp;
+    }
+
+    public static List<PartnerTp> getPartner(String serverUrl, String token, String iskanje, Integer partnerId, Integer tipPartner, Integer strMestoId, boolean neIsciPoDurs) throws Exception {
+        String methodName = "getPartner";
+        String soapAction = NAMESPACE + "/" + methodName;
+        List<PartnerTp> list = new ArrayList<>();
+
+        try {
+            SoapObject request = new SoapObject(NAMESPACE, methodName);
+            SoapObject rq = new SoapObject(NAMESPACE, "GetPartnerRqTp");
+
+            if (iskanje != null && !iskanje.trim().isEmpty()) {
+                rq.addProperty("Iskanje", iskanje.trim());
+            }
+            if (partnerId != null && partnerId > 0) {
+                rq.addProperty("PARTNER_ID", partnerId);
+            }
+            if (tipPartner != null && tipPartner > 0) {
+                rq.addProperty("TIP_PARTNER", tipPartner);
+            }
+            if (strMestoId != null && strMestoId > 0) {
+                rq.addProperty("STR_MESTO_ID", strMestoId);
+            }
+            rq.addProperty("NeIsciPoDurs", neIsciPoDurs);
+
+            request.addProperty("rq", rq);
+            if (token != null && !token.isEmpty()) {
+                request.addProperty("token", token);
+            }
+
+            SoapSerializationEnvelope envelope = createEnvelope(request);
+            String fullEndpoint = formatEndpoint(serverUrl);
+            HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+            transport.debug = true;
+            transport.call(soapAction, envelope);
+            if (transport.requestDump != null) Log.d(TAG, methodName + " Request XML: " + transport.requestDump);
+            if (transport.responseDump != null) Log.d(TAG, methodName + " Response XML: " + transport.responseDump);
+
+            if (envelope.bodyIn instanceof SoapFault) {
+                SoapFault fault = (SoapFault) envelope.bodyIn;
+                String faultMsg = "SoapFault: " + fault.faultstring;
+                Log.e(TAG, methodName + " SoapFault: " + faultMsg);
+                throw new Exception(faultMsg);
+            }
+
+            if (envelope.bodyIn instanceof SoapObject) {
+                SoapObject response = (SoapObject) envelope.bodyIn;
+                if (response.hasProperty("getPartnerResult")) {
+                    Object resObj = response.getProperty("getPartnerResult");
+                    if (resObj instanceof SoapObject) response = (SoapObject) resObj;
+                } else if (response.hasProperty("GetPartnerResult")) {
+                    Object resObj = response.getProperty("GetPartnerResult");
+                    if (resObj instanceof SoapObject) response = (SoapObject) resObj;
+                }
+
+                if (response != null) {
+                    SoapObject partnerContainer = null;
+                    if (response.hasProperty("PARTNER")) {
+                        Object o = response.getProperty("PARTNER");
+                        if (o instanceof SoapObject) partnerContainer = (SoapObject) o;
+                    } else if (response.hasProperty("Partner")) {
+                        Object o = response.getProperty("Partner");
+                        if (o instanceof SoapObject) partnerContainer = (SoapObject) o;
+                    }
+
+                    if (partnerContainer != null) {
+                        for (int i = 0; i < partnerContainer.getPropertyCount(); i++) {
+                            Object prop = partnerContainer.getProperty(i);
+                            if (prop instanceof SoapObject) {
+                                PartnerTp pt = parsePartnerTp((SoapObject) prop);
+                                if (pt != null && pt.getNaziv() != null && !pt.getNaziv().trim().isEmpty()) {
+                                    list.add(pt);
+                                }
+                            }
+                        }
+                    }
+
+                    if (list.isEmpty()) {
+                        for (int i = 0; i < response.getPropertyCount(); i++) {
+                            Object prop = response.getProperty(i);
+                            if (prop instanceof SoapObject) {
+                                SoapObject itemSoap = (SoapObject) prop;
+                                String name = itemSoap.getName();
+                                if ("PARTNER".equalsIgnoreCase(name) || "ArrayOfPartnerTp".equalsIgnoreCase(name)) {
+                                    for (int j = 0; j < itemSoap.getPropertyCount(); j++) {
+                                        Object sub = itemSoap.getProperty(j);
+                                        if (sub instanceof SoapObject) {
+                                            PartnerTp pt = parsePartnerTp((SoapObject) sub);
+                                            if (pt != null && pt.getNaziv() != null && !pt.getNaziv().trim().isEmpty()) {
+                                                list.add(pt);
+                                            }
+                                        }
+                                    }
+                                } else if ("PartnerTp".equalsIgnoreCase(name)) {
+                                    PartnerTp pt = parsePartnerTp(itemSoap);
+                                    if (pt != null && pt.getNaziv() != null && !pt.getNaziv().trim().isEmpty()) {
+                                        list.add(pt);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Log.d(TAG, "getPartner USPEŠNO: pridobljenih " + list.size() + " partnerjev.");
+        } catch (Exception e) {
+            String msg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+            Log.e(TAG, "getPartner napaka: " + msg, e);
+            throw e;
+        }
+
+        return list;
+    }
+
+    private static PartnerTp parsePartnerTp(SoapObject soap) {
+        if (soap == null) return null;
+        PartnerTp pt = new PartnerTp();
+
+        String partIdStr = getPropertyStringSafe(soap, "PARTNER_ID");
+        if (partIdStr != null) {
+            try { pt.setPartnerId(Integer.parseInt(partIdStr)); } catch (Exception ignored) {}
+        }
+
+        String naziv = getPropertyStringSafe(soap, "NAZIV");
+        if (naziv != null) pt.setNaziv(naziv.trim());
+
+        String ulica = getPropertyStringSafe(soap, "NAS_ULICA");
+        if (ulica != null) pt.setNasUlica(ulica.trim());
+
+        String posta = getPropertyStringSafe(soap, "NAZIVPOSTA");
+        if (posta != null) pt.setNazivPosta(posta.trim());
+
+        String davcna = getPropertyStringSafe(soap, "DAVCNAST");
+        if (davcna != null) pt.setDavcnaSt(davcna.trim());
+
+        String rabatStr = getPropertyStringSafe(soap, "RABAT");
+        if (rabatStr != null) {
+            try {
+                rabatStr = rabatStr.replace(",", ".").trim();
+                pt.setRabat(new BigDecimal(rabatStr));
+            } catch (Exception ignored) {}
+        }
+
+        String sklic = getPropertyStringSafe(soap, "SKLIC");
+        if (sklic != null) pt.setSklic(sklic.trim());
+
+        return pt;
+    }
+
+    public static void insertIzpisan(String serverUrl, String token, IzpisanTp izpisan) throws Exception {
+        String methodName = "insertIzpisan";
+        String soapAction = NAMESPACE + "/" + methodName;
+
+        try {
+            SoapObject request = new SoapObject(NAMESPACE, methodName);
+            SoapObject rq = new SoapObject(NAMESPACE, "IzpisanTp");
+
+            // WSDL IzpisanTp zaporedje:
+            // 1. CAS_IZPISA (s:dateTime)
+            if (izpisan.getCasIzpisa() != null && !izpisan.getCasIzpisa().isEmpty()) {
+                rq.addProperty("CAS_IZPISA", izpisan.getCasIzpisa());
+            } else {
+                java.text.SimpleDateFormat sdfCas = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
+                rq.addProperty("CAS_IZPISA", sdfCas.format(new java.util.Date()));
+            }
+
+            // 2. DATUM (s:dateTime)
+            if (izpisan.getDatum() != null && !izpisan.getDatum().isEmpty()) {
+                rq.addProperty("DATUM", izpisan.getDatum());
+            } else {
+                java.text.SimpleDateFormat sdfDate = new java.text.SimpleDateFormat("yyyy-MM-dd'T'00:00:00'Z'", Locale.US);
+                rq.addProperty("DATUM", sdfDate.format(new java.util.Date()));
+            }
+
+            // 3. IZPIS_AI (s:int, minOccurs=1)
+            rq.addProperty("IZPIS_AI", izpisan.getIzpisAi());
+
+            // 4. OSEBA_ID (s:int, minOccurs=1)
+            rq.addProperty("OSEBA_ID", izpisan.getOsebaId());
+
+            // 5. RACUN_ID (s:int, minOccurs=1)
+            rq.addProperty("RACUN_ID", izpisan.getRacunId());
+
+            // 6. STATUS (s:int, minOccurs=1)
+            rq.addProperty("STATUS", izpisan.getStatus() > 0 ? izpisan.getStatus() : 2);
+
+            // 7. TOCILNICA_ID (s:int, minOccurs=1)
+            rq.addProperty("TOCILNICA_ID", izpisan.getTocilnicaId());
+
+            // 8. URA (s:dateTime, minOccurs=1)
+            if (izpisan.getUra() != null && !izpisan.getUra().isEmpty()) {
+                rq.addProperty("URA", izpisan.getUra());
+            } else {
+                java.text.SimpleDateFormat sdfUra = new java.text.SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", Locale.US);
+                rq.addProperty("URA", sdfUra.format(new java.util.Date()));
+            }
+
+            // 9. VSEBINA (s:string, minOccurs=0)
+            rq.addProperty("VSEBINA", izpisan.getVsebina() != null ? izpisan.getVsebina() : "");
+
+            // 10. ZAKLJUCEN (s:int, minOccurs=1)
+            rq.addProperty("ZAKLJUCEN", izpisan.getZakljucen());
+
+            request.addProperty("rq", rq);
+            if (token != null && !token.isEmpty()) {
+                request.addProperty("token", token);
+            }
+
+            Globals.getInstance().vpisiKronologijoDebugL1(serverUrl, token, "",
+                    "ws.insertIzpisan post R:" + izpisan.getRacunId() + " OSEBA:" + izpisan.getOsebaId() + " TOC:" + izpisan.getTocilnicaId(),
+                    izpisan.getOsebaId(), izpisan.getTocilnicaId());
+
+            SoapSerializationEnvelope envelope = createEnvelope(request);
+            String fullEndpoint = formatEndpoint(serverUrl);
+            HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+            transport.debug = true;
+            transport.call(soapAction, envelope);
+            if (transport.requestDump != null) Log.d(TAG, methodName + " Request XML: " + transport.requestDump);
+            if (transport.responseDump != null) Log.d(TAG, methodName + " Response XML: " + transport.responseDump);
+
+            if (envelope.bodyIn instanceof SoapFault) {
+                SoapFault fault = (SoapFault) envelope.bodyIn;
+                String faultMsg = "SoapFault: " + fault.faultstring;
+                Log.e(TAG, methodName + " SoapFault: " + faultMsg);
+                Globals.getInstance().vpisiKronologijoDebugL1(serverUrl, token, "",
+                        "ws.insertIzpisan SoapFault R:" + izpisan.getRacunId() + " " + faultMsg,
+                        izpisan.getOsebaId(), izpisan.getTocilnicaId());
+                throw new Exception(faultMsg);
+            }
+
+            if (envelope.bodyIn instanceof SoapObject) {
+                SoapObject response = (SoapObject) envelope.bodyIn;
+                SoapObject resObj = null;
+                if (response.hasProperty("insertIzpisanResult")) {
+                    Object o = response.getProperty("insertIzpisanResult");
+                    if (o instanceof SoapObject) resObj = (SoapObject) o;
+                } else if (response.hasProperty("InsertIzpisanResult")) {
+                    Object o = response.getProperty("InsertIzpisanResult");
+                    if (o instanceof SoapObject) resObj = (SoapObject) o;
+                } else {
+                    resObj = response;
+                }
+                if (resObj != null) {
+                    String fault = getPropertyStringSafe(resObj, "fault");
+                    if (fault != null && !fault.trim().isEmpty()) {
+                        Log.e(TAG, "insertIzpisan server fault: " + fault);
+                        Globals.getInstance().vpisiKronologijoDebugL1(serverUrl, token, "",
+                                "ws.insertIzpisan FAULT R:" + izpisan.getRacunId() + " " + fault,
+                                izpisan.getOsebaId(), izpisan.getTocilnicaId());
+                        throw new Exception("Server fault: " + fault);
+                    }
+                }
+            }
+
+            Log.d(TAG, "insertIzpisan USPEŠNO za račun: " + izpisan.getRacunId());
+            Globals.getInstance().vpisiKronologijoDebugL1(serverUrl, token, "",
+                    "ws.insertIzpisan USPEH R:" + izpisan.getRacunId(),
+                    izpisan.getOsebaId(), izpisan.getTocilnicaId());
+        } catch (Exception e) {
+            String msg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+            Log.e(TAG, "insertIzpisan napaka za račun " + izpisan.getRacunId() + ": " + msg, e);
+            throw e;
+        }
+    }
+
+    public static SoapReportResult getReport(String serverUrl, String token, String report, int strmId, int osebaId, String format) throws Exception {
+        String methodName = "getReport";
+        String soapAction = NAMESPACE + "/" + methodName;
+
+        SoapObject request = new SoapObject(NAMESPACE, methodName);
+        SoapObject rq = new SoapObject(NAMESPACE, "GetReportRqTp");
+        if (report != null && !report.isEmpty()) {
+            rq.addProperty("Report", report);
+        }
+        rq.addProperty("StrmId", strmId);
+        if (osebaId > 0) {
+            rq.addProperty("OsebaId", osebaId);
+        }
+        if (format != null && !format.isEmpty()) {
+            rq.addProperty("Format", format);
+        }
+        request.addProperty("rq", rq);
+        if (token != null && !token.isEmpty()) {
+            request.addProperty("token", token);
+        }
+
+        SoapSerializationEnvelope envelope = createEnvelope(request);
+        String fullEndpoint = formatEndpoint(serverUrl);
+
+        try {
+            HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+            transport.debug = true;
+            transport.call(soapAction, envelope);
+            if (transport.requestDump != null) Log.d(TAG, methodName + " Request XML: " + transport.requestDump);
+            if (transport.responseDump != null) Log.d(TAG, methodName + " Response XML: " + transport.responseDump);
+
+            if (envelope.bodyIn instanceof SoapFault) {
+                SoapFault fault = (SoapFault) envelope.bodyIn;
+                String faultMsg = "SoapFault: " + fault.faultstring;
+                Log.e(TAG, methodName + " SoapFault: " + faultMsg);
+                throw new Exception(faultMsg);
+            }
+
+            SoapReportResult result = new SoapReportResult();
+            if (envelope.bodyIn instanceof SoapObject) {
+                SoapObject response = (SoapObject) envelope.bodyIn;
+                SoapObject resObj = null;
+                if (response.hasProperty("getReportResult")) {
+                    Object o = response.getProperty("getReportResult");
+                    if (o instanceof SoapObject) resObj = (SoapObject) o;
+                } else if (response.hasProperty("GetReportResult")) {
+                    Object o = response.getProperty("GetReportResult");
+                    if (o instanceof SoapObject) resObj = (SoapObject) o;
+                } else {
+                    resObj = response;
+                }
+
+                if (resObj != null) {
+                    String fault = getPropertyStringSafe(resObj, "fault");
+                    if (fault != null) result.setFault(fault);
+
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    if (resObj.hasProperty("strings")) {
+                        Object strObj = resObj.getProperty("strings");
+                        if (strObj instanceof SoapObject) {
+                            SoapObject arrStr = (SoapObject) strObj;
+                            int count = arrStr.getPropertyCount();
+                            for (int i = 0; i < count; i++) {
+                                String chunk = arrStr.getPropertyAsString(i);
+                                if (chunk != null && !chunk.isEmpty()) {
+                                    try {
+                                        byte[] decoded = Base64.decode(chunk, Base64.DEFAULT);
+                                        baos.write(decoded);
+                                    } catch (Exception ignored) {}
+                                }
+                            }
+                        }
+                    }
+                    result.setPrintBytes(baos.toByteArray());
+                    try {
+                        result.setTextPreview(new String(result.getPrintBytes(), "Windows-1250"));
+                    } catch (Exception e) {
+                        result.setTextPreview(new String(result.getPrintBytes()));
+                    }
+                }
+            }
+            Log.d(TAG, "getReport USPEŠNO za report=" + report + ", bytes=" + (result.getPrintBytes() != null ? result.getPrintBytes().length : 0));
+            return result;
+        } catch (Exception e) {
+            String msg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+            Log.e(TAG, "getReport napaka: " + msg, e);
+            throw e;
+        }
+    }
+
+    public static SoapReportResult narediObracun(String serverUrl, String token, int vrstaObracuna, int strm, int osebaId, String reportFormat) throws Exception {
+        String methodName = "narediObracun";
+        String soapAction = NAMESPACE + "/" + methodName;
+
+        SoapObject request = new SoapObject(NAMESPACE, methodName);
+        SoapObject rq = new SoapObject(NAMESPACE, "NarediObracunRqTp");
+        rq.addProperty("VrstaObracuna", vrstaObracuna);
+        rq.addProperty("Strm", strm);
+        rq.addProperty("OsebaId", osebaId);
+        if (reportFormat != null && !reportFormat.isEmpty()) {
+            rq.addProperty("ReportFormat", reportFormat);
+        }
+        request.addProperty("rq", rq);
+        if (token != null && !token.isEmpty()) {
+            request.addProperty("token", token);
+        }
+
+        SoapSerializationEnvelope envelope = createEnvelope(request);
+        String fullEndpoint = formatEndpoint(serverUrl);
+
+        try {
+            HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+            transport.debug = true;
+            transport.call(soapAction, envelope);
+            if (transport.requestDump != null) Log.d(TAG, methodName + " Request XML: " + transport.requestDump);
+            if (transport.responseDump != null) Log.d(TAG, methodName + " Response XML: " + transport.responseDump);
+
+            if (envelope.bodyIn instanceof SoapFault) {
+                SoapFault fault = (SoapFault) envelope.bodyIn;
+                String faultMsg = "SoapFault: " + fault.faultstring;
+                Log.e(TAG, methodName + " SoapFault: " + faultMsg);
+                throw new Exception(faultMsg);
+            }
+
+            SoapReportResult result = new SoapReportResult();
+            if (envelope.bodyIn instanceof SoapObject) {
+                SoapObject response = (SoapObject) envelope.bodyIn;
+                SoapObject resObj = null;
+                if (response.hasProperty("narediObracunResult")) {
+                    Object o = response.getProperty("narediObracunResult");
+                    if (o instanceof SoapObject) resObj = (SoapObject) o;
+                } else if (response.hasProperty("NarediObracunResult")) {
+                    Object o = response.getProperty("NarediObracunResult");
+                    if (o instanceof SoapObject) resObj = (SoapObject) o;
+                } else {
+                    resObj = response;
+                }
+
+                if (resObj != null) {
+                    String fault = getPropertyStringSafe(resObj, "fault");
+                    if (fault != null) result.setFault(fault);
+
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    if (resObj.hasProperty("strings")) {
+                        Object strObj = resObj.getProperty("strings");
+                        if (strObj instanceof SoapObject) {
+                            SoapObject arrStr = (SoapObject) strObj;
+                            int count = arrStr.getPropertyCount();
+                            for (int i = 0; i < count; i++) {
+                                String chunk = arrStr.getPropertyAsString(i);
+                                if (chunk != null && !chunk.isEmpty()) {
+                                    try {
+                                        byte[] decoded = Base64.decode(chunk, Base64.DEFAULT);
+                                        baos.write(decoded);
+                                    } catch (Exception ignored) {}
+                                }
+                            }
+                        }
+                    }
+                    result.setPrintBytes(baos.toByteArray());
+                    try {
+                        result.setTextPreview(new String(result.getPrintBytes(), "Windows-1250"));
+                    } catch (Exception e) {
+                        result.setTextPreview(new String(result.getPrintBytes()));
+                    }
+                }
+            }
+            Log.d(TAG, "narediObracun USPEŠNO za vrsta=" + vrstaObracuna + ", bytes=" + (result.getPrintBytes() != null ? result.getPrintBytes().length : 0));
+            return result;
+        } catch (Exception e) {
+            String msg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+            Log.e(TAG, "narediObracun napaka: " + msg, e);
+            throw e;
+        }
+    }
+
+    public static String zdruziRacune(String serverUrl, String token, int osebaId, List<Integer> racuni, String marker) throws Exception {
+        String methodName = "zdruziRacune";
+        String soapAction = NAMESPACE + "/" + methodName;
+
+        SoapObject request = new SoapObject(NAMESPACE, methodName);
+        SoapObject rq = new SoapObject(NAMESPACE, "ZdruziRacuneRqTp");
+        rq.addProperty("OSEBA_ID", osebaId);
+        if (marker != null && !marker.isEmpty()) {
+            rq.addProperty("MARKER", marker);
+        }
+
+        SoapObject arrRacuni = new SoapObject(NAMESPACE, "ArrayOfInt1");
+        if (racuni != null) {
+            for (Integer rId : racuni) {
+                arrRacuni.addProperty("int", rId);
+            }
+        }
+        rq.addProperty("Racuni", arrRacuni);
+        request.addProperty("rq", rq);
+        if (token != null && !token.isEmpty()) {
+            request.addProperty("token", token);
+        }
+
+        SoapSerializationEnvelope envelope = createEnvelope(request);
+        String fullEndpoint = formatEndpoint(serverUrl);
+
+        try {
+            HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+            transport.debug = true;
+            transport.call(soapAction, envelope);
+            if (transport.requestDump != null) Log.d(TAG, methodName + " Request XML: " + transport.requestDump);
+            if (transport.responseDump != null) Log.d(TAG, methodName + " Response XML: " + transport.responseDump);
+
+            if (envelope.bodyIn instanceof SoapFault) {
+                SoapFault fault = (SoapFault) envelope.bodyIn;
+                String faultMsg = "SoapFault: " + fault.faultstring;
+                Log.e(TAG, methodName + " SoapFault: " + faultMsg);
+                throw new Exception(faultMsg);
+            }
+
+            String fault = "";
+            if (envelope.bodyIn instanceof SoapObject) {
+                SoapObject response = (SoapObject) envelope.bodyIn;
+                SoapObject resObj = null;
+                if (response.hasProperty("zdruziRacuneResult")) {
+                    Object o = response.getProperty("zdruziRacuneResult");
+                    if (o instanceof SoapObject) resObj = (SoapObject) o;
+                } else if (response.hasProperty("ZdruziRacuneResult")) {
+                    Object o = response.getProperty("ZdruziRacuneResult");
+                    if (o instanceof SoapObject) resObj = (SoapObject) o;
+                } else {
+                    resObj = response;
+                }
+                if (resObj != null) {
+                    fault = getPropertyStringSafe(resObj, "fault");
+                }
+            }
+            Log.d(TAG, "zdruziRacune končano, fault=" + fault);
+            return fault != null ? fault : "";
+        } catch (Exception e) {
+            String msg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+            Log.e(TAG, "zdruziRacune napaka: " + msg, e);
+            throw e;
+        }
+    }
+
+    public static List<DelovniNalogTp> getDelovniNalogi(String serverUrl, String token) throws Exception {
+        String methodName = "getDelovniNalogi";
+        String soapAction = NAMESPACE + "/" + methodName;
+
+        SoapObject request = new SoapObject(NAMESPACE, methodName);
+        if (token != null && !token.isEmpty()) {
+            request.addProperty("token", token);
+        }
+
+        SoapSerializationEnvelope envelope = createEnvelope(request);
+        String fullEndpoint = formatEndpoint(serverUrl);
+
+        try {
+            HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+            transport.debug = true;
+            transport.call(soapAction, envelope);
+
+            List<DelovniNalogTp> list = new ArrayList<>();
+            if (envelope.bodyIn instanceof SoapObject) {
+                SoapObject response = (SoapObject) envelope.bodyIn;
+                SoapObject resObj = null;
+                if (response.hasProperty("getDelovniNalogiResult")) {
+                    Object o = response.getProperty("getDelovniNalogiResult");
+                    if (o instanceof SoapObject) resObj = (SoapObject) o;
+                } else if (response.hasProperty("GetDelovniNalogiResult")) {
+                    Object o = response.getProperty("GetDelovniNalogiResult");
+                    if (o instanceof SoapObject) resObj = (SoapObject) o;
+                } else {
+                    resObj = response;
+                }
+
+                if (resObj != null && resObj.hasProperty("Nalogi")) {
+                    Object nalogiObj = resObj.getProperty("Nalogi");
+                    if (nalogiObj instanceof SoapObject) {
+                        SoapObject nalogiSoap = (SoapObject) nalogiObj;
+                        int count = nalogiSoap.getPropertyCount();
+                        for (int i = 0; i < count; i++) {
+                            Object itemObj = nalogiSoap.getProperty(i);
+                            if (itemObj instanceof SoapObject) {
+                                SoapObject itemSoap = (SoapObject) itemObj;
+                                DelovniNalogTp dn = new DelovniNalogTp();
+                                String aiStr = getPropertyStringSafe(itemSoap, "DN_AI");
+                                if (aiStr != null) {
+                                    try { dn.setDnAi(Integer.parseInt(aiStr)); } catch (Exception ignored) {}
+                                }
+                                String idStr = getPropertyStringSafe(itemSoap, "DN_ID");
+                                if (idStr != null) dn.setDnId(idStr);
+                                String nazStr = getPropertyStringSafe(itemSoap, "NAZIV");
+                                if (nazStr != null) dn.setNaziv(nazStr);
+                                String partIdStr = getPropertyStringSafe(itemSoap, "PARTNER_ID");
+                                if (partIdStr != null) {
+                                    try { dn.setPartnerId(Integer.parseInt(partIdStr)); } catch (Exception ignored) {}
+                                }
+                                String partNazStr = getPropertyStringSafe(itemSoap, "PARTNER_NAZIV");
+                                if (partNazStr != null) dn.setPartnerNaziv(partNazStr);
+                                String strIdStr = getPropertyStringSafe(itemSoap, "STR_MESTO_ID");
+                                if (strIdStr != null) {
+                                    try { dn.setStrMestoId(Integer.parseInt(strIdStr)); } catch (Exception ignored) {}
+                                }
+                                String strNazStr = getPropertyStringSafe(itemSoap, "STR_MESTO_NAZIV");
+                                if (strNazStr != null) dn.setStrMestoNaziv(strNazStr);
+                                String firmaStr = getPropertyStringSafe(itemSoap, "FIRMA");
+                                if (firmaStr != null) dn.setFirma(firmaStr);
+                                list.add(dn);
+                            }
+                        }
+                    }
+                }
+            }
+            Log.d(TAG, "getDelovniNalogi USPEŠNO: pridobljenih " + list.size() + " delovnih nalogov.");
+            return list;
+        } catch (Exception e) {
+            String msg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+            Log.e(TAG, "getDelovniNalogi napaka: " + msg, e);
+            throw e;
+        }
+    }
+
     public static List<HitraTipkaTp> getHitreTipke(String serverUrl, String token, int stroskovnoId) throws Exception {
         String methodName = "getHitreTipke";
         String soapAction = NAMESPACE + "/" + methodName;
@@ -1408,6 +2302,13 @@ public class RosKasaSoapClient {
         if (stornoStr != null) {
             try {
                 item.setStornoRacunId(Integer.parseInt(stornoStr));
+            } catch (Exception ignored) {}
+        }
+
+        String stornoOrigStr = getPropertyStringSafe(soap, "STORNO_ORIGINAL");
+        if (stornoOrigStr != null) {
+            try {
+                item.setStornoOriginal(Integer.parseInt(stornoOrigStr));
             } catch (Exception ignored) {}
         }
 
@@ -1817,6 +2718,9 @@ public class RosKasaSoapClient {
         if (racun.getOpomba() != null && !racun.getOpomba().isEmpty()) {
             soap.addProperty("OPOMBA", racun.getOpomba());
         }
+        if (racun.getPartnerId() != null && racun.getPartnerId() > 0) {
+            soap.addProperty("PARTNER_ID", racun.getPartnerId());
+        }
 
         return soap;
     }
@@ -1948,9 +2852,9 @@ public class RosKasaSoapClient {
             soap.addProperty("DODATNI_OPIS", poz.getDodatniOpis().length() > 240 ? poz.getDodatniOpis().substring(0, 240) : poz.getDodatniOpis());
         }
 
-        if (depth < 3 && poz.getOriginalObject() != null) {
-            soap.addProperty("__OriginalObject", buildSoapPozicijaTp(poz.getOriginalObject(), parentRacunId, defaultPozId, depth + 1));
-        }
+        // Delphi referenca (DataGisOrder.pas:3662) nikoli ne pošilja __OriginalObject na PozicijaTp
+        // (vedno je nil). Pošiljanje __OriginalObject povzroči napako strežnika "race racpozic".
+
         return soap;
     }
 
@@ -1979,14 +2883,26 @@ public class RosKasaSoapClient {
         soap.addProperty("DELNI_ZNESEK", delniZn.toPlainString());
 
         // 3. GOST_PRIJAVA_ID
-        soap.addProperty("GOST_PRIJAVA_ID", 0);
+        int prijavaId = pl.getGostPrijavaId() != null ? pl.getGostPrijavaId() : 0;
+        soap.addProperty("GOST_PRIJAVA_ID", prijavaId);
 
         // 4. KUPEC_ID
-        soap.addProperty("KUPEC_ID", 0);
+        int kupecId = pl.getKupecId() != null ? pl.getKupecId() : 0;
+        soap.addProperty("KUPEC_ID", kupecId);
 
         // 5. PARTNER_ID
         if (pl.getPartnerId() != null && pl.getPartnerId() != 0) {
             soap.addProperty("PARTNER_ID", pl.getPartnerId());
+        }
+
+        if (pl.getNazivPartner() != null && !pl.getNazivPartner().trim().isEmpty()) {
+            soap.addProperty("NAZIV_PARTNER", pl.getNazivPartner().trim());
+        }
+        if (pl.getNaslovPartner() != null && !pl.getNaslovPartner().trim().isEmpty()) {
+            soap.addProperty("NASLOV_PARTNER", pl.getNaslovPartner().trim());
+        }
+        if (pl.getDavcnaSt() != null && !pl.getDavcnaSt().trim().isEmpty()) {
+            soap.addProperty("DAVCNAST", pl.getDavcnaSt().trim());
         }
 
         soap.addProperty("PLACILO_ID", placiloId);
@@ -2012,7 +2928,10 @@ public class RosKasaSoapClient {
         }
 
         // 12. ST_NAROCILNICE
-        soap.addProperty("ST_NAROCILNICE", 0);
+        String stNaroc = (pl.getStNarocilnice() != null && !pl.getStNarocilnice().trim().isEmpty())
+                ? pl.getStNarocilnice().trim()
+                : "0";
+        soap.addProperty("ST_NAROCILNICE", stNaroc);
 
         // 13. TOCILNICA_ID
         int tocilnicaId = (pl.getTocilnicaId() != null && pl.getTocilnicaId() > 0)
@@ -2123,6 +3042,60 @@ public class RosKasaSoapClient {
         racun.setUra(getPropertyStringSafe(soap, "URA"));
         racun.setUraPlacila(getPropertyStringSafe(soap, "URA_PLACILA"));
         racun.setOpomba(getPropertyStringSafe(soap, "OPOMBA"));
+        String dnStr = getPropertyStringSafe(soap, "DN_ID");
+        if (dnStr != null) racun.setDnId(dnStr);
+
+        String partIdStr = getPropertyStringSafe(soap, "PARTNER_ID");
+        if (partIdStr != null) {
+            try { racun.setPartnerId(Integer.parseInt(partIdStr)); } catch (Exception ignored) {}
+        }
+
+        String fiskStr = getPropertyStringSafe(soap, "FISKALIZACIJA");
+        if (fiskStr != null) {
+            try { racun.setFiskalizacija(Integer.parseInt(fiskStr)); } catch (Exception ignored) {}
+        }
+
+        String stKopijStr = getPropertyStringSafe(soap, "STKOPIJ");
+        if (stKopijStr != null) {
+            try { racun.setStKopij(Integer.parseInt(stKopijStr)); } catch (Exception ignored) {}
+        }
+
+        String stornoOrigStr = getPropertyStringSafe(soap, "STORNO_ORIGINAL");
+        if (stornoOrigStr != null) {
+            try { racun.setStornoOriginal(Integer.parseInt(stornoOrigStr)); } catch (Exception ignored) {}
+        }
+
+        String stornoRacIdStr = getPropertyStringSafe(soap, "STORNO_RACUN_ID");
+        if (stornoRacIdStr != null) {
+            try { racun.setStornoRacunId(Integer.parseInt(stornoRacIdStr)); } catch (Exception ignored) {}
+        }
+
+        String stornoOsebaStr = getPropertyStringSafe(soap, "STORNO_OSEBA_ID");
+        if (stornoOsebaStr != null) {
+            try { racun.setStornoOsebaId(Integer.parseInt(stornoOsebaStr)); } catch (Exception ignored) {}
+        }
+
+        String stornoRazlogStr = getPropertyStringSafe(soap, "STORNO_RAZLOG_ID");
+        if (stornoRazlogStr != null) {
+            try { racun.setStornoRazlogId(Integer.parseInt(stornoRazlogStr)); } catch (Exception ignored) {}
+        }
+
+        String urejamStornoStr = getPropertyStringSafe(soap, "UREJAMSTORNO");
+        if (urejamStornoStr != null) {
+            try { racun.setUrejamStorno(Integer.parseInt(urejamStornoStr)); } catch (Exception ignored) {}
+        }
+
+        String printKoda = getPropertyStringSafe(soap, "F_PRINT_KODA");
+        if (printKoda != null) racun.setfPrintKoda(printKoda);
+
+        String printVrsta = getPropertyStringSafe(soap, "F_PRINT_VRSTA");
+        if (printVrsta != null) racun.setfPrintVrsta(printVrsta);
+
+        String crmId = getPropertyStringSafe(soap, "CRM_ID");
+        if (crmId != null) racun.setCrmId(crmId);
+
+        String lokator = getPropertyStringSafe(soap, "LOKATOR");
+        if (lokator != null) racun.setLokator(lokator);
 
         if (soap.hasProperty("__OriginalObject")) {
             Object origObj = soap.getProperty("__OriginalObject");
@@ -2473,6 +3446,28 @@ public class RosKasaSoapClient {
 
         String karticaStr = getPropertyStringSafe(soap, "ST_KARTICE");
         if (karticaStr != null) pl.setStKartice(karticaStr);
+
+        String gostPrijStr = getPropertyStringSafe(soap, "GOST_PRIJAVA_ID");
+        if (gostPrijStr != null) {
+            try { pl.setGostPrijavaId(Integer.parseInt(gostPrijStr)); } catch (Exception ignored) {}
+        }
+
+        String kupecStr = getPropertyStringSafe(soap, "KUPEC_ID");
+        if (kupecStr != null) {
+            try { pl.setKupecId(Integer.parseInt(kupecStr)); } catch (Exception ignored) {}
+        }
+
+        String stNarocStr = getPropertyStringSafe(soap, "ST_NAROCILNICE");
+        if (stNarocStr != null) pl.setStNarocilnice(stNarocStr);
+
+        String nazPartStr = getPropertyStringSafe(soap, "NAZIV_PARTNER");
+        if (nazPartStr != null) pl.setNazivPartner(nazPartStr);
+
+        String nasPartStr = getPropertyStringSafe(soap, "NASLOV_PARTNER");
+        if (nasPartStr != null) pl.setNaslovPartner(nasPartStr);
+
+        String davcnaStr = getPropertyStringSafe(soap, "DAVCNAST");
+        if (davcnaStr != null) pl.setDavcnaSt(davcnaStr);
 
         if (soap.hasProperty("__OriginalObject")) {
             Object origObj = soap.getProperty("__OriginalObject");

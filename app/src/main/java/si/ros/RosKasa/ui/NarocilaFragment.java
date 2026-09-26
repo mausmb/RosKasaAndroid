@@ -348,6 +348,15 @@ public class NarocilaFragment extends Fragment {
         }
     }
 
+    private boolean isRacunZaklenjen() {
+        if (currentRacun == null) return false;
+        Integer status = currentRacun.getStatus();
+        if (status != null && (status == 2 || status == 4)) {
+            return true;
+        }
+        return currentRacun.isPlacan();
+    }
+
     private void disableEkran(String msg) {
         if (binding == null) return;
         binding.btnNarociPost.setEnabled(false);
@@ -364,8 +373,9 @@ public class NarocilaFragment extends Fragment {
 
     private void enableEkran() {
         if (binding == null) return;
-        binding.btnNarociPost.setEnabled(true);
-        binding.btnBrisanje.setEnabled(true);
+        boolean zaklenjen = isRacunZaklenjen();
+        binding.btnNarociPost.setEnabled(!zaklenjen);
+        binding.btnBrisanje.setEnabled(!zaklenjen);
         binding.btnCenikTipke.setEnabled(true);
         binding.btnPreklopiCenik.setEnabled(true);
         binding.btnNavMize.setEnabled(true);
@@ -490,12 +500,19 @@ public class NarocilaFragment extends Fragment {
         }
 
         BigDecimal placano = (currentRacun != null && currentRacun.getPlacano() != null) ? currentRacun.getPlacano() : BigDecimal.ZERO;
-        boolean isPlacan = (currentRacun != null && currentRacun.isPlacan());
+        boolean zaklenjen = isRacunZaklenjen();
 
-        if (isPlacan) {
-            binding.tvMizaStatus.setText(String.format(Locale.getDefault(), "M: %s  -  Zn: %.2f / Pl: %.2f [PLAČAN - ZAKLENJENO]", activeMarker, totalZnesek, placano));
+        if (zaklenjen) {
+            binding.tvMizaStatus.setTextColor(android.graphics.Color.RED);
+            String oznaka = (currentRacun != null && currentRacun.isPlacan()) ? "[PLAČAN - ZAKLENJENO]" : "[ZAKLJUČEN - UREJANJE NI DOVOLJENO]";
+            binding.tvMizaStatus.setText(String.format(Locale.getDefault(), "M: %s  -  Zn: %.2f / Pl: %.2f %s", activeMarker, totalZnesek, placano, oznaka));
+            binding.btnBrisanje.setEnabled(false);
+            binding.btnNarociPost.setEnabled(false);
         } else {
+            binding.tvMizaStatus.setTextColor(android.graphics.Color.WHITE);
             binding.tvMizaStatus.setText(String.format(Locale.getDefault(), "M: %s  -  Zn: %.2f / Pl: %.2f", activeMarker, totalZnesek, placano));
+            binding.btnBrisanje.setEnabled(true);
+            binding.btnNarociPost.setEnabled(true);
         }
     }
 
@@ -642,8 +659,8 @@ public class NarocilaFragment extends Fragment {
     private void knjiziVNarocilo(int nivo4Id, String naziv, BigDecimal cena, double kolicina, double ep, int paket) {
         if (naziv == null || naziv.trim().isEmpty()) return;
 
-        if (currentRacun != null && currentRacun.isPlacan()) {
-            Toast.makeText(requireContext(), "Račun je že plačan! Dodajanje artiklov ni dovoljeno.", Toast.LENGTH_LONG).show();
+        if (isRacunZaklenjen()) {
+            Toast.makeText(requireContext(), "Račun je zaključen (status " + (currentRacun != null ? currentRacun.getStatus() : "") + ")! Urejanje / dodajanje artiklov ni dovoljeno.", Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -1205,8 +1222,8 @@ public class NarocilaFragment extends Fragment {
         });
 
         binding.btnBrisanje.setOnClickListener(v -> {
-            if (currentRacun != null && currentRacun.isPlacan()) {
-                Toast.makeText(requireContext(), "Račun je že plačan! Brisanje postavk ni dovoljeno.", Toast.LENGTH_LONG).show();
+            if (isRacunZaklenjen()) {
+                Toast.makeText(requireContext(), "Račun je zaključen! Brisanje postavk ni dovoljeno.", Toast.LENGTH_LONG).show();
                 return;
             }
             if (orderItems.isEmpty()) {
@@ -1316,8 +1333,8 @@ public class NarocilaFragment extends Fragment {
     }
 
     private void handlePostNarocilo(final Fragment targetFragmentOnSuccess) {
-        if (currentRacun != null && currentRacun.isPlacan()) {
-            Toast.makeText(requireContext(), "Račun je že plačan! Pošiljanje naročila ni dovoljeno.", Toast.LENGTH_LONG).show();
+        if (isRacunZaklenjen()) {
+            Toast.makeText(requireContext(), "Račun je zaključen! Pošiljanje naročila ni dovoljeno.", Toast.LENGTH_LONG).show();
             if (targetFragmentOnSuccess != null && getActivity() instanceof MainActivity) {
                 ((MainActivity) getActivity()).navigateToFragment(targetFragmentOnSuccess);
             }
@@ -1453,8 +1470,8 @@ public class NarocilaFragment extends Fragment {
     private void odpriEditPozicijeDialog(NarociloItem item) {
         if (item == null || currentRacun == null || currentRacun.getRacPozic() == null) return;
 
-        if (currentRacun.isPlacan()) {
-            Toast.makeText(requireContext(), "Račun je že plačan! Urejanje ni dovoljeno.", Toast.LENGTH_SHORT).show();
+        if (isRacunZaklenjen()) {
+            Toast.makeText(requireContext(), "Račun je zaključen! Urejanje postavk ni dovoljeno.", Toast.LENGTH_SHORT).show();
             return;
         }
 
