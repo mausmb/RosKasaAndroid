@@ -39,12 +39,12 @@ public class DelovniNalogiDialog {
     }
 
     public static void show(Context context, String currentDnId, OnDelovniNalogSelectedListener listener) {
-        Dialog dialog = new Dialog(context);
+        Dialog dialog = new Dialog(context, R.style.DialogFullScreen);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(R.layout.dialog_delovni_nalogi);
         if (dialog.getWindow() != null) {
-            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         }
 
         EditText etSearchDn = dialog.findViewById(R.id.etSearchDn);
@@ -115,6 +115,9 @@ public class DelovniNalogiDialog {
                     allNalogi.clear();
                     if (loaded != null) allNalogi.addAll(loaded);
                     applyFilter.run();
+                    if (allNalogi.isEmpty()) {
+                        Toast.makeText(context, "Ni DN podatkov !", Toast.LENGTH_SHORT).show();
+                    }
                 });
             } catch (Exception e) {
                 mainHandler.post(() -> {

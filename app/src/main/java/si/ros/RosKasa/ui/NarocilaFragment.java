@@ -7,6 +7,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.os.SystemClock;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -18,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Stack;
@@ -30,10 +32,15 @@ import si.ros.RosKasa.MainActivity;
 import si.ros.RosKasa.databinding.FragmentNarocilaBinding;
 import si.ros.RosKasa.models.GetRacunRsTp;
 import si.ros.RosKasa.models.CenikVrVrTp;
+import si.ros.RosKasa.models.DelovniNalogTp;
 import si.ros.RosKasa.models.HitraTipkaTp;
+import si.ros.RosKasa.models.KartprijTp;
+import si.ros.RosKasa.models.NacPlacTp;
 import si.ros.RosKasa.models.NarociloItem;
+import si.ros.RosKasa.models.PlaciloTp;
 import si.ros.RosKasa.models.PozicijaTp;
 import si.ros.RosKasa.models.RacunTp;
+import si.ros.RosKasa.print.BluetoothPrintHelper;
 import si.ros.RosKasa.soap.RosKasaSoapClient;
 import si.ros.RosKasa.soap.VersionConflictException;
 
@@ -60,6 +67,10 @@ public class NarocilaFragment extends Fragment {
 
     private String activeMarker = "Miza 5";
     private boolean hasUnsavedChanges = false;
+    private volatile boolean isOperationInProgress = false;
+    private long lastActionTime = 0;
+    private static final long DEBOUNCE_DELAY = 1000;
+    private boolean cena2LockedByHolidayOrWeekend = false;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -88,6 +99,17 @@ public class NarocilaFragment extends Fragment {
         loadInitialOrderData();
         loadCenikItems();
         loadHitreTipkeFromApi();
+        cena2VikendPrazniki();
+        updateGumbNarocilaLevo();
+        updateTipkaGotovinaVisibility();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        cena2VikendPrazniki();
+        updateGumbNarocilaLevo();
+        updateTipkaGotovinaVisibility();
     }
 
     private long lastOrderClickTime = 0;
@@ -280,6 +302,7 @@ public class NarocilaFragment extends Fragment {
                     item.setPaketNivo4Id(pNivo4);
                     item.setCustomZnesek(pZnesek);
                     item.setZnesekPopust(pPopust);
+                    item.setHod(p.getHod());
                     orderItems.add(item);
 
                 } else {
@@ -309,6 +332,7 @@ public class NarocilaFragment extends Fragment {
                             0
                     );
                     item.setPozicijaId(p.getPozicijaId());
+                    item.setHod(p.getHod());
                     if (p.getZnesekPopust() != null && p.getZnesekPopust().abs().compareTo(BigDecimal.ZERO) > 0) {
                         item.setZnesekPopust(p.getZnesekPopust().abs());
                     }
@@ -359,10 +383,17 @@ public class NarocilaFragment extends Fragment {
 
     private void disableEkran(String msg) {
         if (binding == null) return;
+        isOperationInProgress = true;
         binding.btnNarociPost.setEnabled(false);
         binding.btnBrisanje.setEnabled(false);
         binding.btnCenikTipke.setEnabled(false);
         binding.btnPreklopiCenik.setEnabled(false);
+        binding.btnHodi.setEnabled(false);
+        binding.btnPopust.setEnabled(false);
+        binding.btnGostHotela.setEnabled(false);
+        binding.btnKreditnaPos.setEnabled(false);
+        binding.btnKredRocno.setEnabled(false);
+        binding.btnGotovina.setEnabled(false);
         binding.btnNavMize.setEnabled(false);
         binding.btnNavRacuni.setEnabled(false);
         binding.btnNavPlacila.setEnabled(false);
@@ -373,14 +404,151 @@ public class NarocilaFragment extends Fragment {
 
     private void enableEkran() {
         if (binding == null) return;
+        isOperationInProgress = false;
         boolean zaklenjen = isRacunZaklenjen();
         binding.btnNarociPost.setEnabled(!zaklenjen);
         binding.btnBrisanje.setEnabled(!zaklenjen);
         binding.btnCenikTipke.setEnabled(true);
-        binding.btnPreklopiCenik.setEnabled(true);
+        binding.btnHodi.setEnabled(true);
+        binding.btnPopust.setEnabled(!zaklenjen);
+        binding.btnGostHotela.setEnabled(!zaklenjen);
+        binding.btnKreditnaPos.setEnabled(!zaklenjen);
+        binding.btnKredRocno.setEnabled(!zaklenjen);
+
+        updateTipkaGotovinaVisibility();
+        updatePreklopiCenikButtonState();
+        updateGumbNarocilaLevo();
+
         binding.btnNavMize.setEnabled(true);
         binding.btnNavRacuni.setEnabled(true);
         binding.btnNavPlacila.setEnabled(true);
+    }
+
+    private void updateTipkaGotovinaVisibility() {
+        if (binding == null) return;
+        boolean enabled = Globals.getInstance().isTipkaGotovina();
+        if (enabled) {
+            binding.btnGotovina.setVisibility(View.VISIBLE);
+            binding.btnGotovina.setEnabled(!isRacunZaklenjen());
+        } else {
+            binding.btnGotovina.setVisibility(View.GONE);
+            binding.btnGotovina.setEnabled(false);
+        }
+    }
+
+    public void updateGumbNarocilaLevo() {
+        if (binding == null) return;
+        Globals g = Globals.getInstance();
+
+        if (g.isLokatorji()) {
+            if (currentRacun != null && currentRacun.getLokator() != null && !currentRacun.getLokator().trim().isEmpty()) {
+                binding.btnPopust.setText("Lokator:\n" + currentRacun.getLokator().trim());
+            } else {
+                binding.btnPopust.setText("Lokator");
+            }
+            binding.btnPopust.setVisibility(View.VISIBLE);
+        } else if (g.isHodNarocila()) {
+            String th = g.getTekociHod();
+            if (th != null && !th.trim().isEmpty()) {
+                binding.btnPopust.setText("HOD: " + th.trim());
+            } else {
+                binding.btnPopust.setText("HOD ");
+            }
+            binding.btnPopust.setVisibility(View.VISIBLE);
+        } else if (g.isDnCenik() && !g.isHodNarocila() && !g.isLokatorji()) {
+            binding.btnPopust.setText("DN");
+            binding.btnPopust.setVisibility(View.VISIBLE);
+        } else {
+            binding.btnPopust.setText("Popust");
+            binding.btnPopust.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public void updatePreklopiCenikButtonState() {
+        if (binding == null) return;
+        Globals g = Globals.getInstance();
+        if (g.isCena2Aktivna()) {
+            binding.btnPreklopiCenik.setText("CENA 2");
+        } else {
+            binding.btnPreklopiCenik.setText("PREKLOPI\nCENIK");
+        }
+
+        if (cena2LockedByHolidayOrWeekend) {
+            binding.btnPreklopiCenik.setEnabled(false);
+        } else {
+            binding.btnPreklopiCenik.setEnabled(true);
+        }
+    }
+
+    public void cena2VikendPrazniki() {
+        Globals g = Globals.getInstance();
+
+        // 1. Prazniki (če so vklopljeni in CENA2 še ni aktivna)
+        if (g.isPrazniki() && !g.isCena2Aktivna()) {
+            executor.execute(() -> {
+                try {
+                    int obratId = g.getPraznikiObrat();
+                    boolean jePraznik = RosKasaSoapClient.vrniPraznike(
+                            prefs.getServerUrl(), prefs.getToken(), new Date(), obratId
+                    );
+                    if (jePraznik && isAdded() && getActivity() != null) {
+                        mainHandler.post(() -> {
+                            if (!g.isCena2Aktivna()) {
+                                g.setCena2Aktivna(true);
+                                g.vpisiKronologijo("Preklop cenika na cena2! - prazniki");
+                                if (g.isCena2PreklopOff()) {
+                                    cena2LockedByHolidayOrWeekend = true;
+                                }
+                                updatePreklopiCenikButtonState();
+                                osveziCenePoPreklopu();
+                            }
+                        });
+                    }
+                } catch (Exception e) {
+                    Log.w(TAG, "Napaka pri preverjanju praznikov: " + e.getMessage());
+                }
+            });
+        }
+
+        // 2. Vikend (CENA2VIKEND in not CENA2AKTIVNA)
+        if (g.isCena2Vikend() && !g.isCena2Aktivna()) {
+            java.time.LocalDate today = java.time.LocalDate.now();
+            int dayOfWeek = today.getDayOfWeek().getValue(); // 1 = PON .. 5 = PET, 6 = SOB, 7 = NED
+            boolean isWeekend;
+            if (g.isPetekWend()) {
+                isWeekend = (dayOfWeek == 5 || dayOfWeek == 6 || dayOfWeek == 7);
+            } else {
+                isWeekend = (dayOfWeek == 6 || dayOfWeek == 7);
+            }
+            if (isWeekend) {
+                g.setCena2Aktivna(true);
+                g.vpisiKronologijo("Preklop cenika na cena2! - CENA2VIKEND");
+                if (g.isCena2PreklopOff()) {
+                    cena2LockedByHolidayOrWeekend = true;
+                }
+                updatePreklopiCenikButtonState();
+                osveziCenePoPreklopu();
+            }
+        }
+
+        if (g.isCena2Aktivna() && g.isCena2PreklopOff()) {
+            cena2LockedByHolidayOrWeekend = true;
+        }
+
+        updatePreklopiCenikButtonState();
+    }
+
+    private void osveziCenePoPreklopu() {
+        if (Globals.getInstance().hasCachedCenik()) {
+            for (CenikListAdapter.CenikItem ci : Globals.getInstance().getCachedCenik()) {
+                if (ci != null) ci.updateCenaForCurrentState();
+            }
+        }
+        for (CenikListAdapter.CenikItem ci : cenikItems) {
+            if (ci != null) ci.updateCenaForCurrentState();
+        }
+        cenikListAdapter.notifyDataSetChanged();
+        displayQuickKeysForGroup(currentSkupinaId);
     }
 
     private void loadCenikItems() {
@@ -464,6 +632,7 @@ public class NarocilaFragment extends Fragment {
 
         for (CenikListAdapter.CenikItem item : inputList) {
             if (item == null) continue;
+            item.updateCenaForCurrentState();
             // Preskoči artikle s ceno 0 če CENA0CENIK = false (default)
             if (!allowCena0 && item.cena != null && item.cena.compareTo(BigDecimal.ZERO) == 0) {
                 continue;
@@ -801,6 +970,9 @@ public class NarocilaFragment extends Fragment {
                 poz.setVerzijaZapisa(0);
                 poz.setRowDeleted(false);
                 poz.setNeNarocaj(true);
+                if (Globals.getInstance().getTekociHod() != null && !Globals.getInstance().getTekociHod().isEmpty()) {
+                    poz.setHod(Globals.getInstance().getTekociHod());
+                }
 
                 currentRacun.getRacPozic().add(poz);
             }
@@ -824,6 +996,9 @@ public class NarocilaFragment extends Fragment {
             paketItem.setPaketDistinct(pompaketdistinct);
             paketItem.setPaketNivo4Id(nivo4Id);
             paketItem.setCustomZnesek(cena.multiply(BigDecimal.valueOf(kolicina)));
+            if (Globals.getInstance().getTekociHod() != null && !Globals.getInstance().getTekociHod().isEmpty()) {
+                paketItem.setHod(Globals.getInstance().getTekociHod());
+            }
             orderItems.add(paketItem);
 
             hasUnsavedChanges = true;
@@ -883,6 +1058,9 @@ public class NarocilaFragment extends Fragment {
             novaPozicija.setVerzijaZapisa(0);
             novaPozicija.setRowDeleted(false);
             novaPozicija.setNeNarocaj(true);
+            if (Globals.getInstance().getTekociHod() != null && !Globals.getInstance().getTekociHod().isEmpty()) {
+                novaPozicija.setHod(Globals.getInstance().getTekociHod());
+            }
 
             currentRacun.getRacPozic().add(novaPozicija);
         }
@@ -898,6 +1076,9 @@ public class NarocilaFragment extends Fragment {
         if (!exists) {
             NarociloItem ni = new NarociloItem(nivo4Id, naziv, cena, kolicina, ep, paket, 1, tarifaId, izvorStrmId, izvorPrihodekId, davekProc, 0);
             ni.setPozicijaId(nextPozId);
+            if (Globals.getInstance().getTekociHod() != null && !Globals.getInstance().getTekociHod().isEmpty()) {
+                ni.setHod(Globals.getInstance().getTekociHod());
+            }
             orderItems.add(ni);
         }
 
@@ -1194,11 +1375,33 @@ public class NarocilaFragment extends Fragment {
             }
         });
 
+        // Gumb HOD-I: Odpre celozaslonski dialog za določitev hodov (FormHodi)
+        binding.btnHodi.setOnClickListener(v -> {
+            if (currentRacun == null || currentRacun.getRacPozic() == null || currentRacun.getRacPozic().isEmpty()) {
+                Toast.makeText(requireContext(), "Na naročilu ni nobenega artikla!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            HodiDialog dialog = HodiDialog.newInstance(currentRacun, updatedRacun -> {
+                populateOrderItemsFromCurrentRacun();
+                if (currentRacun.getRacunId() > 0) {
+                    handlePostNarocilo();
+                } else {
+                    hasUnsavedChanges = true;
+                    updateOrderSummary();
+                }
+            });
+            dialog.show(getParentFragmentManager(), "HodiDialog");
+        });
+
         // Gumb PREKLOPI CENIK: preklaplja tarifo med CENA 1 in CENA 2 (CENA2AKTIVNA)
         binding.btnPreklopiCenik.setOnClickListener(v -> {
             Globals g = Globals.getInstance();
-            if (!g.isLahkoPreklopiCenik()) {
+            if (cena2LockedByHolidayOrWeekend) {
                 Toast.makeText(requireContext(), "Preklop cenika ni dovoljen (CENA2PREKLOPOFF)!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (!g.isLahkoPreklopiCenik()) {
+                Toast.makeText(requireContext(), "Preklop cenika ni dovoljen!", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -1215,10 +1418,8 @@ public class NarocilaFragment extends Fragment {
                 Toast.makeText(requireContext(), "Preklop cenika na CENA 1!", Toast.LENGTH_SHORT).show();
             }
 
-            // Počiščenje predpomnilnika in osvežitev cen artiklov v ceniku ter v hitrih tipkah
-            Globals.getInstance().clearCenikCache();
-            loadCenikItems();
-            loadHitreTipkeFromApi();
+            updatePreklopiCenikButtonState();
+            osveziCenePoPreklopu();
         });
 
         binding.btnBrisanje.setOnClickListener(v -> {
@@ -1292,6 +1493,15 @@ public class NarocilaFragment extends Fragment {
         });
 
         binding.btnNarociPost.setOnClickListener(v -> handlePostNarocilo());
+
+        // Gumb POPUST / LOKATOR / HOD / DN (GumbNarocilaLevo)
+        binding.btnPopust.setOnClickListener(v -> handleGumbNarocilaLevoClick());
+
+        // Hitra plačila (spodnja vrstica)
+        binding.btnGotovina.setOnClickListener(v -> izvediHitroPlacilo(1, "Gotovina"));
+        binding.btnKreditnaPos.setOnClickListener(v -> izvediHitroPlacilo(2, "Kreditna POS"));
+        binding.btnKredRocno.setOnClickListener(v -> izvediHitroPlacilo(3, "Kreditna ročno"));
+        binding.btnGostHotela.setOnClickListener(v -> handleHitroPlaciloGostHotela());
     }
 
     private boolean hasUnpostedChanges() {
@@ -1333,6 +1543,13 @@ public class NarocilaFragment extends Fragment {
     }
 
     private void handlePostNarocilo(final Fragment targetFragmentOnSuccess) {
+        long now = SystemClock.elapsedRealtime();
+        if (isOperationInProgress || (now - lastActionTime < DEBOUNCE_DELAY)) {
+            Log.d(TAG, "handlePostNarocilo: Zahteva ignorirana, operacija že poteka.");
+            return;
+        }
+        lastActionTime = now;
+
         if (isRacunZaklenjen()) {
             Toast.makeText(requireContext(), "Račun je zaključen! Pošiljanje naročila ni dovoljeno.", Toast.LENGTH_LONG).show();
             if (targetFragmentOnSuccess != null && getActivity() instanceof MainActivity) {
@@ -1525,6 +1742,481 @@ public class NarocilaFragment extends Fragment {
 
             @Override
             public void onCancelled() {}
+        });
+    }
+
+    private void handleGumbNarocilaLevoClick() {
+        long now = SystemClock.elapsedRealtime();
+        if (isOperationInProgress || (now - lastActionTime < DEBOUNCE_DELAY)) {
+            return;
+        }
+        lastActionTime = now;
+
+        Globals g = Globals.getInstance();
+        if (g.isLokatorji()) {
+            android.widget.EditText input = new android.widget.EditText(requireContext());
+            input.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+            if (currentRacun != null && currentRacun.getLokator() != null) {
+                input.setText(currentRacun.getLokator().trim());
+                input.setSelection(input.getText().length());
+            }
+            new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setTitle("Lokator")
+                    .setMessage("Vpiši št. lokatorja:")
+                    .setView(input)
+                    .setPositiveButton("V redu", (dialog, which) -> {
+                        String val = input.getText().toString().trim();
+                        if (currentRacun != null) {
+                            currentRacun.setLokator(val);
+                            hasUnsavedChanges = true;
+                        }
+                        updateGumbNarocilaLevo();
+                    })
+                    .setNegativeButton("Prekliči", null)
+                    .show();
+        } else if (g.isHodNarocila()) {
+            android.widget.EditText input = new android.widget.EditText(requireContext());
+            input.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+            if (g.getTekociHod() != null) {
+                input.setText(g.getTekociHod().trim());
+                input.setSelection(input.getText().length());
+            }
+            new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setTitle("Hod-i")
+                    .setMessage("Vpiši št. hoda:")
+                    .setView(input)
+                    .setPositiveButton("V redu", (dialog, which) -> {
+                        String val = input.getText().toString().trim();
+                        g.setTekociHod(val);
+                        updateGumbNarocilaLevo();
+                    })
+                    .setNegativeButton("Prekliči", null)
+                    .show();
+        } else if (g.isDnCenik() && !g.isHodNarocila() && !g.isLokatorji()) {
+            if (currentRacun == null) return;
+            if (currentRacun.getDnId() != null && !currentRacun.getDnId().trim().isEmpty()
+                    && currentRacun.getRacPozic() != null && !currentRacun.getRacPozic().isEmpty()) {
+                Toast.makeText(requireContext(), "Zamenjava DN ni možna !", Toast.LENGTH_LONG).show();
+                return;
+            }
+            DelovniNalogiDialog.show(requireContext(), currentRacun.getDnId(), new DelovniNalogiDialog.OnDelovniNalogSelectedListener() {
+                @Override
+                public void onSelected(DelovniNalogTp dn) {
+                    if (currentRacun == null || dn == null) return;
+                    if (currentRacun.getOriginalObject() == null) {
+                        currentRacun.setOriginalObject(currentRacun.deepCopy());
+                    }
+                    currentRacun.setDnId(dn.getDnId());
+                    if (dn.getPartnerId() != null && dn.getPartnerId() > 0) {
+                        currentRacun.setPartnerId(dn.getPartnerId());
+                    }
+                    Globals.getInstance().vpisiKronologijo("IZBOR DN: " + dn.getDnId() + " R:" + currentRacun.getRacunId());
+                    hasUnsavedChanges = true;
+                    updateOrderSummary();
+                    updateGumbNarocilaLevo();
+                    Toast.makeText(requireContext(), "Delovni nalog nastavljen: " + dn.getDnId(), Toast.LENGTH_SHORT).show();
+                }
+
+                @Override
+                public void onRemoved() {
+                    if (currentRacun != null) {
+                        currentRacun.setDnId(null);
+                        hasUnsavedChanges = true;
+                        updateOrderSummary();
+                        updateGumbNarocilaLevo();
+                        Toast.makeText(requireContext(), "Delovni nalog odstranjen", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
+        } else {
+            if (preveriPopustNaRacunu()) {
+                Toast.makeText(requireContext(), "Popust je že na računu!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (currentRacun == null || currentRacun.getRacPozic() == null || currentRacun.getRacPozic().isEmpty()) {
+                Toast.makeText(requireContext(), "Na naročilu ni nobenega artikla!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            Popust99Dialog.show(requireContext(), currentRacun.getZnesek(), new Popust99Dialog.OnPopustAppliedListener() {
+                @Override
+                public void onPopustApplied(BigDecimal procent, BigDecimal znesek) {
+                    applyProcentPopust(procent, znesek);
+                }
+
+                @Override
+                public void onCancelled() {}
+            });
+        }
+    }
+
+    private boolean preveriPopustNaRacunu() {
+        if (currentRacun == null) return false;
+        if (currentRacun.getLojalnostId() != null && currentRacun.getLojalnostId() > 0) return true;
+        if (currentRacun.getRacPlaci() != null) {
+            for (PlaciloTp pl : currentRacun.getRacPlaci()) {
+                if (pl != null && !pl.isRowDeleted() && pl.getPlaciloId() == 99) {
+                    return true;
+                }
+            }
+        }
+        if (currentRacun.getRacPozic() != null) {
+            for (PozicijaTp p : currentRacun.getRacPozic()) {
+                if (p != null && !p.isRowDeleted() && p.getZnesekPopust() != null && p.getZnesekPopust().compareTo(BigDecimal.ZERO) > 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void applyProcentPopust(BigDecimal procent, BigDecimal znesek) {
+        if (currentRacun == null) return;
+        if (currentRacun.getOriginalObject() == null) {
+            currentRacun.setOriginalObject(currentRacun.deepCopy());
+        }
+
+        BigDecimal totalPopust = Globals.getInstance().popustNaRacun(currentRacun, procent, znesek);
+
+        int nextPozId = -1;
+        if (currentRacun.getRacPlaci() != null) {
+            for (PlaciloTp p : currentRacun.getRacPlaci()) {
+                if (p != null && p.getPozicijaId() <= nextPozId) {
+                    nextPozId = p.getPozicijaId() - 1;
+                }
+            }
+        }
+
+        final PlaciloTp pl = new PlaciloTp(currentRacun.getRacunId(), 99, totalPopust);
+        pl.setPlaciloId(99);
+        pl.setZnesek(totalPopust);
+        pl.setDelniZnesek(BigDecimal.ZERO);
+        pl.setStatus(procent != null ? procent : BigDecimal.ZERO);
+        pl.setPozicijaId(nextPozId);
+        pl.setVerzijaZapisa(0);
+        pl.setRowDeleted(false);
+        pl.setOriginalObject(null);
+
+        int tocId = (currentRacun.getTocilnicaId() != null && currentRacun.getTocilnicaId() > 0)
+                ? currentRacun.getTocilnicaId()
+                : (Globals.getInstance().getTocilnicaId() != null && Globals.getInstance().getTocilnicaId() > 0 ? Globals.getInstance().getTocilnicaId() : 512200);
+        pl.setTocilnicaId(tocId);
+
+        if (currentRacun.getRacPlaci() == null) {
+            currentRacun.setRacPlaci(new ArrayList<>());
+        }
+        currentRacun.getRacPlaci().add(pl);
+        currentRacun.preracunajVsote();
+
+        populateOrderItemsFromCurrentRacun();
+        updateOrderSummary();
+
+        if (currentRacun.getRacunId() > 0) {
+            disableEkran("Knjiženje popusta na strežnik...");
+            executor.execute(() -> {
+                try {
+                    String serverUrl = prefs.getServerUrl();
+                    String token = prefs.getToken();
+                    int mobileId = 1;
+                    try { mobileId = Integer.parseInt(prefs.getMobileId()); } catch (Exception ignored) {}
+
+                    GetRacunRsTp response = RosKasaSoapClient.setRacun(serverUrl, token, mobileId, currentRacun);
+                    mainHandler.post(() -> {
+                        enableEkran();
+                        if (response != null && response.getRacGlava() != null) {
+                            RacunTp returned = response.getRacGlava();
+                            if ((returned.getRacPozic() == null || returned.getRacPozic().isEmpty()) && currentRacun.getRacPozic() != null) {
+                                returned.setRacPozic(currentRacun.getRacPozic());
+                            }
+                            if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null) {
+                                returned.setRacPlaci(currentRacun.getRacPlaci());
+                            }
+                            if (currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
+                                returned.setZnesek(currentRacun.getZnesek());
+                            }
+                            currentRacun = returned;
+                            currentRacun.preracunajVsote();
+                            Globals.getInstance().setCurrentRacun(currentRacun);
+                            populateOrderItemsFromCurrentRacun();
+                            updateOrderSummary();
+                            Toast.makeText(requireContext(), "Popust uspešno knjižen!", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } catch (Exception e) {
+                    mainHandler.post(() -> {
+                        enableEkran();
+                        Toast.makeText(requireContext(), "Napaka pri knjiženju popusta: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    });
+                }
+            });
+        } else {
+            hasUnsavedChanges = true;
+            Toast.makeText(requireContext(), "Popust dodan na naročilo!", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void handleHitroPlaciloGostHotela() {
+        long now = SystemClock.elapsedRealtime();
+        if (isOperationInProgress || (now - lastActionTime < DEBOUNCE_DELAY)) {
+            return;
+        }
+        lastActionTime = now;
+
+        if (isRacunZaklenjen()) {
+            Toast.makeText(requireContext(), "Račun je zaključen! Plačilo ni dovoljeno.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (currentRacun == null || currentRacun.getRacPozic() == null || currentRacun.getRacPozic().isEmpty()) {
+            Toast.makeText(requireContext(), "Naročilo je prazno! Dodajte artikle.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        currentRacun.preracunajVsote();
+        BigDecimal trenPlacano = currentRacun.getPlacano() != null ? currentRacun.getPlacano() : BigDecimal.ZERO;
+        BigDecimal trenZnesek = currentRacun.getZnesek() != null ? currentRacun.getZnesek() : BigDecimal.ZERO;
+        final BigDecimal zaplacilo = trenZnesek.subtract(trenPlacano);
+
+        if (zaplacilo.compareTo(BigDecimal.ZERO) <= 0) {
+            Toast.makeText(requireContext(), "Račun je že v celoti plačan!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        HotelSobeDialog.show(requireContext(), zaplacilo, selectedRoom -> {
+            izvediHitroPlaciloInterno(8, "Gost hotela", selectedRoom, zaplacilo);
+        });
+    }
+
+    private void izvediHitroPlacilo(final int placiloId, final String nacinNaziv) {
+        long now = SystemClock.elapsedRealtime();
+        if (isOperationInProgress || (now - lastActionTime < DEBOUNCE_DELAY)) {
+            return;
+        }
+        lastActionTime = now;
+
+        if (isRacunZaklenjen()) {
+            Toast.makeText(requireContext(), "Račun je zaključen! Plačilo ni dovoljeno.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (currentRacun == null || currentRacun.getRacPozic() == null || currentRacun.getRacPozic().isEmpty()) {
+            Toast.makeText(requireContext(), "Naročilo je prazno! Dodajte artikle.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        currentRacun.preracunajVsote();
+        BigDecimal trenPlacano = currentRacun.getPlacano() != null ? currentRacun.getPlacano() : BigDecimal.ZERO;
+        BigDecimal trenZnesek = currentRacun.getZnesek() != null ? currentRacun.getZnesek() : BigDecimal.ZERO;
+        final BigDecimal zaplacilo = trenZnesek.subtract(trenPlacano);
+
+        if (zaplacilo.compareTo(BigDecimal.ZERO) <= 0) {
+            Toast.makeText(requireContext(), "Račun je že v celoti plačan!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        izvediHitroPlaciloInterno(placiloId, nacinNaziv, null, zaplacilo);
+    }
+
+    private void izvediHitroPlaciloInterno(final int placiloId, final String nacinNaziv, final KartprijTp hotelSoba, final BigDecimal zaplacilo) {
+        disableEkran("Knjiženje in zaključek (" + nacinNaziv + ")...");
+
+        int nextPozId = -1;
+        if (currentRacun.getRacPlaci() != null) {
+            for (PlaciloTp p : currentRacun.getRacPlaci()) {
+                if (p != null && p.getPozicijaId() <= nextPozId) {
+                    nextPozId = p.getPozicijaId() - 1;
+                }
+            }
+        }
+
+        final PlaciloTp pl = new PlaciloTp(currentRacun.getRacunId(), placiloId, zaplacilo);
+        pl.setPozicijaId(nextPozId);
+        pl.setVerzijaZapisa(0);
+        pl.setRowDeleted(false);
+        pl.setOriginalObject(null);
+        if (hotelSoba != null) {
+            pl.setStKartice(String.valueOf(hotelSoba.getProstorId()));
+            pl.setGostPrijavaId(hotelSoba.getPrijavaId());
+            pl.setNazivPartner(hotelSoba.getImeGosta());
+        }
+
+        int tocId = (currentRacun.getTocilnicaId() != null && currentRacun.getTocilnicaId() > 0)
+                ? currentRacun.getTocilnicaId()
+                : (Globals.getInstance().getTocilnicaId() != null && Globals.getInstance().getTocilnicaId() > 0 ? Globals.getInstance().getTocilnicaId() : 512200);
+        pl.setTocilnicaId(tocId);
+
+        if (currentRacun.getRacPozic() != null) {
+            for (PozicijaTp p : currentRacun.getRacPozic()) {
+                if (p != null) p.setNeNarocaj(true);
+            }
+        }
+        if (currentRacun.getRacPlaci() == null) {
+            currentRacun.setRacPlaci(new ArrayList<>());
+        }
+        currentRacun.getRacPlaci().add(pl);
+
+        // Fiskalizacija:
+        boolean imaFiskalnoPlacilo = false;
+        for (PlaciloTp p : currentRacun.getRacPlaci()) {
+            if (p != null && !p.isRowDeleted() && p.getPlaciloId() != 99) {
+                NacPlacTp np = Globals.getInstance().getPlaciloById(p.getPlaciloId());
+                if (np != null && np.getFiskalno() != null && np.getFiskalno() == 1) {
+                    imaFiskalnoPlacilo = true;
+                    break;
+                } else if (np == null && (p.getPlaciloId() == 1 || p.getPlaciloId() == 2 || p.getPlaciloId() == 3 || p.getPlaciloId() == 399)) {
+                    imaFiskalnoPlacilo = true;
+                    break;
+                }
+            }
+        }
+        if (imaFiskalnoPlacilo) {
+            currentRacun.setFiskalizacija(1);
+        } else {
+            currentRacun.setFiskalizacija(null);
+        }
+
+        currentRacun.setStatus(2); // Zaključen / fiskaliziran račun
+        currentRacun.setMarker(activeMarker);
+        int fPosId = prefs.getfPosId() > 0 ? prefs.getfPosId() : (Globals.getInstance().getfPosId() != null && Globals.getInstance().getfPosId() > 0 ? Globals.getInstance().getfPosId() : 500);
+        currentRacun.setfPosId(fPosId);
+        int fPoslovniProstorId = Globals.getInstance().getfPoslovniProstorId() != null && Globals.getInstance().getfPoslovniProstorId() > 0 ? Globals.getInstance().getfPoslovniProstorId() : 5000;
+        currentRacun.setfPoslovniProstorId(fPoslovniProstorId);
+        currentRacun.setTocilnicaId(tocId);
+        if (Globals.getInstance().getTekocaOsebaId() > 0) {
+            currentRacun.setKasiral(Globals.getInstance().getTekocaOsebaId());
+        } else if (currentRacun.getKasiral() == null || currentRacun.getKasiral() <= 0) {
+            currentRacun.setKasiral(9999);
+        }
+        if (currentRacun.getTipRacuna() == null || currentRacun.getTipRacuna() <= 0) {
+            currentRacun.setTipRacuna(1);
+        }
+        if (currentRacun.getStPogrinjkov() == null || currentRacun.getStPogrinjkov() <= 0) {
+            currentRacun.setStPogrinjkov(1);
+        }
+        if (currentRacun.getStKopij() == null) {
+            currentRacun.setStKopij(0);
+        }
+
+        BigDecimal trenPlacano = currentRacun.getPlacano() != null ? currentRacun.getPlacano() : BigDecimal.ZERO;
+        currentRacun.setPlacano(trenPlacano.add(zaplacilo));
+        currentRacun.preracunajVsote();
+
+        executor.execute(() -> {
+            try {
+                String serverUrl = prefs.getServerUrl();
+                String token = prefs.getToken();
+                int mobileId = 1;
+                try { mobileId = Integer.parseInt(prefs.getMobileId()); } catch (Exception ignored) {}
+
+                if (currentRacun.getRacunId() > 0) {
+                    try {
+                        int serverVer = RosKasaSoapClient.getVerzijaOfRacglava(serverUrl, token, currentRacun.getRacunId());
+                        if (serverVer > currentRacun.getVerzijaZapisa()) {
+                            throw new VersionConflictException(
+                                    currentRacun.getRacunId(),
+                                    currentRacun.getVerzijaZapisa(),
+                                    serverVer,
+                                    "Strežnik poroča višjo verzijo zapisa (" + serverVer + " > " + currentRacun.getVerzijaZapisa() + ")"
+                            );
+                        }
+                    } catch (VersionConflictException vce) {
+                        throw vce;
+                    } catch (Exception e) {
+                        Log.w(TAG, "getVerzijaOfRacglava opozorilo: " + e.getMessage());
+                    }
+                }
+
+                GetRacunRsTp response = RosKasaSoapClient.setRacun(serverUrl, token, mobileId, currentRacun);
+
+                RacunTp racunZaTisk = currentRacun;
+                if (response != null && response.getRacGlava() != null) {
+                    RacunTp returned = response.getRacGlava();
+                    if ((returned.getRacPozic() == null || returned.getRacPozic().isEmpty()) && currentRacun.getRacPozic() != null) {
+                        returned.setRacPozic(currentRacun.getRacPozic());
+                    }
+                    if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null) {
+                        returned.setRacPlaci(currentRacun.getRacPlaci());
+                    }
+                    if (returned.getFiskalizacija() == null && currentRacun.getFiskalizacija() != null) {
+                        returned.setFiskalizacija(currentRacun.getFiskalizacija());
+                    }
+                    if (currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
+                        returned.setZnesek(currentRacun.getZnesek());
+                    }
+                    racunZaTisk = returned;
+                }
+
+                if (racunZaTisk != null && racunZaTisk.getRacPozic() != null) {
+                    for (PozicijaTp p : racunZaTisk.getRacPozic()) {
+                        if (p != null && p.getNivo4Id() != null && p.getNivo4Id() > 0) {
+                            String lookup = Globals.getInstance().findNazivByNivo4Id(p.getNivo4Id());
+                            if (lookup != null && !lookup.trim().isEmpty()) {
+                                p.setNaziv(lookup.trim());
+                            }
+                        }
+                    }
+                }
+
+                final RacunTp finalRacunToPrint = racunZaTisk;
+                final int finalStKopij = Globals.getInstance().stKopijPlacila(racunZaTisk);
+
+                mainHandler.post(() -> {
+                    enableEkran();
+                    if (getContext() != null) {
+                        Toast.makeText(requireContext(), "Račun #" + finalRacunToPrint.getRacunId() + " (" + nacinNaziv + ") zaključen!", Toast.LENGTH_SHORT).show();
+                    }
+
+                    if (getContext() != null) {
+                        BluetoothPrintHelper.printReceipt(requireContext(), finalRacunToPrint, 0, new BluetoothPrintHelper.OnPrintListener() {
+                            @Override
+                            public void onStart() {}
+
+                            @Override
+                            public void onSuccess(String message) {
+                                if (getContext() != null) {
+                                    Toast.makeText(requireContext(), "Tisk: " + message, Toast.LENGTH_SHORT).show();
+                                }
+                            }
+
+                            @Override
+                            public void onError(String errorMessage) {
+                                if (getContext() != null) {
+                                    Toast.makeText(requireContext(), "Napaka tiskanja: " + errorMessage, Toast.LENGTH_LONG).show();
+                                }
+                            }
+                        });
+
+                        if (finalStKopij > 1) {
+                            for (int k = 2; k <= finalStKopij; k++) {
+                                final int kopijaIndex = k;
+                                BluetoothPrintHelper.printReceipt(requireContext(), finalRacunToPrint, kopijaIndex, null);
+                            }
+                        }
+                    }
+
+                    prefs.setActiveRacunId(0);
+                    Globals.getInstance().setCurrentRacun(null);
+
+                    if (Globals.getInstance().ispLogoutPoIzpisu()) {
+                        if (getActivity() instanceof MainActivity) {
+                            ((MainActivity) getActivity()).navigateToFragment(new LoginFragment());
+                        }
+                    } else if (getActivity() instanceof MainActivity) {
+                        ((MainActivity) getActivity()).navigateToFragment(new MizeFragment());
+                    }
+                });
+
+            } catch (VersionConflictException vce) {
+                mainHandler.post(() -> handleVersionConflict(vce));
+            } catch (Exception e) {
+                mainHandler.post(() -> {
+                    enableEkran();
+                    if (currentRacun != null && currentRacun.getRacPlaci() != null) {
+                        currentRacun.getRacPlaci().remove(pl);
+                        currentRacun.setStatus(1);
+                        currentRacun.preracunajVsote();
+                    }
+                    String msg = (e != null && e.getMessage() != null) ? e.getMessage() : "Neznana napaka";
+                    Toast.makeText(requireContext(), "Napaka pri hitrem plačilu: " + msg, Toast.LENGTH_LONG).show();
+                });
+            }
         });
     }
 

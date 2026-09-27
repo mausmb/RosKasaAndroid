@@ -71,7 +71,11 @@ public class NarociloItemAdapter extends RecyclerView.Adapter<NarociloItemAdapte
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         NarociloItem item = items.get(position);
-        holder.tvNaziv.setText(item.getNaziv());
+        String naziv = item.getNaziv() != null ? item.getNaziv() : "";
+        if (item.getHod() != null && !item.getHod().trim().isEmpty()) {
+            naziv = naziv + "  [H" + item.getHod().trim() + "]";
+        }
+        holder.tvNaziv.setText(naziv);
         holder.tvCena.setText(String.format("%.2f", item.getCena()));
         holder.tvKolicina.setText(String.format("%.1f", item.getKolicina()));
         holder.tvZnesek.setText(String.format("%.2f €", item.getZnesek()));

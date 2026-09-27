@@ -12,8 +12,11 @@ import org.ksoap2.serialization.SoapSerializationEnvelope;
 import org.ksoap2.transport.HttpTransportSE;
 
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -40,6 +43,7 @@ import si.ros.RosKasa.models.TarifaTp;
 import si.ros.RosKasa.models.KartprijTp;
 import si.ros.RosKasa.models.PartnerTp;
 import si.ros.RosKasa.models.IzpisanTp;
+import si.ros.RosKasa.models.LojalnostnaTp;
 import si.ros.RosKasa.models.DelovniNalogTp;
 import si.ros.RosKasa.models.SoapReportResult;
 import si.ros.RosKasa.ui.CenikListAdapter;
@@ -664,16 +668,20 @@ public class RosKasaSoapClient {
             try { paket = Integer.parseInt(paketStr); } catch (Exception ignored) {}
         }
 
+        BigDecimal cena1 = cena;
         Globals g = Globals.getInstance();
         if (g.isCena2Aktivna()) {
-            if (g.getModelCena2() == 1) {
-                if (cena2.compareTo(BigDecimal.ZERO) != 0) cena = cena2;
-            } else if (g.getModelCena2() == 2) {
+            if (g.getModelCena2() == 2) {
                 cena = cena2;
+            } else {
+                if (cena2.compareTo(BigDecimal.ZERO) != 0) cena = cena2;
             }
         }
 
         CenikListAdapter.CenikItem item = new CenikListAdapter.CenikItem(nivo4Id, naziv, pluStr, cena, nacinProdaje, polnjenje);
+        item.cena1 = cena1;
+        item.cena2 = cena2;
+        item.updateCenaForCurrentState();
         item.paket = paket;
 
         String tarifaIdStr = getPropertyStringSafe(soap, "TARIFA_ID");
@@ -1141,6 +1149,238 @@ public class RosKasaSoapClient {
         }
 
         return list;
+    }
+
+    public static List<LojalnostnaTp> getLojalnostna(String serverUrl, String token) throws Exception {
+        String methodName = "getLojalnostna";
+        String soapAction = NAMESPACE + "/" + methodName;
+
+        SoapObject request = new SoapObject(NAMESPACE, methodName);
+        if (token != null && !token.isEmpty()) {
+            request.addProperty("token", token);
+        }
+
+        SoapSerializationEnvelope envelope = createEnvelope(request);
+        String fullEndpoint = formatEndpoint(serverUrl);
+        HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+        transport.debug = true;
+
+        List<LojalnostnaTp> list = new ArrayList<>();
+
+        try {
+            transport.call(soapAction, envelope);
+            if (transport.requestDump != null) Log.d(TAG, methodName + " Request XML: " + transport.requestDump);
+            if (transport.responseDump != null) Log.d(TAG, methodName + " Response XML: " + transport.responseDump);
+
+            if (envelope.bodyIn instanceof SoapFault) {
+                SoapFault fault = (SoapFault) envelope.bodyIn;
+                String faultStr = fault.faultstring != null ? fault.faultstring : fault.toString();
+                notifyError(methodName, "SoapFault: " + faultStr);
+                throw new Exception(faultStr);
+            }
+
+            if (envelope.bodyIn instanceof SoapObject) {
+                SoapObject response = (SoapObject) envelope.bodyIn;
+                if (response.hasProperty("getLojalnostnaResult")) {
+                    Object resObj = response.getProperty("getLojalnostnaResult");
+                    if (resObj instanceof SoapObject) response = (SoapObject) resObj;
+                }
+
+                if (response.hasProperty("Lojalnostna")) {
+                    Object lojProp = response.getProperty("Lojalnostna");
+                    if (lojProp instanceof SoapObject) {
+                        SoapObject lojSoap = (SoapObject) lojProp;
+                        int count = lojSoap.getPropertyCount();
+                        for (int i = 0; i < count; i++) {
+                            Object itemObj = lojSoap.getProperty(i);
+                            if (itemObj instanceof SoapObject) {
+                                SoapObject itemSoap = (SoapObject) itemObj;
+                                LojalnostnaTp item = new LojalnostnaTp();
+                                String razredStr = getPropertyStringSafe(itemSoap, "BONITETNI_RAZRED");
+                                if (razredStr != null) {
+                                    try { item.setBonitetniRazred(Integer.parseInt(razredStr)); } catch (Exception ignored) {}
+                                }
+                                String nazivStr = getPropertyStringSafe(itemSoap, "NAZIV");
+                                if (nazivStr != null) item.setNaziv(nazivStr);
+                                list.add(item);
+                            }
+                        }
+                    }
+                }
+            }
+            Log.d(TAG, "getLojalnostna USPEŠNO: pridobljenih " + list.size() + " razredov.");
+        } catch (Exception e) {
+            String msg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+            Log.e(TAG, "getLojalnostna napaka: " + msg, e);
+            throw e;
+        }
+
+        return list;
+    }
+
+    public static GetRacunRsTp setLojalnost(String serverUrl, String token, int bonitetniRazred, int racunId, int verzija) throws Exception {
+        String methodName = "setLojalnost";
+        String soapAction = NAMESPACE + "/" + methodName;
+
+        SoapObject request = new SoapObject(NAMESPACE, methodName);
+        request.addProperty("bonitetniRazred", bonitetniRazred);
+        request.addProperty("racunId", racunId);
+        request.addProperty("verzija", verzija);
+        if (token != null && !token.isEmpty()) {
+            request.addProperty("token", token);
+        }
+
+        SoapSerializationEnvelope envelope = createEnvelope(request);
+        String fullEndpoint = formatEndpoint(serverUrl);
+        HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+        transport.debug = true;
+
+        GetRacunRsTp result = new GetRacunRsTp();
+
+        try {
+            transport.call(soapAction, envelope);
+            if (transport.requestDump != null) Log.d(TAG, methodName + " Request XML: " + transport.requestDump);
+            if (transport.responseDump != null) Log.d(TAG, methodName + " Response XML: " + transport.responseDump);
+
+            if (envelope.bodyIn instanceof SoapFault) {
+                SoapFault fault = (SoapFault) envelope.bodyIn;
+                String faultStr = fault.faultstring != null ? fault.faultstring : fault.toString();
+                notifyError(methodName, "SoapFault: " + faultStr);
+                throw new Exception(faultStr);
+            }
+
+            if (envelope.bodyIn instanceof SoapObject) {
+                SoapObject response = (SoapObject) envelope.bodyIn;
+                if (response.hasProperty("setLojalnostResult")) {
+                    Object resObj = response.getProperty("setLojalnostResult");
+                    if (resObj instanceof SoapObject) response = (SoapObject) resObj;
+                }
+
+                String faultVal = getPropertyStringSafe(response, "fault");
+                String data1Val = getPropertyStringSafe(response, "data1");
+                result.setFault(faultVal);
+                result.setData1(data1Val);
+
+                if (faultVal != null && !faultVal.isEmpty()) {
+                    throw new Exception(faultVal);
+                }
+
+                if (response.hasProperty("RACGLAVA")) {
+                    Object rgObj = response.getProperty("RACGLAVA");
+                    if (rgObj instanceof SoapObject) {
+                        RacunTp returnedRacun = parseRacunTp((SoapObject) rgObj);
+                        if (returnedRacun != null) {
+                            returnedRacun.setOriginalObject(returnedRacun.deepCopy());
+                            if (returnedRacun.getRacPozic() != null) {
+                                for (PozicijaTp p : returnedRacun.getRacPozic()) {
+                                    if (p != null) p.setOriginalObject(p.deepCopy());
+                                }
+                            }
+                            if (returnedRacun.getRacPlaci() != null) {
+                                for (PlaciloTp pl : returnedRacun.getRacPlaci()) {
+                                    if (pl != null) pl.setOriginalObject(pl.deepCopy());
+                                }
+                            }
+                            result.setRacGlava(returnedRacun);
+                        }
+                    }
+                }
+            }
+
+            String opis = "Klic setLojalnost (RACUN_ID=" + racunId + ", BONITETNI_RAZRED=" + bonitetniRazred + ", VERZIJA=" + verzija + ") -> USPEH. Nova VERZIJA=" + (result.getRacGlava() != null ? result.getRacGlava().getVerzijaZapisa() : "?");
+            Log.d(TAG, opis);
+            vpisKronologijeAsync(serverUrl, token, "", opis, 9999, 512200);
+        } catch (Exception e) {
+            String msg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+            Log.e(TAG, "setLojalnost napaka: " + msg, e);
+            notifyError(methodName, msg);
+            throw e;
+        }
+
+        return result;
+    }
+
+    public static GetRacunRsTp natisniHod(String serverUrl, String token, int racunId, String hod) throws Exception {
+        String methodName = "natisniHod";
+        String soapAction = NAMESPACE + "/" + methodName;
+
+        SoapObject request = new SoapObject(NAMESPACE, methodName);
+        SoapObject rq = new SoapObject(NAMESPACE, "NatisniHodRqTp");
+        rq.addProperty("RACUN_ID", racunId);
+        rq.addProperty("HOD", hod != null ? hod : "");
+        request.addProperty("rq", rq);
+        if (token != null && !token.isEmpty()) {
+            request.addProperty("token", token);
+        }
+
+        SoapSerializationEnvelope envelope = createEnvelope(request);
+        String fullEndpoint = formatEndpoint(serverUrl);
+        HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+        transport.debug = true;
+
+        GetRacunRsTp result = new GetRacunRsTp();
+
+        try {
+            transport.call(soapAction, envelope);
+            if (transport.requestDump != null) Log.d(TAG, methodName + " Request XML: " + transport.requestDump);
+            if (transport.responseDump != null) Log.d(TAG, methodName + " Response XML: " + transport.responseDump);
+
+            if (envelope.bodyIn instanceof SoapFault) {
+                SoapFault fault = (SoapFault) envelope.bodyIn;
+                String faultStr = fault.faultstring != null ? fault.faultstring : fault.toString();
+                notifyError(methodName, "SoapFault: " + faultStr);
+                throw new Exception(faultStr);
+            }
+
+            if (envelope.bodyIn instanceof SoapObject) {
+                SoapObject response = (SoapObject) envelope.bodyIn;
+                if (response.hasProperty("natisniHodResult")) {
+                    Object resObj = response.getProperty("natisniHodResult");
+                    if (resObj instanceof SoapObject) response = (SoapObject) resObj;
+                }
+
+                String faultVal = getPropertyStringSafe(response, "fault");
+                String data1Val = getPropertyStringSafe(response, "data1");
+                result.setFault(faultVal);
+                result.setData1(data1Val);
+
+                if (faultVal != null && !faultVal.isEmpty()) {
+                    throw new Exception(faultVal);
+                }
+
+                if (response.hasProperty("RACGLAVA")) {
+                    Object rgObj = response.getProperty("RACGLAVA");
+                    if (rgObj instanceof SoapObject) {
+                        RacunTp returnedRacun = parseRacunTp((SoapObject) rgObj);
+                        if (returnedRacun != null) {
+                            returnedRacun.setOriginalObject(returnedRacun.deepCopy());
+                            if (returnedRacun.getRacPozic() != null) {
+                                for (PozicijaTp p : returnedRacun.getRacPozic()) {
+                                    if (p != null) p.setOriginalObject(p.deepCopy());
+                                }
+                            }
+                            if (returnedRacun.getRacPlaci() != null) {
+                                for (PlaciloTp pl : returnedRacun.getRacPlaci()) {
+                                    if (pl != null) pl.setOriginalObject(pl.deepCopy());
+                                }
+                            }
+                            result.setRacGlava(returnedRacun);
+                        }
+                    }
+                }
+            }
+
+            String opis = "Klic natisniHod (RACUN_ID=" + racunId + ", HOD=" + hod + ") -> USPEH";
+            Log.d(TAG, opis);
+            vpisKronologijeAsync(serverUrl, token, "", opis, 9999, 512200);
+        } catch (Exception e) {
+            String msg = (e != null && e.getMessage() != null) ? e.getMessage() : (e != null ? e.toString() : "Neznana napaka");
+            Log.e(TAG, "natisniHod napaka: " + msg, e);
+            notifyError(methodName, msg);
+            throw e;
+        }
+
+        return result;
     }
 
     public static StornoResult setStornoRacuna(String serverUrl, String token, int racunId, int verzijaZapisa, int osebaId, Integer stornoRazlogId, boolean novoNarocilo, Integer novoNarociloUrejamStorno) throws Exception {
@@ -1645,12 +1885,35 @@ public class RosKasaSoapClient {
         }
     }
 
+    /**
+     * Finančni pregled 2 (Izpis inkasa) po zgledu Delphi TdmGisOrder.FinancniPregled2:
+     * Function TdmGisOrder.FinancniPregled2(const pStrm,pOsebaId:Integer):String;
+     * reqreport.Report := 'Zakljucni1';
+     * reqreport.StrmId.AsInteger := pStrm;
+     * if pOsebaId <> 0 then reqreport.OsebaId.AsInteger := pOsebaId;
+     * reqreport.format := pReportFormat;
+     */
+    public static SoapReportResult financniPregled2(String serverUrl, String token, int strmId, int osebaId) throws Exception {
+        String format = Globals.getInstance().getReportFormat();
+        if (format == null || format.trim().isEmpty()) {
+            format = "txt";
+        } else {
+            format = format.trim().toLowerCase();
+        }
+        return getReport(serverUrl, token, "Zakljucni1", strmId, osebaId, format);
+    }
+
     public static SoapReportResult getReport(String serverUrl, String token, String report, int strmId, int osebaId, String format) throws Exception {
         String methodName = "getReport";
         String soapAction = NAMESPACE + "/" + methodName;
 
         SoapObject request = new SoapObject(NAMESPACE, methodName);
         SoapObject rq = new SoapObject(NAMESPACE, "GetReportRqTp");
+
+        // WSDL GetReportRqTp sequence: Format, Report, StrmId, OsebaId
+        if (format != null && !format.isEmpty()) {
+            rq.addProperty("Format", format);
+        }
         if (report != null && !report.isEmpty()) {
             rq.addProperty("Report", report);
         }
@@ -1658,9 +1921,7 @@ public class RosKasaSoapClient {
         if (osebaId > 0) {
             rq.addProperty("OsebaId", osebaId);
         }
-        if (format != null && !format.isEmpty()) {
-            rq.addProperty("Format", format);
-        }
+
         request.addProperty("rq", rq);
         if (token != null && !token.isEmpty()) {
             request.addProperty("token", token);
@@ -2086,6 +2347,85 @@ public class RosKasaSoapClient {
         }
 
         return item;
+    }
+
+    /**
+     * Preveri, ali je podani datum praznik (klic getPrazniki na SOAP strežnik).
+     * Ustreza Delphi: Function TfrmKasaMobile.VrniPraznike(const pDatum:TdateTime; pObrat:Integer=0):Boolean;
+     */
+    public static boolean vrniPraznike(String serverUrl, String token, Date datum, int obratId) {
+        String methodName = "getPrazniki";
+        String soapAction = NAMESPACE + "/" + methodName;
+
+        SoapObject request = new SoapObject(NAMESPACE, methodName);
+        SoapObject rq = new SoapObject(NAMESPACE, "rq");
+        if (obratId > 0) {
+            rq.addProperty("OBRAT_ID", obratId);
+        }
+        Date dateToUse = (datum != null) ? datum : new Date();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'00:00:00", Locale.US);
+        rq.addProperty("DATUM", sdf.format(dateToUse));
+
+        request.addProperty("rq", rq);
+        if (token != null && !token.isEmpty()) {
+            request.addProperty("token", token);
+        }
+
+        SoapSerializationEnvelope envelope = createEnvelope(request);
+        String fullEndpoint = formatEndpoint(serverUrl);
+        HttpTransportSE transport = new HttpTransportSE(fullEndpoint, TIMEOUT_MS);
+        transport.debug = true;
+
+        try {
+            transport.call(soapAction, envelope);
+            if (transport.requestDump != null) Log.d(TAG, methodName + " Request XML: " + transport.requestDump);
+            if (transport.responseDump != null) Log.d(TAG, methodName + " Response XML: " + transport.responseDump);
+
+            if (envelope.bodyIn instanceof SoapObject) {
+                SoapObject response = (SoapObject) envelope.bodyIn;
+                if (response.hasProperty("getPraznikiResult")) {
+                    Object resObj = response.getProperty("getPraznikiResult");
+                    if (resObj instanceof SoapObject) response = (SoapObject) resObj;
+                }
+                String fault = getPropertyStringSafe(response, "Fault");
+                if (fault != null && !fault.isEmpty()) {
+                    return false;
+                }
+                if (response.hasProperty("Prazniki")) {
+                    Object praznikiObj = response.getProperty("Prazniki");
+                    if (praznikiObj instanceof SoapObject) {
+                        SoapObject praznikiArr = (SoapObject) praznikiObj;
+                        SimpleDateFormat daySdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+                        String targetDay = daySdf.format(dateToUse);
+
+                        // Preveri, če je sam praznikiArr neposredno PraznikTp z lastnostjo DATUM
+                        String singleDatum = getPropertyStringSafe(praznikiArr, "DATUM");
+                        if (singleDatum != null && singleDatum.length() >= 10) {
+                            if (targetDay.equals(singleDatum.substring(0, 10))) {
+                                return true;
+                            }
+                        }
+
+                        // Iteracija po elementih v primeru polja (ArrayOfPraznikTp)
+                        for (int i = 0; i < praznikiArr.getPropertyCount(); i++) {
+                            Object item = praznikiArr.getProperty(i);
+                            if (item instanceof SoapObject) {
+                                SoapObject pItem = (SoapObject) item;
+                                String itemDatum = getPropertyStringSafe(pItem, "DATUM");
+                                if (itemDatum != null && itemDatum.length() >= 10) {
+                                    if (targetDay.equals(itemDatum.substring(0, 10))) {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "vrniPraznike izjema: " + e.getMessage());
+        }
+        return false;
     }
 
     private static void checkResponseFault(SoapSerializationEnvelope envelope, String methodName) throws Exception {
@@ -2877,7 +3217,7 @@ public class RosKasaSoapClient {
         // 2. DELNI_ZNESEK (Za Popust 99 je delni_znesek vedno 0, za ostala plačila pa je tukaj znesek)
         BigDecimal delniZn = (placiloId == 99)
                 ? BigDecimal.ZERO
-                : (pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) > 0
+                : (pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) != 0
                     ? pl.getDelniZnesek()
                     : (pl.getZnesek() != null ? pl.getZnesek() : BigDecimal.ZERO));
         soap.addProperty("DELNI_ZNESEK", delniZn.toPlainString());
@@ -3096,6 +3436,11 @@ public class RosKasaSoapClient {
 
         String lokator = getPropertyStringSafe(soap, "LOKATOR");
         if (lokator != null) racun.setLokator(lokator);
+
+        String lojIdStr = getPropertyStringSafe(soap, "LOJALNOST_ID");
+        if (lojIdStr != null) {
+            try { racun.setLojalnostId(Integer.parseInt(lojIdStr)); } catch (Exception ignored) {}
+        }
 
         if (soap.hasProperty("__OriginalObject")) {
             Object origObj = soap.getProperty("__OriginalObject");
@@ -3412,10 +3757,10 @@ public class RosKasaSoapClient {
         }
 
         if (pl.getPlaciloId() != 99) {
-            if ((pl.getDelniZnesek() == null || pl.getDelniZnesek().compareTo(BigDecimal.ZERO) == 0) && pl.getZnesek() != null && pl.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
+            if ((pl.getDelniZnesek() == null || pl.getDelniZnesek().compareTo(BigDecimal.ZERO) == 0)
+                    && pl.getZnesek() != null && pl.getZnesek().compareTo(BigDecimal.ZERO) != 0) {
                 pl.setDelniZnesek(pl.getZnesek());
             }
-            pl.setZnesek(BigDecimal.ZERO);
         } else {
             // Popust 99: delni_znesek je vedno 0 po pravilih iz popusti.md
             pl.setDelniZnesek(BigDecimal.ZERO);

@@ -32,6 +32,7 @@ import com.google.android.material.button.MaterialButton;
 
 import si.ros.RosKasa.Globals;
 import si.ros.RosKasa.R;
+import si.ros.RosKasa.models.PlaciloTp;
 import si.ros.RosKasa.models.PraviceConsts;
 import si.ros.RosKasa.models.StornoResult;
 
@@ -624,6 +625,45 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
                                     }
                                 }
 
+                                // Zagotovi osvežena plačila na storno računu (če strežnik ob stornu še ni zapisal ali vrnil plačil)
+                                boolean hasNonZeroPlacilo = false;
+                                if (fetchedStornoRacun.getRacPlaci() != null && !fetchedStornoRacun.getRacPlaci().isEmpty()) {
+                                    for (PlaciloTp pl : fetchedStornoRacun.getRacPlaci()) {
+                                        if (pl != null && (
+                                                (pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) != 0) ||
+                                                (pl.getZnesek() != null && pl.getZnesek().compareTo(BigDecimal.ZERO) != 0)
+                                        )) {
+                                            hasNonZeroPlacilo = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (!hasNonZeroPlacilo && racun != null && racun.getRacPlaci() != null && !racun.getRacPlaci().isEmpty()) {
+                                    List<PlaciloTp> stornoPlaci = new ArrayList<>();
+                                    int pozId = -1;
+                                    for (PlaciloTp origPl : racun.getRacPlaci()) {
+                                        if (origPl == null || origPl.isRowDeleted()) continue;
+                                        PlaciloTp stPl = origPl.deepCopy();
+                                        stPl.setRacunId(stornoRacunId);
+                                        stPl.setPozicijaId(pozId--);
+                                        if (stPl.getDelniZnesek() != null && stPl.getDelniZnesek().compareTo(BigDecimal.ZERO) != 0) {
+                                            stPl.setDelniZnesek(stPl.getDelniZnesek().negate());
+                                        }
+                                        if (stPl.getZnesek() != null && stPl.getZnesek().compareTo(BigDecimal.ZERO) != 0) {
+                                            stPl.setZnesek(stPl.getZnesek().negate());
+                                        }
+                                        stornoPlaci.add(stPl);
+                                    }
+                                    fetchedStornoRacun.setRacPlaci(stornoPlaci);
+                                } else if (!hasNonZeroPlacilo && fetchedStornoRacun.getRacPlaci() != null && !fetchedStornoRacun.getRacPlaci().isEmpty()) {
+                                    BigDecimal stornoZnesek = fetchedStornoRacun.getZnesek() != null && fetchedStornoRacun.getZnesek().compareTo(BigDecimal.ZERO) != 0
+                                            ? fetchedStornoRacun.getZnesek()
+                                            : (item != null && item.getZnesek() != null ? item.getZnesek().negate() : BigDecimal.ZERO);
+                                    if (stornoZnesek.compareTo(BigDecimal.ZERO) != 0 && fetchedStornoRacun.getRacPlaci().size() == 1) {
+                                        fetchedStornoRacun.getRacPlaci().get(0).setDelniZnesek(stornoZnesek);
+                                    }
+                                }
+
                                 // 2.1. Ob izpisu storno računa storniran račun dobi STATUS=2 in STKOPIJ=1 na strežniku (Delphi uPrintData.pas:856-871)
                                 try {
                                     fetchedStornoRacun.setStatus(2);
@@ -762,7 +802,7 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
                 int tocilnicaId = (g.getTocilnicaId() != null && g.getTocilnicaId() > 0) ? g.getTocilnicaId() : 512200;
                 int osebaId = g.isDovoljeno(PraviceConsts.SIzvedeKompletenFinancniPregled) ? 0 : (g.getTekocaOsebaId() > 0 ? g.getTekocaOsebaId() : 1);
 
-                si.ros.RosKasa.models.SoapReportResult res = RosKasaSoapClient.getReport(serverUrl, token, "Zakljucni1", tocilnicaId, osebaId, "ESC/POS");
+                si.ros.RosKasa.models.SoapReportResult res = RosKasaSoapClient.financniPregled2(serverUrl, token, tocilnicaId, osebaId);
                 mainHandler.post(() -> {
                     binding.pbLoading.setVisibility(View.GONE);
                     if (res != null && res.getFault() != null && !res.getFault().isEmpty()) {

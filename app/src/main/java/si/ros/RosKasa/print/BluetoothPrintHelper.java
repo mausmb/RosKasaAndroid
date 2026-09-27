@@ -285,6 +285,9 @@ public class BluetoothPrintHelper {
 
                 if (bytesToPrint != null && bytesToPrint.length > 0) {
                     outputStream.write(bytesToPrint);
+                    // Podajanje papirja in odrez (enako kot v Delphi: ESCALIGNLEFT + esceol + escCut)
+                    outputStream.write("\n\n\n".getBytes(StandardCharsets.UTF_8));
+                    outputStream.write(new byte[]{0x1D, 0x56, 0x42, 0x00}); // GS V B 0 (cut)
                     outputStream.flush();
                 }
 

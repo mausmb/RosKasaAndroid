@@ -18,6 +18,7 @@ import si.ros.RosKasa.models.NacPlacTp;
 import si.ros.RosKasa.models.PlaciloTp;
 import si.ros.RosKasa.models.PozicijaTp;
 import si.ros.RosKasa.models.RacunTp;
+import si.ros.RosKasa.models.LojalnostnaTp;
 
 public class RacunPrintBuilder {
 
@@ -333,8 +334,9 @@ public class RacunPrintBuilder {
                     String rowLine = formatPositionRow(ep, kol, cena, zn, width);
                     writeLine(preview, printStream, rowLine, false, false, globals);
 
-                    if (poz.getZnesekPopust() != null && poz.getZnesekPopust().abs().compareTo(BigDecimal.ZERO) > 0) {
-                        BigDecimal pop = poz.getZnesekPopust().abs();
+                    BigDecimal pop = (poz.getZnesekPopust() != null ? poz.getZnesekPopust().abs() : BigDecimal.ZERO)
+                            .add(poz.getZnesekLojalnost() != null ? poz.getZnesekLojalnost().abs() : BigDecimal.ZERO);
+                    if (pop.compareTo(BigDecimal.ZERO) > 0) {
                         skupajPopust = skupajPopust.add(pop);
                         writeLine(preview, printStream, "   Popust: -" + formatCurrency(pop), false, false, globals);
                     }
@@ -344,15 +346,52 @@ public class RacunPrintBuilder {
             }
         }
 
+        // Dodaj popust iz plačila 99, če obstaja
+        if (racun.getRacPlaci() != null) {
+            for (PlaciloTp pl : racun.getRacPlaci()) {
+                if (pl != null && !pl.isRowDeleted() && pl.getPlaciloId() == 99) {
+                    BigDecimal p99 = (pl.getZnesek() != null && pl.getZnesek().compareTo(BigDecimal.ZERO) != 0)
+                            ? pl.getZnesek().abs()
+                            : (pl.getDelniZnesek() != null ? pl.getDelniZnesek().abs() : BigDecimal.ZERO);
+                    if (p99.compareTo(BigDecimal.ZERO) > 0) {
+                        skupajPopust = skupajPopust.add(p99);
+                    }
+                }
+            }
+        }
+
         // 5. SKUPAJ IN ZA PLAČILO
         writeLine(preview, printStream, makeDashes(width), false, false, globals);
         writeLine(preview, printStream, formatKeyValue("Skupaj", formatCurrency(skupajZnesek), width), false, false, globals);
         if (skupajPopust.compareTo(BigDecimal.ZERO) > 0) {
-            writeLine(preview, printStream, formatKeyValue("Popust", "-" + formatCurrency(skupajPopust), width), false, false, globals);
+            // Delphi: če je LOJALNOST_ID > 0, izpišemo naziv lojalnostnega razreda, sicer "Popust"
+            String pomnazpopust = "Popust";
+            if (racun.getLojalnostId() != null && racun.getLojalnostId() > 0) {
+                if (globals != null && globals.hasCachedLojalnostna()) {
+                    for (LojalnostnaTp lt : globals.getCachedLojalnostna()) {
+                        if (lt != null && lt.getBonitetniRazred() == racun.getLojalnostId()) {
+                            if (lt.getNaziv() != null && !lt.getNaziv().trim().isEmpty()) {
+                                pomnazpopust = lt.getNaziv().trim();
+                                break;
+                            }
+                        }
+                    }
+                }
+                if ("Popust".equals(pomnazpopust)) {
+                    pomnazpopust = "Lojalnost " + racun.getLojalnostId();
+                }
+            }
+            if (pomnazpopust.length() > width - 12) {
+                pomnazpopust = pomnazpopust.substring(0, width - 12);
+            }
+            writeLine(preview, printStream, formatKeyValue(pomnazpopust, "-" + formatCurrency(skupajPopust), width), false, false, globals);
         }
 
         // "Za plačilo" - povečano na tiskalniku (Double Height font + Bold)
-        String zaPlaciloVal = formatCurrency(racun.getZnesek() != null && racun.getZnesek().compareTo(BigDecimal.ZERO) > 0 ? racun.getZnesek() : skupajZnesek);
+        BigDecimal skupajZaPlacilo = (racun.getZnesek() != null && racun.getZnesek().compareTo(BigDecimal.ZERO) != 0)
+                ? racun.getZnesek()
+                : skupajZnesek;
+        String zaPlaciloVal = formatCurrency(skupajZaPlacilo);
         String zaPlaciloLine = formatKeyValue("Za plačilo", zaPlaciloVal, width);
 
         // Preview: navadna vrstica
@@ -396,7 +435,14 @@ public class RacunPrintBuilder {
                 } else if (pl.getPlaciloId() == 399) {
                     plNaziv = "KREDIT. KARTICA";
                 }
-                BigDecimal plZn = pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) > 0 ? pl.getDelniZnesek() : pl.getZnesek();
+                BigDecimal plZn = (pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) != 0)
+                        ? pl.getDelniZnesek()
+                        : (pl.getZnesek() != null && pl.getZnesek().compareTo(BigDecimal.ZERO) != 0
+                            ? pl.getZnesek()
+                            : BigDecimal.ZERO);
+                if (plZn.compareTo(BigDecimal.ZERO) == 0 && skupajZaPlacilo.compareTo(BigDecimal.ZERO) != 0) {
+                    plZn = skupajZaPlacilo;
+                }
                 writeLine(preview, printStream, formatKeyValue(plNaziv, formatCurrency(plZn), width), false, false, globals);
                 hasPrintedPayment = true;
 

@@ -42,15 +42,14 @@ public class HotelSobeDialog {
     }
 
     public static void show(Context context, BigDecimal zaplacilo, OnHotelSobaSelectedListener listener) {
-        Dialog dialog = new Dialog(context);
+        Dialog dialog = new Dialog(context, R.style.DialogFullScreen);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(R.layout.dialog_hotel_sobe);
         dialog.setCancelable(true);
 
         if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-            int width = (int) (context.getResources().getDisplayMetrics().widthPixels * 0.92);
-            dialog.getWindow().setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
+            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         }
 
         TextView tvZnesek = dialog.findViewById(R.id.tvHotelZnesekSubtitle);

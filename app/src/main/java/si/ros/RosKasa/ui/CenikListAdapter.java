@@ -30,12 +30,16 @@ public class CenikListAdapter extends RecyclerView.Adapter<CenikListAdapter.View
         public int tarifaId;
         public int izvorStrmId;
         public double davekProc;
+        public BigDecimal cena1 = BigDecimal.ZERO;
+        public BigDecimal cena2 = BigDecimal.ZERO;
 
         public CenikItem(int nivo4Id, String naziv, String plu, BigDecimal cena, int nacinProdaje, double polnjenje) {
             this.nivo4Id = nivo4Id;
             this.naziv = naziv;
             this.plu = plu;
-            this.cena = cena;
+            this.cena = cena != null ? cena : BigDecimal.ZERO;
+            this.cena1 = this.cena;
+            this.cena2 = BigDecimal.ZERO;
             this.nacinProdaje = nacinProdaje;
             this.polnjenje = polnjenje;
             this.em = 1;
@@ -44,6 +48,25 @@ public class CenikListAdapter extends RecyclerView.Adapter<CenikListAdapter.View
             this.tarifaId = 1;
             this.izvorStrmId = 1;
             this.davekProc = 22.0;
+        }
+
+        public void updateCenaForCurrentState() {
+            si.ros.RosKasa.Globals g = si.ros.RosKasa.Globals.getInstance();
+            if (g.isCena2Aktivna()) {
+                if (g.getModelCena2() == 2) {
+                    this.cena = this.cena2 != null ? this.cena2 : BigDecimal.ZERO;
+                } else {
+                    if (this.cena2 != null && this.cena2.compareTo(BigDecimal.ZERO) != 0) {
+                        this.cena = this.cena2;
+                    } else if (this.cena1 != null && this.cena1.compareTo(BigDecimal.ZERO) != 0) {
+                        this.cena = this.cena1;
+                    }
+                }
+            } else {
+                if (this.cena1 != null && this.cena1.compareTo(BigDecimal.ZERO) != 0) {
+                    this.cena = this.cena1;
+                }
+            }
         }
 
         public String getFormattedNaziv() {

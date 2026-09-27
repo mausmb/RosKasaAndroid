@@ -38,13 +38,12 @@ public class StornoRazlogDialog {
     }
 
     public static void show(@NonNull Context context, String serverUrl, String token, OnStornoConfirmedListener listener) {
-        Dialog dialog = new Dialog(context);
+        Dialog dialog = new Dialog(context, R.style.DialogFullScreen);
         View view = LayoutInflater.from(context).inflate(R.layout.dialog_storno_razlog, null);
         dialog.setContentView(view);
 
         if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         }
 
         RecyclerView rvRazlogi = view.findViewById(R.id.rvStornoRazlogi);

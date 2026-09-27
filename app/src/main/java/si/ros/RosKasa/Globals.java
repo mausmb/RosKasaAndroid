@@ -24,6 +24,7 @@ import si.ros.RosKasa.models.OsebaTp;
 import si.ros.RosKasa.models.PrioritetaProjektaTp;
 import si.ros.RosKasa.models.TarifaTp;
 import si.ros.RosKasa.models.StornoRazlogTp;
+import si.ros.RosKasa.models.LojalnostnaTp;
 
 public class Globals {
     private static final String TAG = "Globals";
@@ -35,6 +36,7 @@ public class Globals {
     private final List<CenikVrVrTp> cachedCenikVrVr = new ArrayList<>();
     private final List<DodatekTp> cachedDodatki = new ArrayList<>();
     private final List<StornoRazlogTp> cachedStornoRazlogi = new ArrayList<>();
+    private final List<LojalnostnaTp> cachedLojalnostna = new ArrayList<>();
     private final Map<Integer, String> nivo4NazivLookup = new java.util.concurrent.ConcurrentHashMap<>();
 
     // Šifranti iz MobileSetup
@@ -228,6 +230,7 @@ public class Globals {
     private boolean vnosCeneZaVseIni = true;
     private boolean vnosCeneZaVse = true;
     private boolean hodNarocila = false;
+    private String tekociHod = "";
     private boolean printamStornoNarocila = false;
     private boolean mizeInRacuni = false;
     private boolean printNarocilaLokalno = false;
@@ -240,7 +243,7 @@ public class Globals {
     private int placiloHk = 0;
     private int bonNivo4Id = 0;
     private double procentNivelacije = 0.0;
-    private int modelCena2 = 0;
+    private int modelCena2 = 1;
     private boolean cena2Vikend = false;
     private boolean cena2PreklopOff = false;
     private boolean odpriVseRacune = false;
@@ -256,7 +259,7 @@ public class Globals {
     private int hotkey3 = 0;
     private int hotkey4 = 0;
     private int hotkey5 = 0;
-    private boolean tipkaGotovina = false;
+    private boolean tipkaGotovina = true;
     private int praznikiObrat = 0;
     private boolean prazniki = false;
     private boolean tiskamText = false;
@@ -779,7 +782,12 @@ public class Globals {
         if (kvPairs.containsKey("HOTKEY3PLACILOID")) { try { this.hotkey3 = Integer.parseInt(kvPairs.get("HOTKEY3PLACILOID")); } catch (Exception ignored) {} }
         if (kvPairs.containsKey("HOTKEY4PLACILOID")) { try { this.hotkey4 = Integer.parseInt(kvPairs.get("HOTKEY4PLACILOID")); } catch (Exception ignored) {} }
         if (kvPairs.containsKey("HOTKEY5PLACILOID")) { try { this.hotkey5 = Integer.parseInt(kvPairs.get("HOTKEY5PLACILOID")); } catch (Exception ignored) {} }
-        if (kvPairs.containsKey("TIPKAGOTOVINA")) this.tipkaGotovina = "D".equalsIgnoreCase(kvPairs.get("TIPKAGOTOVINA"));
+        if (kvPairs.containsKey("TIPKAGOTOVINA")) {
+            String tgVal = kvPairs.get("TIPKAGOTOVINA");
+            if (tgVal != null && !tgVal.trim().isEmpty()) {
+                this.tipkaGotovina = "D".equalsIgnoreCase(tgVal.trim());
+            }
+        }
         if (kvPairs.containsKey("PRAZNIKIOBRAT")) { try { this.praznikiObrat = Integer.parseInt(kvPairs.get("PRAZNIKIOBRAT")); } catch (Exception ignored) {} }
         if (kvPairs.containsKey("PRAZNIKI")) this.prazniki = "D".equalsIgnoreCase(kvPairs.get("PRAZNIKI"));
         if (kvPairs.containsKey("TISKAMTEXT")) this.tiskamText = "D".equalsIgnoreCase(kvPairs.get("TISKAMTEXT"));
@@ -960,6 +968,7 @@ public class Globals {
         if (kvPairs.containsKey("PRINTEROPTIPOS32")) this.pPrinterBtOptiPos = kvPairs.get("PRINTEROPTIPOS32");
         if (kvPairs.containsKey("FORCETABLETSCREEN")) this.forceTabletScreen = "D".equalsIgnoreCase(kvPairs.get("FORCETABLETSCREEN"));
         if (kvPairs.containsKey("BRISIPLACILAZAANDROID")) this.brisiPlacilaZaAndroid = kvPairs.get("BRISIPLACILAZAANDROID");
+        if (kvPairs.containsKey("POPUSTLOJALNOST")) this.pLojalnostPopust = "D".equalsIgnoreCase(kvPairs.get("POPUSTLOJALNOST"));
         if (kvPairs.containsKey("NAPITNINAROS")) {
             this.napitninaRos = "D".equalsIgnoreCase(kvPairs.get("NAPITNINAROS"));
             if (this.napitninaRos) this.napitninaPos = false;
@@ -1291,6 +1300,8 @@ public class Globals {
     public boolean isVnosCeneZaVseIni() { return vnosCeneZaVseIni; }
     public boolean isVnosCeneZaVse() { return vnosCeneZaVse; }
     public boolean isHodNarocila() { return hodNarocila; }
+    public String getTekociHod() { return tekociHod != null ? tekociHod : ""; }
+    public void setTekociHod(String tekociHod) { this.tekociHod = tekociHod != null ? tekociHod : ""; }
     public boolean isPrintamStornoNarocila() { return printamStornoNarocila; }
     public boolean isMizeInRacuni() { return mizeInRacuni; }
     public boolean isPrintNarocilaLokalno() { return printNarocilaLokalno; }
@@ -1307,7 +1318,19 @@ public class Globals {
     public boolean isCena2Vikend() { return cena2Vikend; }
     public boolean isCena2Aktivna() { return cena2Aktivna; }
     public void setCena2Aktivna(boolean cena2Aktivna) { this.cena2Aktivna = cena2Aktivna; }
-    public boolean isLahkoPreklopiCenik() { return !this.cena2PreklopOff; }
+    public synchronized boolean isLahkoPreklopiCenik() {
+        if (isDovoljeno(si.ros.RosKasa.models.PraviceConsts.SLahkoPreklopiCenik)) {
+            return true;
+        }
+        boolean hasPrioriteta = false;
+        for (si.ros.RosKasa.models.PrioritetaProjektaTp p : cachedPrioritete) {
+            if (p != null && isPravicaCaptionMatch(si.ros.RosKasa.models.PraviceConsts.SLahkoPreklopiCenik, p.getCaption())) {
+                hasPrioriteta = true;
+                break;
+            }
+        }
+        return !hasPrioriteta;
+    }
     public boolean isCena2PreklopOff() { return cena2PreklopOff; }
     public boolean isOdpriVseRacune() { return odpriVseRacune; }
     public boolean isRazlogStorno() { return razlogStorno; }
@@ -1404,9 +1427,22 @@ public class Globals {
         cachedPlacila.clear();
         if (rawPlacila == null || rawPlacila.isEmpty()) return;
 
+        // Izloči plačila določena v BRISIPLACILAZAANDROID (seznam ločen z vejico, podpičjem ali presledkom)
+        java.util.Set<Integer> excludeIds = new java.util.HashSet<>();
+        if (brisiPlacilaZaAndroid != null && !brisiPlacilaZaAndroid.trim().isEmpty()) {
+            String[] parts = brisiPlacilaZaAndroid.split("[,;\\s]+");
+            for (String p : parts) {
+                try {
+                    if (!p.trim().isEmpty()) {
+                        excludeIds.add(Integer.parseInt(p.trim()));
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
         if (placilnaSredstva != null && !placilnaSredstva.isEmpty()) {
             for (Integer psId : placilnaSredstva) {
-                if (psId == null) continue;
+                if (psId == null || excludeIds.contains(psId)) continue;
                 for (NacPlacTp np : rawPlacila) {
                     if (np.getPlaciloId() == psId) {
                         cachedPlacila.add(np);
@@ -1415,11 +1451,15 @@ public class Globals {
                 }
             }
         } else {
-            cachedPlacila.addAll(rawPlacila);
+            for (NacPlacTp np : rawPlacila) {
+                if (np != null && !excludeIds.contains(np.getPlaciloId())) {
+                    cachedPlacila.add(np);
+                }
+            }
         }
 
         // Delphi sintetično plačilo 399 za ročno kreditno kartico (če je aktivno)
-        if (kreditnaKarticaPlacilo && isKkRocno()) {
+        if (kreditnaKarticaPlacilo && isKkRocno() && !excludeIds.contains(399)) {
             boolean alreadyHas399 = false;
             for (NacPlacTp np : cachedPlacila) {
                 if (np.getPlaciloId() == 399) {
@@ -1475,6 +1515,7 @@ public class Globals {
     public int getHotkey4() { return hotkey4; }
     public int getHotkey5() { return hotkey5; }
     public boolean isTipkaGotovina() { return tipkaGotovina; }
+    public void setTipkaGotovina(boolean tipkaGotovina) { this.tipkaGotovina = tipkaGotovina; }
     public int getPraznikiObrat() { return praznikiObrat; }
     public boolean isPrazniki() { return prazniki; }
     public boolean isTiskamText() { return tiskamText; }
@@ -1953,5 +1994,20 @@ public class Globals {
         list.add(new StornoRazlogTp(7, "NAPAKA PRI IZDAJI RAČUNA - ARTIKEL"));
         list.add(new StornoRazlogTp(10, "LOKALNO"));
         return list;
+    }
+
+    public synchronized boolean hasCachedLojalnostna() {
+        return !cachedLojalnostna.isEmpty();
+    }
+
+    public synchronized List<LojalnostnaTp> getCachedLojalnostna() {
+        return new ArrayList<>(cachedLojalnostna);
+    }
+
+    public synchronized void setCachedLojalnostna(List<LojalnostnaTp> list) {
+        cachedLojalnostna.clear();
+        if (list != null) {
+            cachedLojalnostna.addAll(list);
+        }
     }
 }

@@ -34,9 +34,12 @@ import si.ros.RosKasa.models.RacunTp;
 import si.ros.RosKasa.models.KartprijTp;
 import si.ros.RosKasa.models.PartnerTp;
 import si.ros.RosKasa.models.DelovniNalogTp;
+import si.ros.RosKasa.models.LojalnostnaTp;
 import si.ros.RosKasa.print.BluetoothPrintHelper;
 import si.ros.RosKasa.soap.RosKasaSoapClient;
 import si.ros.RosKasa.soap.VersionConflictException;
+import si.ros.RosKasa.R;
+import android.graphics.Color;
 
 public class PlacilaFragment extends Fragment {
 
@@ -191,6 +194,23 @@ public class PlacilaFragment extends Fragment {
             binding.tvMizaStatus.setText(String.format(Locale.getDefault(), "M: %s  -  Zn: %.2f (Popust: %.2f, ZaPl: %.2f / Pl: %.2f)", markerText, polnaVsota, popust99, znesekRacuna, totalPlacano));
         } else {
             binding.tvMizaStatus.setText(String.format(Locale.getDefault(), "M: %s  -  Zn: %.2f / Pl: %.2f", markerText, znesekRacuna, totalPlacano));
+        }
+
+        if (currentRacun != null && currentRacun.getDnId() != null && !currentRacun.getDnId().trim().isEmpty()) {
+            binding.btnDelovniNalog.setText("DN:\n" + currentRacun.getDnId());
+        } else {
+            binding.btnDelovniNalog.setText("Delovni\nnalog");
+        }
+
+        if (Globals.getInstance().ispLojalnostPopust() && binding != null && binding.btnPayLoyPopust != null) {
+            binding.btnPayLoyPopust.setVisibility(View.VISIBLE);
+            if (currentRacun != null && currentRacun.getLojalnostId() != null && currentRacun.getLojalnostId() > 0) {
+                binding.btnPayLoyPopust.setText("Lojalnost\n[R" + currentRacun.getLojalnostId() + "]");
+                binding.btnPayLoyPopust.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#EF6C00")));
+            } else {
+                binding.btnPayLoyPopust.setText("Lojalnostni\npopust");
+                binding.btnPayLoyPopust.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#E65100")));
+            }
         }
     }
 
@@ -615,7 +635,7 @@ public class PlacilaFragment extends Fragment {
         List<android.widget.Button> buttons = new ArrayList<>();
         for (int i = 0; i < binding.gridPlacilaMethods.getChildCount(); i++) {
             View child = binding.gridPlacilaMethods.getChildAt(i);
-            if (child instanceof android.widget.Button) {
+            if (child instanceof android.widget.Button && child.getId() != R.id.btnPayLoyPopust) {
                 buttons.add((android.widget.Button) child);
             }
         }
@@ -633,6 +653,20 @@ public class PlacilaFragment extends Fragment {
                 btn.setOnClickListener(null);
             }
         }
+
+        if (Globals.getInstance().ispLojalnostPopust()) {
+            binding.btnPayLoyPopust.setVisibility(View.VISIBLE);
+            if (currentRacun != null && currentRacun.getLojalnostId() != null && currentRacun.getLojalnostId() > 0) {
+                binding.btnPayLoyPopust.setText("Lojalnost\n[R" + currentRacun.getLojalnostId() + "]");
+                binding.btnPayLoyPopust.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#EF6C00")));
+            } else {
+                binding.btnPayLoyPopust.setText("Lojalnostni\npopust");
+                binding.btnPayLoyPopust.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#E65100")));
+            }
+            binding.btnPayLoyPopust.setOnClickListener(v -> handleLojalnostPopustClick());
+        } else {
+            binding.btnPayLoyPopust.setVisibility(View.GONE);
+        }
     }
 
     private void renderDefaultPaymentButtons() {
@@ -645,6 +679,12 @@ public class PlacilaFragment extends Fragment {
         binding.btnPayValu.setOnClickListener(v -> klikniPlacilo(6));
         binding.btnPayMBills.setOnClickListener(v -> klikniPlacilo(7));
         binding.btnPayGostHotela.setOnClickListener(v -> klikniPlacilo(8));
+        if (Globals.getInstance().ispLojalnostPopust()) {
+            binding.btnPayLoyPopust.setVisibility(View.VISIBLE);
+            binding.btnPayLoyPopust.setOnClickListener(v -> handleLojalnostPopustClick());
+        } else {
+            binding.btnPayLoyPopust.setVisibility(View.GONE);
+        }
     }
 
     private void setupNavigationButtons() {
@@ -716,6 +756,7 @@ public class PlacilaFragment extends Fragment {
         binding.btnDelovniNalog.setOnClickListener(v -> handleDelovniNalog());
         binding.btnOpombaRacuna.setOnClickListener(v -> handleOpombaRacuna());
         binding.btnIzpisRacuna.setOnClickListener(v -> handleIzpisRacuna());
+        binding.btnPayLoyPopust.setOnClickListener(v -> handleLojalnostPopustClick());
     }
 
     private void brisiPlaciloNaStrezniku(PlaciloTp pl) {
@@ -822,9 +863,97 @@ public class PlacilaFragment extends Fragment {
         });
     }
 
+    private void handleLojalnostPopustClick() {
+        if (currentRacun == null || currentRacun.getRacPozic() == null || currentRacun.getRacPozic().isEmpty()) {
+            Toast.makeText(requireContext(), "Ni odprtega računa s postavkami za lojalnost!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Integer currentLojId = currentRacun.getLojalnostId();
+
+        if ((currentLojId == null || currentLojId <= 0) && preveriPopustNaRacunu()) {
+            Toast.makeText(requireContext(), "Na računu je že popust! Dodaten lojalnostni popust ni mogoč.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        LojalnostPopustDialog.show(requireContext(), prefs.getServerUrl(), prefs.getToken(), currentLojId, new LojalnostPopustDialog.OnLojalnostSelectedListener() {
+            @Override
+            public void onSelected(LojalnostnaTp lojalnost) {
+                if (preveriPopustNaRacunu()) {
+                    Toast.makeText(requireContext(), "Na računu je že popust! Dodaten lojalnostni popust ni mogoč.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                izvediSetLojalnost(lojalnost.getBonitetniRazred());
+            }
+
+            @Override
+            public void onRemoved() {
+                izvediSetLojalnost(0);
+            }
+        });
+    }
+
+    private boolean preveriPopustNaRacunu() {
+        if (currentRacun == null) return false;
+        if (currentRacun.getRacPozic() != null) {
+            for (PozicijaTp p : currentRacun.getRacPozic()) {
+                if (p == null || p.isRowDeleted()) continue;
+                if (p.getZnesekPopust() != null && p.getZnesekPopust().compareTo(BigDecimal.ZERO) > 0) return true;
+            }
+        }
+        if (currentRacun.getRacPlaci() != null) {
+            for (PlaciloTp pl : currentRacun.getRacPlaci()) {
+                if (pl != null && !pl.isRowDeleted() && pl.getPlaciloId() == 99) return true;
+            }
+        }
+        return false;
+    }
+
+    private void izvediSetLojalnost(int bonitetniRazred) {
+        if (currentRacun == null) return;
+        final int racunId = currentRacun.getRacunId();
+        final int verzija = currentRacun.getVerzijaZapisa();
+
+        disableEkran("Uveljavljam lojalnostni popust...");
+        executor.execute(() -> {
+            try {
+                GetRacunRsTp result = RosKasaSoapClient.setLojalnost(prefs.getServerUrl(), prefs.getToken(), bonitetniRazred, racunId, verzija);
+                mainHandler.post(() -> {
+                    enableEkran();
+                    if (result != null && result.getRacGlava() != null) {
+                        currentRacun = result.getRacGlava();
+                        Globals.getInstance().setCurrentRacun(currentRacun);
+                        prefs.setActiveRacunId(currentRacun.getRacunId());
+                        populatePlacilaListFromCurrentRacun();
+                        String msg = bonitetniRazred > 0
+                                ? "Lojalnostni popust (razred " + bonitetniRazred + ") uspešno uveljavljen!"
+                                : "Lojalnostni popust uspešno odstranjen!";
+                        Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
+                    } else {
+                        String errMsg = (result != null && result.getFault() != null && !result.getFault().isEmpty())
+                                ? result.getFault()
+                                : "Strežnik ni vrnil posodobljenega računa.";
+                        Toast.makeText(requireContext(), errMsg, Toast.LENGTH_LONG).show();
+                    }
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Napaka pri klicu setLojalnost: " + e.getMessage(), e);
+                mainHandler.post(() -> {
+                    enableEkran();
+                    Toast.makeText(requireContext(), "Napaka pri uveljavljanju lojalnosti: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
     private void handlePopust99Click() {
         if (currentRacun == null || currentRacun.getRacPozic() == null || currentRacun.getRacPozic().isEmpty()) {
             Toast.makeText(requireContext(), "Ni odprtega računa s postavkami za popust!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (currentRacun.getLojalnostId() != null && currentRacun.getLojalnostId() > 0) {
+            Toast.makeText(requireContext(), "Račun že ima lojalnostni popust! Pred vnosom popusta ga odstranite.", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -1055,10 +1184,18 @@ public class PlacilaFragment extends Fragment {
             return;
         }
 
+        // Delphi: if DNCENIK and (dmGisOrder.tblRacGlavaDN_ID.AsString<>'') and (dmGisOrder.tblRacPozic.recordcount>0) then
+        if (Globals.getInstance().isDnCenik()
+                && currentRacun.getDnId() != null && !currentRacun.getDnId().trim().isEmpty()
+                && currentRacun.getRacPozic() != null && !currentRacun.getRacPozic().isEmpty()) {
+            Toast.makeText(requireContext(), "Zamenjava DN ni možna !", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         DelovniNalogiDialog.show(requireContext(), currentRacun.getDnId(), new DelovniNalogiDialog.OnDelovniNalogSelectedListener() {
             @Override
             public void onSelected(DelovniNalogTp dn) {
-                if (currentRacun == null) return;
+                if (currentRacun == null || dn == null) return;
                 if (currentRacun.getOriginalObject() == null) {
                     currentRacun.setOriginalObject(currentRacun.deepCopy());
                 }
@@ -1066,6 +1203,7 @@ public class PlacilaFragment extends Fragment {
                 if (dn.getPartnerId() != null && dn.getPartnerId() > 0) {
                     currentRacun.setPartnerId(dn.getPartnerId());
                 }
+                Globals.getInstance().vpisiKronologijo("IZBOR DN: " + dn.getDnId() + " R:" + currentRacun.getRacunId());
                 shraniRacunNaServer("Izbran DN: " + dn.getDnId());
                 Toast.makeText(requireContext(), "Delovni nalog nastavljen: " + dn.getDnId(), Toast.LENGTH_SHORT).show();
                 updatePlacilaSummary();
@@ -1078,6 +1216,7 @@ public class PlacilaFragment extends Fragment {
                     currentRacun.setOriginalObject(currentRacun.deepCopy());
                 }
                 currentRacun.setDnId("");
+                Globals.getInstance().vpisiKronologijo("ODSTRANJEN DN R:" + currentRacun.getRacunId());
                 shraniRacunNaServer("Odstranjen DN");
                 Toast.makeText(requireContext(), "Delovni nalog odstranjen", Toast.LENGTH_SHORT).show();
                 updatePlacilaSummary();

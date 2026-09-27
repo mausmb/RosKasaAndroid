@@ -10,22 +10,32 @@
         android:id="@+id/tvNaslov"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Delovni nalog"
+        android:text="Lojalnostni popust"
         android:textColor="#FFFFFF"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:paddingBottom="8dp" />
+        android:paddingBottom="4dp" />
+
+    <TextView
+        android:id="@+id/tvTrenutniLojalnost"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#FFB74D"
+        android:textSize="13sp"
+        android:paddingBottom="8dp"
+        android:visibility="gone" />
 
     <EditText
-        android:id="@+id/etSearchDn"
+        android:id="@+id/etSearchLojalnost"
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:background="#333333"
-        android:hint="Išči delovni nalog / partnerja..."
+        android:hint="Išči bonitetni razred ali naziv..."
         android:textColor="#FFFFFF"
         android:textColorHint="#888888"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
+        android:singleLine="true"
         android:layout_marginBottom="10dp" />
 
     <FrameLayout
@@ -35,7 +45,7 @@
         android:background="#222222">
 
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvDelovniNalogi"
+            android:id="@+id/rvLojalnostna"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:padding="4dp" />
@@ -52,7 +62,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="Ni DN podatkov !"
+            android:text="Ni podatkov o lojalnostnih razredih!"
             android:textColor="#888888"
             android:textSize="16sp"
             android:visibility="gone" />
@@ -76,13 +86,14 @@
             android:layout_marginEnd="8dp" />
 
         <Button
-            android:id="@+id/btnOdstraniDn"
+            android:id="@+id/btnOdstraniLojalnost"
             style="@style/PosButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="48dp"
             android:backgroundTint="@color/pos_accent_red"
-            android:text="Odstrani DN"
-            android:textColor="#FFFFFF" />
+            android:text="Odstrani popust"
+            android:textColor="#FFFFFF"
+            android:visibility="gone" />
     </LinearLayout>
 
 </LinearLayout>

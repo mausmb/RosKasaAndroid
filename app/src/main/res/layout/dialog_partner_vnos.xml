@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="#1E272C"
     android:padding="16dp">
@@ -90,15 +90,31 @@
         android:visibility="gone"
         android:layout_marginBottom="4dp" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvPartnerji"
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="160dp"
-        android:scrollbars="vertical"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:background="#263238"
-        android:padding="4dp"
-        android:visibility="gone"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:id="@+id/tvEmptyPartnerMessage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="Vnesite naziv ali davčno številko in kliknite 'Išči' za prikaz partnerjev iz baze.\nLahko pa podatke vnesete tudi ročno spodaj."
+            android:textColor="#78909C"
+            android:textSize="13sp"
+            android:padding="16dp" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvPartnerji"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scrollbars="vertical"
+            android:padding="4dp"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <!-- Partner Naslov -->
     <TextView

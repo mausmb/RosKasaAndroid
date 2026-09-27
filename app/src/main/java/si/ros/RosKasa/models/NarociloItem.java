@@ -20,6 +20,7 @@ public class NarociloItem {
     private int paketNivo4Id = 0;
     private BigDecimal znesekPopust = BigDecimal.ZERO;
     private BigDecimal customZnesek = null;
+    private String hod = "";
 
     public NarociloItem(String naziv, BigDecimal cena, double kolicina) {
         this(0, naziv, cena, kolicina, 1.0, 0, 0, 0, 0, 0, 22.0, 0);
@@ -137,4 +138,7 @@ public class NarociloItem {
         }
         return base;
     }
+
+    public String getHod() { return hod != null ? hod : ""; }
+    public void setHod(String hod) { this.hod = hod != null ? hod : ""; }
 }

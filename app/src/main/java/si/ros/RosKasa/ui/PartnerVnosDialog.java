@@ -45,15 +45,14 @@ public class PartnerVnosDialog {
     public static void show(Context context, BigDecimal zaplacilo, int storitevId,
                             String initNaziv, String initNaslov, String initDavcna, String initNarocilnica,
                             OnPartnerPotrjenListener listener) {
-        Dialog dialog = new Dialog(context);
+        Dialog dialog = new Dialog(context, R.style.DialogFullScreen);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(R.layout.dialog_partner_vnos);
         dialog.setCancelable(true);
 
         if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-            int width = (int) (context.getResources().getDisplayMetrics().widthPixels * 0.94);
-            dialog.getWindow().setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
+            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         }
 
         TextView tvZnesek = dialog.findViewById(R.id.tvPartnerZnesekSubtitle);
@@ -75,6 +74,7 @@ public class PartnerVnosDialog {
         Button btnSearch = dialog.findViewById(R.id.btnSearchPartner);
         ProgressBar pbLoading = dialog.findViewById(R.id.pbPartnerLoading);
         TextView tvPartnerResultsCount = dialog.findViewById(R.id.tvPartnerResultsCount);
+        TextView tvEmptyPartnerMessage = dialog.findViewById(R.id.tvEmptyPartnerMessage);
         RecyclerView rvPartnerji = dialog.findViewById(R.id.rvPartnerji);
         Button btnCancel = dialog.findViewById(R.id.btnPartnerCancel);
         Button btnPotrdi = dialog.findViewById(R.id.btnPartnerPotrdi);
@@ -113,6 +113,9 @@ public class PartnerVnosDialog {
             }
 
             pbLoading.setVisibility(View.VISIBLE);
+            if (tvEmptyPartnerMessage != null) {
+                tvEmptyPartnerMessage.setVisibility(View.GONE);
+            }
 
             final String searchQuery = query;
             executor.execute(() -> {
@@ -164,6 +167,9 @@ public class PartnerVnosDialog {
                             partnerList.addAll(results);
                             adapter.notifyDataSetChanged();
                             rvPartnerji.setVisibility(View.VISIBLE);
+                            if (tvEmptyPartnerMessage != null) {
+                                tvEmptyPartnerMessage.setVisibility(View.GONE);
+                            }
                             if (tvPartnerResultsCount != null) {
                                 tvPartnerResultsCount.setText("Najdeni partnerji (" + results.size() + ") - izberite s seznama:");
                                 tvPartnerResultsCount.setVisibility(View.VISIBLE);
@@ -173,6 +179,10 @@ public class PartnerVnosDialog {
                             if (tvPartnerResultsCount != null) {
                                 tvPartnerResultsCount.setVisibility(View.GONE);
                             }
+                            if (tvEmptyPartnerMessage != null) {
+                                tvEmptyPartnerMessage.setText("Ni najdenih partnerjev za: " + searchQuery);
+                                tvEmptyPartnerMessage.setVisibility(View.VISIBLE);
+                            }
                             Toast.makeText(context, "Ni najdenih partnerjev za: " + searchQuery, Toast.LENGTH_SHORT).show();
                         }
                     });
@@ -181,6 +191,10 @@ public class PartnerVnosDialog {
                         pbLoading.setVisibility(View.GONE);
                         if (tvPartnerResultsCount != null) {
                             tvPartnerResultsCount.setVisibility(View.GONE);
+                        }
+                        if (tvEmptyPartnerMessage != null) {
+                            tvEmptyPartnerMessage.setText("Napaka pri iskanju: " + e.getMessage());
+                            tvEmptyPartnerMessage.setVisibility(View.VISIBLE);
                         }
                         Toast.makeText(context, "Napaka pri iskanju partnerja: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     });

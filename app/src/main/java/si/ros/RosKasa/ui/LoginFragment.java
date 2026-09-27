@@ -249,6 +249,26 @@ public class LoginFragment extends Fragment {
                     MobileSetupTp setup = RosKasaSoapClient.getAppConfig(prefs.getServerUrl(), prefs.getToken(), mId);
                     prefs.saveMobileSetup(setup);
 
+                    // Preverjanje CENA2 (vikend / prazniki) pri zagonu programa
+                    if (g.isPrazniki() && !g.isCena2Aktivna()) {
+                        try {
+                            boolean jePraznik = RosKasaSoapClient.vrniPraznike(prefs.getServerUrl(), prefs.getToken(), new java.util.Date(), g.getPraznikiObrat());
+                            if (jePraznik) {
+                                g.setCena2Aktivna(true);
+                                g.vpisiKronologijo("Preklop cenika na cena2! - prazniki");
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    if (g.isCena2Vikend() && !g.isCena2Aktivna()) {
+                        java.time.LocalDate today = java.time.LocalDate.now();
+                        int dayOfWeek = today.getDayOfWeek().getValue();
+                        boolean isWeekend = g.isPetekWend() ? (dayOfWeek >= 5) : (dayOfWeek >= 6);
+                        if (isWeekend) {
+                            g.setCena2Aktivna(true);
+                            g.vpisiKronologijo("Preklop cenika na cena2! - CENA2VIKEND");
+                        }
+                    }
+
                     // Nalaganje plačilnih metod (getNacPlac2)
                     try {
                         java.util.List<si.ros.RosKasa.models.NacPlacTp> placila = RosKasaSoapClient.getNacPlac2(prefs.getServerUrl(), prefs.getToken(), mId);
@@ -280,6 +300,18 @@ public class LoginFragment extends Fragment {
                             }
                         } catch (Exception ex) {
                             android.util.Log.w("LoginFragment", "Napaka pri prednalaganju hitrih tipk: " + ex.getMessage());
+                        }
+                    }
+
+                    // Preload lojalnostnih popustov če je POPUSTLOJALNOST='D'
+                    if (Globals.getInstance().ispLojalnostPopust() && !Globals.getInstance().hasCachedLojalnostna()) {
+                        try {
+                            java.util.List<si.ros.RosKasa.models.LojalnostnaTp> loj = RosKasaSoapClient.getLojalnostna(prefs.getServerUrl(), prefs.getToken());
+                            if (loj != null && !loj.isEmpty()) {
+                                Globals.getInstance().setCachedLojalnostna(loj);
+                            }
+                        } catch (Exception ex) {
+                            android.util.Log.w("LoginFragment", "Napaka pri prednalaganju lojalnostnih popustov: " + ex.getMessage());
                         }
                     }
                 } catch (Exception ignored) {}
