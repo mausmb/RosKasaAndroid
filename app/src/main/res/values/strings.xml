@@ -34,6 +34,7 @@
 
     <!-- Polja za prvi zagon -->
     <string name="lbl_url">Strežnik URL:</string>
+    <string name="hint_server_url">https://web.ros.si/ora/r16f/asmx/kasa.asmx</string>
     <string name="lbl_mobile_id">Mobile ID:</string>
     <string name="lbl_username">Uporabniško ime:</string>
     <string name="lbl_password">Geslo:</string>

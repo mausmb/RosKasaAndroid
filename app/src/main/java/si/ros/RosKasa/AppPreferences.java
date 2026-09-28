@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import si.ros.RosKasa.models.MobileSetupTp;
+import si.ros.RosKasa.soap.RosKasaSoapClient;
 
 public class AppPreferences {
     private static final String PREF_NAME = "RosKasaPrefs";
@@ -48,15 +49,16 @@ public class AppPreferences {
     }
 
     public void saveRegistration(String serverUrl, String mobileId, String token, String naziv) {
+        String cleanUrl = RosKasaSoapClient.formatEndpoint(serverUrl);
         prefs.edit()
-                .putString(KEY_SERVER_URL, serverUrl)
+                .putString(KEY_SERVER_URL, cleanUrl)
                 .putString(KEY_MOBILE_ID, mobileId)
                 .putString(KEY_TOKEN, token)
                 .putString(KEY_NAZIV, naziv)
                 .apply();
 
         Globals g = Globals.getInstance();
-        g.setServerUrl(serverUrl);
+        g.setServerUrl(cleanUrl);
         g.setToken(token);
         g.setNazivMobile(naziv);
         try { g.setMobileId(Integer.parseInt(mobileId)); } catch (Exception ignored) {}
@@ -172,7 +174,8 @@ public class AppPreferences {
     }
 
     public String getServerUrl() {
-        return prefs.getString(KEY_SERVER_URL, "https://test.ros.si/r16f/asmx/kasa.asmx");
+        String url = prefs.getString(KEY_SERVER_URL, "https://web.ros.si/ora/r16f/asmx/kasa.asmx");
+        return RosKasaSoapClient.formatEndpoint(url);
     }
 
     public String getMobileId() {

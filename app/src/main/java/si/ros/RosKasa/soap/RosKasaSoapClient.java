@@ -1782,16 +1782,16 @@ public class RosKasaSoapClient {
             if (izpisan.getCasIzpisa() != null && !izpisan.getCasIzpisa().isEmpty()) {
                 rq.addProperty("CAS_IZPISA", izpisan.getCasIzpisa());
             } else {
-                java.text.SimpleDateFormat sdfCas = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
-                rq.addProperty("CAS_IZPISA", sdfCas.format(new java.util.Date()));
+                SimpleDateFormat sdfCas = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
+                rq.addProperty("CAS_IZPISA", sdfCas.format(new Date()));
             }
 
             // 2. DATUM (s:dateTime)
             if (izpisan.getDatum() != null && !izpisan.getDatum().isEmpty()) {
                 rq.addProperty("DATUM", izpisan.getDatum());
             } else {
-                java.text.SimpleDateFormat sdfDate = new java.text.SimpleDateFormat("yyyy-MM-dd'T'00:00:00'Z'", Locale.US);
-                rq.addProperty("DATUM", sdfDate.format(new java.util.Date()));
+                SimpleDateFormat sdfDate = new SimpleDateFormat("yyyy-MM-dd'T'00:00:00'Z'", Locale.US);
+                rq.addProperty("DATUM", sdfDate.format(new Date()));
             }
 
             // 3. IZPIS_AI (s:int, minOccurs=1)
@@ -1813,8 +1813,8 @@ public class RosKasaSoapClient {
             if (izpisan.getUra() != null && !izpisan.getUra().isEmpty()) {
                 rq.addProperty("URA", izpisan.getUra());
             } else {
-                java.text.SimpleDateFormat sdfUra = new java.text.SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", Locale.US);
-                rq.addProperty("URA", sdfUra.format(new java.util.Date()));
+                SimpleDateFormat sdfUra = new SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", Locale.US);
+                rq.addProperty("URA", sdfUra.format(new Date()));
             }
 
             // 9. VSEBINA (s:string, minOccurs=0)
@@ -2583,7 +2583,7 @@ public class RosKasaSoapClient {
         return m;
     }
 
-    private static java.util.Date parseSoapDateSafe(String dateStr) {
+    private static Date parseSoapDateSafe(String dateStr) {
         if (dateStr == null || dateStr.trim().isEmpty()) return null;
         String[] formats = new String[] {
             "yyyy-MM-dd'T'HH:mm:ss'Z'",
@@ -2593,7 +2593,7 @@ public class RosKasaSoapClient {
         };
         for (String f : formats) {
             try {
-                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat(f, java.util.Locale.US);
+                SimpleDateFormat sdf = new SimpleDateFormat(f, Locale.US);
                 return sdf.parse(dateStr.trim());
             } catch (Exception ignored) {}
         }
@@ -2902,8 +2902,8 @@ public class RosKasaSoapClient {
         // DATUM: yyyy-MM-ddT00:00:00Z (lokalni datum naprave)
         String datumStr = racun.getDatum();
         if (datumStr == null || datumStr.trim().isEmpty()) {
-            java.text.SimpleDateFormat sdfDate = new java.text.SimpleDateFormat("yyyy-MM-dd'T'00:00:00'Z'", java.util.Locale.US);
-            datumStr = sdfDate.format(new java.util.Date());
+            SimpleDateFormat sdfDate = new SimpleDateFormat("yyyy-MM-dd'T'00:00:00'Z'", Locale.US);
+            datumStr = sdfDate.format(new Date());
         }
         soap.addProperty("DATUM", datumStr);
 
@@ -3019,8 +3019,8 @@ public class RosKasaSoapClient {
         // URA: 1899-12-30THH:mm:ssZ (lokalni čas naprave, enako kot Kronologija)
         String uraStr = racun.getUra();
         if (uraStr == null || uraStr.trim().isEmpty()) {
-            java.text.SimpleDateFormat sdfTime = new java.text.SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", java.util.Locale.US);
-            uraStr = sdfTime.format(new java.util.Date());
+            SimpleDateFormat sdfTime = new SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", Locale.US);
+            uraStr = sdfTime.format(new Date());
         }
         soap.addProperty("URA", uraStr);
 
@@ -3028,8 +3028,8 @@ public class RosKasaSoapClient {
         if (racun.getUraPlacila() != null && !racun.getUraPlacila().isEmpty()) {
             soap.addProperty("URA_PLACILA", racun.getUraPlacila());
         } else if (racun.getPlacano() != null && racun.getPlacano().compareTo(BigDecimal.ZERO) > 0) {
-            java.text.SimpleDateFormat sdfUraPlacila = new java.text.SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", java.util.Locale.US);
-            soap.addProperty("URA_PLACILA", sdfUraPlacila.format(new java.util.Date()));
+            SimpleDateFormat sdfUraPlacila = new SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", Locale.US);
+            soap.addProperty("URA_PLACILA", sdfUraPlacila.format(new Date()));
         }
 
         if (racun.getUrejamStorno() != null) {
@@ -3087,10 +3087,10 @@ public class RosKasaSoapClient {
 
         int nivo4Id = poz.getNivo4Id() != null ? poz.getNivo4Id() : 0;
         if (nivo4Id <= 0 && poz.getNaziv() != null) {
-            String n = poz.getNaziv().trim().toUpperCase(java.util.Locale.ROOT);
+            String n = poz.getNaziv().trim().toUpperCase(Locale.ROOT);
             if (Globals.getInstance().hasCachedCenik()) {
                 for (CenikListAdapter.CenikItem ci : Globals.getInstance().getCachedCenik()) {
-                    if (ci.naziv != null && (ci.naziv.trim().equalsIgnoreCase(n) || ci.naziv.toUpperCase(java.util.Locale.ROOT).contains(n) || n.contains(ci.naziv.toUpperCase(java.util.Locale.ROOT)))) {
+                    if (ci.naziv != null && (ci.naziv.trim().equalsIgnoreCase(n) || ci.naziv.toUpperCase(Locale.ROOT).contains(n) || n.contains(ci.naziv.toUpperCase(Locale.ROOT)))) {
                         nivo4Id = ci.nivo4Id;
                         if (ci.tarifaId > 0 && (poz.getTarifaId() == null || poz.getTarifaId() == 0)) {
                             poz.setTarifaId(ci.tarifaId);
@@ -3157,7 +3157,7 @@ public class RosKasaSoapClient {
 
         soap.addProperty("ENOTA_PRODAJE_ID", poz.getEnotaProdajeId() != null ? poz.getEnotaProdajeId().toPlainString() : "1");
         soap.addProperty("STATUS", poz.getStatus() != null ? poz.getStatus().toPlainString() : "0");
-        soap.addProperty("KOLICINA", String.format(java.util.Locale.US, "%.4f", poz.getKolicina()));
+        soap.addProperty("KOLICINA", String.format(Locale.US, "%.4f", poz.getKolicina()));
         soap.addProperty("CENA", poz.getCena() != null ? poz.getCena().toPlainString() : "0.00");
         soap.addProperty("CENA_NABAVNA", poz.getCenaNabavna() != null ? poz.getCenaNabavna().toPlainString() : "0");
 
@@ -3165,7 +3165,7 @@ public class RosKasaSoapClient {
         if (stopnja <= 0) {
             stopnja = 26.5;
         }
-        soap.addProperty("STOPNJA_DAVKA", String.format(java.util.Locale.US, "%.2f", stopnja));
+        soap.addProperty("STOPNJA_DAVKA", String.format(Locale.US, "%.2f", stopnja));
 
         soap.addProperty("ZNESEK", poz.getZnesek() != null ? poz.getZnesek().toPlainString() : "0.00");
         soap.addProperty("ZNESEK_DAVKA", poz.getZnesekDavka() != null ? poz.getZnesekDavka().toPlainString() : "0.00");
@@ -3202,8 +3202,8 @@ public class RosKasaSoapClient {
         SoapObject soap = new SoapObject(NAMESPACE, "PlaciloTp");
 
         // 1. DATUM: yyyy-MM-ddT00:00:00Z (lokalni datum naprave)
-        java.text.SimpleDateFormat sdfDate = new java.text.SimpleDateFormat("yyyy-MM-dd'T'00:00:00'Z'", java.util.Locale.US);
-        soap.addProperty("DATUM", sdfDate.format(new java.util.Date()));
+        SimpleDateFormat sdfDate = new SimpleDateFormat("yyyy-MM-dd'T'00:00:00'Z'", Locale.US);
+        soap.addProperty("DATUM", sdfDate.format(new Date()));
 
         // 6. PLACILO_ID: šifra načina plačila (1=Gotovina, 2=Kreditna POS, itd.)
         int placiloId = pl.getPlaciloId();
@@ -3280,12 +3280,12 @@ public class RosKasaSoapClient {
         soap.addProperty("TOCILNICA_ID", tocilnicaId);
 
         // 14. URA: 1899-12-30THH:mm:ssZ (lokalni čas naprave)
-        java.text.SimpleDateFormat sdfUra = new java.text.SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", java.util.Locale.US);
-        soap.addProperty("URA", sdfUra.format(new java.util.Date()));
+        SimpleDateFormat sdfUra = new SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", Locale.US);
+        soap.addProperty("URA", sdfUra.format(new Date()));
 
         // 15. URA_PLACILA: 1899-12-30THH:mm:ssZ (lokalni čas naprave)
-        java.text.SimpleDateFormat sdfUraPlacila = new java.text.SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", java.util.Locale.US);
-        soap.addProperty("URA_PLACILA", sdfUraPlacila.format(new java.util.Date()));
+        SimpleDateFormat sdfUraPlacila = new SimpleDateFormat("'1899-12-30T'HH:mm:ss'Z'", Locale.US);
+        soap.addProperty("URA_PLACILA", sdfUraPlacila.format(new Date()));
 
         // 16. VALUTA_ID
         if (pl.getValutaId() != null && pl.getValutaId() != 0) {
@@ -3831,22 +3831,53 @@ public class RosKasaSoapClient {
         return envelope;
     }
 
-    private static String formatEndpoint(String url) {
-        if (url == null || url.isEmpty()) return "";
+    public static String formatEndpoint(String url) {
+        if (url == null || url.trim().isEmpty()) return "";
 
-        if (url.toLowerCase().contains(".asmx") || url.toLowerCase().contains(".svc")) {
-            if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                return "http://" + url;
+        url = url.trim();
+
+        // Popravi morebitne presledke (npr. "kasa asmx" -> "kasa.asmx", "kasa .asmx" -> "kasa.asmx")
+        url = url.replaceAll("(?i)\\bkasa\\s+asmx", "kasa.asmx");
+        url = url.replaceAll("\\s*\\.\\s*", ".");
+        url = url.replaceAll("\\s*/\\s*", "/");
+        url = url.replaceAll("\\s+", "");
+
+        // Če je bila napačno dodana stara privzeta pripona "RosKasa_ceniki_wsdl.asmx", jo nadomesti s pravo "kasa.asmx"
+        if (url.toLowerCase().endsWith("roskasa_ceniki_wsdl.asmx")) {
+            url = url.substring(0, url.length() - "roskasa_ceniki_wsdl.asmx".length()) + "kasa.asmx";
+        }
+
+        // Dodaj http:// ali https://, če manjka
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            if (url.startsWith("192.168.") || url.startsWith("10.") || url.startsWith("localhost") || url.startsWith("127.0.0.1")) {
+                url = "http://" + url;
+            } else {
+                url = "https://" + url;
             }
+        }
+
+        // Če se URL že konča z .asmx ali .svc (npr. kasa.asmx), ga vrni
+        if (url.toLowerCase().endsWith(".asmx") || url.toLowerCase().endsWith(".svc")) {
             return url;
         }
 
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
-            url = "http://" + url;
+        // Če ima .asmx/ ali .svc/ na koncu poševnico, jo odreži
+        if (url.toLowerCase().contains(".asmx/")) {
+            return url.substring(0, url.toLowerCase().indexOf(".asmx/") + 5);
         }
+        if (url.toLowerCase().contains(".svc/")) {
+            return url.substring(0, url.toLowerCase().indexOf(".svc/") + 4);
+        }
+
+        // Če se konča z /kasa ali kasa, dodaj .asmx
+        if (url.toLowerCase().endsWith("/kasa") || url.toLowerCase().endsWith("kasa")) {
+            return url + ".asmx";
+        }
+
+        // Privzet ASMX servis je kasa.asmx
         if (!url.endsWith("/")) {
             url = url + "/";
         }
-        return url + "RosKasa_ceniki_wsdl.asmx";
+        return url + "kasa.asmx";
     }
 }
