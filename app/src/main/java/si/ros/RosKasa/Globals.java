@@ -1,12 +1,20 @@
 package si.ros.RosKasa;
 
+import android.content.Context;
 import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.math.BigDecimal;
 import si.ros.RosKasa.models.MobileSetupTp;
@@ -367,25 +375,36 @@ public class Globals {
     private int timeOutReceive = 30000;
     private int androidNetTcpPort = 53;
     private int htFontAndroid = 0;
-    private boolean tiskanjePavza = false;
+    private boolean tiskanjePavza = true; // Privzeto true po navodilu (TISKANJEPAVZA)
+    private String zadnjiSlipText = "";
     private boolean obracunAndroid = false;
     private boolean payTenA = false;
-    private String payTenARosPackage = "";
-    private String payTenAActivityMain = "";
-    private String payTenAActivities = "";
+    private String payTenARosPackage = "si.ros.RosKasaLight2";
+    private String payTenAActivityMain = "com.payten.nlb.slovenia";
+    private String payTenAActivities = "com.payten.nlb.slovenia.activities.SplashActivity";
     private String payTenAPin = "";
     private boolean payTenAStorno = false;
+    private int payTenAPlaciloId = 0;
+    private int zadnjiPayTenARacunId = 0;
+    private int zadnjaPayTenAPozicijaId = 0;
+    private boolean payTenIntransaction = false;
 
     // SIX / TapOn Payment Terminal Toggles
     private boolean sixTap = false;
     private boolean sixTapManualLast = false;
     private boolean sixTapAutoLast = false;
+    private boolean sixTapStatus = false;
+    private int sixTapPlaciloId = 0;
     private boolean sixTapPrint = false;
     private boolean sixTapStorno = false;
     private boolean sixTapDebug = false;
     private boolean sixTapStornoZadnji = false;
-    private String sixTapWpiVersion = "";
+    private String sixTapWpiVersion = "2.2";
     private String sixTapFormat = "";
+    private String zadnjiWpiSessionId = "";
+    private int zadnjiSixRacunId = 0;
+    private int zadnjaSixPozicijaId = 0;
+    private boolean sixtapintransaction = false;
     private boolean recoverTapOn = false;
     private boolean tapOnRecoverIntent = false;
     private boolean tapOnRecoverLogout = false;
@@ -432,22 +451,82 @@ public class Globals {
         return sb.toString();
     }
 
+    private Context appContext;
+    private boolean logirajAktivnost = true;
+
+    public void initContext(Context context) {
+        if (context != null) {
+            this.appContext = context.getApplicationContext();
+        }
+    }
+
+    public Context getAppContext() {
+        return this.appContext;
+    }
+
+    public boolean isLogirajAktivnost() {
+        return logirajAktivnost;
+    }
+
+    public void setLogirajAktivnost(boolean logirajAktivnost) {
+        this.logirajAktivnost = logirajAktivnost;
+    }
+
+    /**
+     * Shrani kronološki zapis v lokalni pomnilnik (na disk), da v primeru sesutja ne izgubimo zapisov.
+     * Ustreza Delphi proceduri frmKasaMobile.KronologNaDisk.
+     */
+    public synchronized void kronologNaDisk(String opis) {
+        try {
+            File logDir = null;
+            if (this.appContext != null) {
+                logDir = this.appContext.getFilesDir();
+            }
+            if (logDir == null) {
+                return;
+            }
+            File logFile = new File(logDir, "kronologija.log");
+            if (logFile.exists() && logFile.length() > 5 * 1024 * 1024) {
+                File bakFile = new File(logDir, "kronologija.log.bak");
+                if (bakFile.exists()) bakFile.delete();
+                logFile.renameTo(bakFile);
+            }
+            try (FileWriter fw = new FileWriter(logFile, true);
+                 BufferedWriter bw = new BufferedWriter(fw);
+                 PrintWriter out = new PrintWriter(bw)) {
+                out.println(opis);
+            }
+        } catch (Exception ignored) {}
+    }
+
     /**
      * Vpisi operacijo ali napako v kronologijo
      */
     public void vpisiKronologijo(String serverUrl, String token, String mobileId, String opisOperacije, Integer osebaId, Integer obratId) {
         if (this.kronologIzklop) return;
+        if (!this.logirajAktivnost) return;
+
         String sUrl = (serverUrl != null && !serverUrl.isEmpty()) ? serverUrl : this.serverUrl;
         String tok = (token != null && !token.isEmpty()) ? token : this.token;
         String mob = (mobileId != null && !mobileId.isEmpty()) ? mobileId : String.valueOf(this.mobileId);
         int osId = (osebaId != null && osebaId != 0) ? osebaId : (this.tekocaOsebaId != 0 ? this.tekocaOsebaId : 9999);
         int obId = (obratId != null && obratId != 0) ? obratId : (this.tocilnicaId != 0 ? this.tocilnicaId : (this.hisObrat != 0 ? this.hisObrat : 512200));
 
-        si.ros.RosKasa.soap.RosKasaSoapClient.vpisKronologijeAsync(
+        String finalOpis = opisOperacije != null ? opisOperacije : "";
+        if (!finalOpis.startsWith("MAID:")) {
+            String trimmed = finalOpis.length() > 900 ? finalOpis.substring(0, 900) : finalOpis;
+            String timeStr = new SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(new Date());
+            finalOpis = "MAID:" + mob + " " + trimmed + " RosKasaLight/" + timeStr;
+        }
+
+        // Shranimo v lokalni pomnilnik da lahko v primeru crash dobimo zapise (Delphi frmKasaMobile.KronologNaDisk)
+        kronologNaDisk(finalOpis);
+
+        si.ros.RosKasa.soap.RosKasaSoapClient.vpisKronologijeAsyncDirect(
                 sUrl != null ? sUrl : "",
                 tok != null ? tok : "",
                 mob,
-                opisOperacije,
+                finalOpis,
                 osId,
                 obId
         );
@@ -660,6 +739,20 @@ public class Globals {
             }
         }
 
+        // Odstrani narekovaje iz vseh vrednosti (npr. SIXTAP='D' -> SIXTAP=D)
+        for (Map.Entry<String, String> entry : new HashMap<>(kvPairs).entrySet()) {
+            String val = entry.getValue();
+            if (val != null) {
+                val = val.trim();
+                if ((val.startsWith("'") && val.endsWith("'")) || (val.startsWith("\"") && val.endsWith("\""))) {
+                    if (val.length() >= 2) {
+                        val = val.substring(1, val.length() - 1).trim();
+                    }
+                }
+                kvPairs.put(entry.getKey(), val);
+            }
+        }
+
         // Store into mobIniValues map
         mobIniValues.putAll(kvPairs);
 
@@ -678,6 +771,7 @@ public class Globals {
         if (kvPairs.containsKey("ZAMUDAMINUTE")) { try { this.zamudaMinute = Integer.parseInt(kvPairs.get("ZAMUDAMINUTE")); } catch (Exception ignored) {} }
         if (kvPairs.containsKey("VALUTID")) { try { this.valutId = Integer.parseInt(kvPairs.get("VALUTID")); } catch (Exception ignored) {} }
         if (kvPairs.containsKey("KRONOLOGIZKLOP")) this.kronologIzklop = "D".equalsIgnoreCase(kvPairs.get("KRONOLOGIZKLOP"));
+        if (kvPairs.containsKey("LOGIRAJAKTIVNOST")) this.logirajAktivnost = !"N".equalsIgnoreCase(kvPairs.get("LOGIRAJAKTIVNOST"));
         if (kvPairs.containsKey("DEBUGL0")) this.debugL0 = "D".equalsIgnoreCase(kvPairs.get("DEBUGL0"));
         if (kvPairs.containsKey("DEBUGL1")) this.debugL1 = "D".equalsIgnoreCase(kvPairs.get("DEBUGL1"));
         if (kvPairs.containsKey("DEBUGL2")) this.debugL2 = "D".equalsIgnoreCase(kvPairs.get("DEBUGL2"));
@@ -926,9 +1020,17 @@ public class Globals {
             this.pNfc = this.pnfcprijava;
         }
         if (kvPairs.containsKey("HTFONTANDROID")) { try { this.htFontAndroid = Integer.parseInt(kvPairs.get("HTFONTANDROID")); } catch (Exception ignored) {} }
-        if (kvPairs.containsKey("TISKANJEPAVZA")) this.tiskanjePavza = "D".equalsIgnoreCase(kvPairs.get("TISKANJEPAVZA"));
+        if (kvPairs.containsKey("TISKANJEPAVZA")) {
+            String tp = kvPairs.get("TISKANJEPAVZA");
+            this.tiskanjePavza = !"N".equalsIgnoreCase(tp) && !"0".equals(tp) && !"FALSE".equalsIgnoreCase(tp);
+        }
         if (kvPairs.containsKey("OBRACUNANDROID")) this.obracunAndroid = "D".equalsIgnoreCase(kvPairs.get("OBRACUNANDROID"));
-        if (kvPairs.containsKey("PAYTENA")) this.payTenA = "D".equalsIgnoreCase(kvPairs.get("PAYTENA"));
+        if (kvPairs.containsKey("PAYTENA")) {
+            this.payTenA = "D".equalsIgnoreCase(kvPairs.get("PAYTENA"));
+            if (this.payTenA) {
+                this.sixTap = false;
+            }
+        }
         if (kvPairs.containsKey("PAYTENAROSPACKAGE")) this.payTenARosPackage = kvPairs.get("PAYTENAROSPACKAGE");
         if (kvPairs.containsKey("PAYTENAACTIVITYMAIN")) this.payTenAActivityMain = kvPairs.get("PAYTENAACTIVITYMAIN");
         if (kvPairs.containsKey("PAYTENAACTIVITIES")) this.payTenAActivities = kvPairs.get("PAYTENAACTIVITIES");
@@ -943,6 +1045,8 @@ public class Globals {
                 this.payTenA = false;
             }
         }
+        if (kvPairs.containsKey("SIXTAP_STATUS")) this.sixTapStatus = "D".equalsIgnoreCase(kvPairs.get("SIXTAP_STATUS"));
+        if (kvPairs.containsKey("SIXTAPSTATUS")) this.sixTapStatus = "D".equalsIgnoreCase(kvPairs.get("SIXTAPSTATUS"));
         if (kvPairs.containsKey("SIXTAP_MANUAL_LAST")) this.sixTapManualLast = "D".equalsIgnoreCase(kvPairs.get("SIXTAP_MANUAL_LAST"));
         if (kvPairs.containsKey("SIXTAP_AUTO_LAST")) this.sixTapAutoLast = "D".equalsIgnoreCase(kvPairs.get("SIXTAP_AUTO_LAST"));
         if (kvPairs.containsKey("SIXTAPPRINT")) this.sixTapPrint = "D".equalsIgnoreCase(kvPairs.get("SIXTAPPRINT"));
@@ -1260,6 +1364,9 @@ public class Globals {
     public boolean isPinLogin() { return pinLogin; }
     public int getLogoutCas() { return logoutCas; }
     public boolean isPrintamNarocila() { return printamNarocila; }
+    public boolean isPrintBlok() { return printamNarocila; }
+    public void setPrintBlok(boolean val) { this.printamNarocila = val; }
+    public void setPrintamNarocila(boolean val) { this.printamNarocila = val; }
     public boolean isPrintBlokInNarocilo() { return printBlokInNarocilo; }
     public boolean isPrintamNarocilaNikamor() { return printamNarocilaNikamor; }
     public boolean isNePrintamNarT1() { return nePrintamNarT1; }
@@ -1269,6 +1376,7 @@ public class Globals {
     public int getPrintBlokPavza() { return printBlokPavza; }
     public boolean isPrintBrezTiskalnika() { return printBrezTiskalnika; }
     public boolean isPrintamVoucher() { return printamVoucher; }
+    public void setPrintamVoucher(boolean val) { this.printamVoucher = val; }
     public int getNivo4IdVoucher() { return nivo4IdVoucher; }
     public int getNapitnineProcentKuh() { return napitnineProcentKuh; }
     public boolean isNapitnine() { return napitnine; }
@@ -1624,23 +1732,67 @@ public class Globals {
     public int getAndroidNetTcpPort() { return androidNetTcpPort; }
     public int getHtFontAndroid() { return htFontAndroid; }
     public boolean isTiskanjePavza() { return tiskanjePavza; }
+    public void setTiskanjePavza(boolean val) { this.tiskanjePavza = val; }
+    public String getZadnjiSlipText() { return zadnjiSlipText != null ? zadnjiSlipText : ""; }
+    public void setZadnjiSlipText(String slip) { this.zadnjiSlipText = slip != null ? slip : ""; }
     public boolean isObracunAndroid() { return obracunAndroid; }
     public boolean isPayTenA() { return payTenA; }
+    public void setPayTenA(boolean payTenA) {
+        this.payTenA = payTenA;
+        if (payTenA) this.sixTap = false;
+    }
     public String getPayTenARosPackage() { return payTenARosPackage; }
+    public void setPayTenARosPackage(String pkg) { this.payTenARosPackage = pkg; }
     public String getPayTenAActivityMain() { return payTenAActivityMain; }
+    public void setPayTenAActivityMain(String act) { this.payTenAActivityMain = act; }
     public String getPayTenAActivities() { return payTenAActivities; }
+    public void setPayTenAActivities(String act) { this.payTenAActivities = act; }
     public String getPayTenAPin() { return payTenAPin; }
+    public void setPayTenAPin(String pin) { this.payTenAPin = pin; }
     public boolean isPayTenAStorno() { return payTenAStorno; }
+    public void setPayTenAStorno(boolean storno) { this.payTenAStorno = storno; }
+    public int getPayTenAPlaciloId() { return payTenAPlaciloId; }
+    public void setPayTenAPlaciloId(int id) { this.payTenAPlaciloId = id; }
+    public int getZadnjiPayTenARacunId() { return zadnjiPayTenARacunId; }
+    public void setZadnjiPayTenARacunId(int id) { this.zadnjiPayTenARacunId = id; }
+    public int getZadnjaPayTenAPozicijaId() { return zadnjaPayTenAPozicijaId; }
+    public void setZadnjaPayTenAPozicijaId(int id) { this.zadnjaPayTenAPozicijaId = id; }
+    public boolean isPayTenIntransaction() { return payTenIntransaction; }
+    public void setPayTenIntransaction(boolean inTrans) { this.payTenIntransaction = inTrans; }
 
     public boolean isSixTap() { return sixTap; }
+    public void setSixTap(boolean sixTap) {
+        this.sixTap = sixTap;
+        if (sixTap) this.payTenA = false;
+    }
     public boolean isSixTapManualLast() { return sixTapManualLast; }
+    public void setSixTapManualLast(boolean val) { this.sixTapManualLast = val; }
     public boolean isSixTapAutoLast() { return sixTapAutoLast; }
+    public void setSixTapAutoLast(boolean val) { this.sixTapAutoLast = val; }
+    public boolean isSixTapStatus() { return sixTapStatus; }
+    public void setSixTapStatus(boolean val) { this.sixTapStatus = val; }
+    public int getSixTapPlaciloId() { return sixTapPlaciloId; }
+    public void setSixTapPlaciloId(int id) { this.sixTapPlaciloId = id; }
     public boolean isSixTapPrint() { return sixTapPrint; }
+    public void setSixTapPrint(boolean val) { this.sixTapPrint = val; }
     public boolean isSixTapStorno() { return sixTapStorno; }
+    public void setSixTapStorno(boolean val) { this.sixTapStorno = val; }
     public boolean isSixTapDebug() { return sixTapDebug; }
+    public void setSixTapDebug(boolean val) { this.sixTapDebug = val; }
     public boolean isSixTapStornoZadnji() { return sixTapStornoZadnji; }
+    public void setSixTapStornoZadnji(boolean val) { this.sixTapStornoZadnji = val; }
     public String getSixTapWpiVersion() { return sixTapWpiVersion; }
+    public void setSixTapWpiVersion(String ver) { this.sixTapWpiVersion = ver; }
     public String getSixTapFormat() { return sixTapFormat; }
+    public void setSixTapFormat(String fmt) { this.sixTapFormat = fmt; }
+    public String getZadnjiWpiSessionId() { return zadnjiWpiSessionId; }
+    public void setZadnjiWpiSessionId(String sessionId) { this.zadnjiWpiSessionId = sessionId; }
+    public int getZadnjiSixRacunId() { return zadnjiSixRacunId; }
+    public void setZadnjiSixRacunId(int id) { this.zadnjiSixRacunId = id; }
+    public int getZadnjaSixPozicijaId() { return zadnjaSixPozicijaId; }
+    public void setZadnjaSixPozicijaId(int id) { this.zadnjaSixPozicijaId = id; }
+    public boolean isSixtapintransaction() { return sixtapintransaction; }
+    public void setSixtapintransaction(boolean inTrans) { this.sixtapintransaction = inTrans; }
     public boolean isRecoverTapOn() { return recoverTapOn; }
     public boolean isTapOnRecoverIntent() { return tapOnRecoverIntent; }
     public boolean isTapOnRecoverLogout() { return tapOnRecoverLogout; }

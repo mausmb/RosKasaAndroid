@@ -1,5 +1,7 @@
 package si.ros.RosKasa.ui;
 
+import android.content.Intent;
+
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -35,6 +37,13 @@ import si.ros.RosKasa.models.KartprijTp;
 import si.ros.RosKasa.models.PartnerTp;
 import si.ros.RosKasa.models.DelovniNalogTp;
 import si.ros.RosKasa.models.LojalnostnaTp;
+import si.ros.RosKasa.models.SlipEmaTp;
+import si.ros.RosKasa.payment.PaytenPaymentService;
+import si.ros.RosKasa.payment.SixTapPaymentService;
+import si.ros.RosKasa.payment.PaymentRecoveryManager;
+import si.ros.RosKasa.payment.models.PaytenResponse;
+import si.ros.RosKasa.payment.models.SixTapResponse;
+import java.math.RoundingMode;
 import si.ros.RosKasa.print.BluetoothPrintHelper;
 import si.ros.RosKasa.soap.RosKasaSoapClient;
 import si.ros.RosKasa.soap.VersionConflictException;
@@ -445,6 +454,7 @@ public class PlacilaFragment extends Fragment {
                             .show();
                 });
             } catch (Exception e) {
+                Globals.getInstance().vpisiKronologijo("setRacun NAPAKA R:" + (currentRacun != null ? currentRacun.getRacunId() : 0) + ": " + e.getMessage());
                 mainHandler.post(() -> {
                     enableEkran();
                     if (currentRacun != null && currentRacun.getRacPlaci() != null) {
@@ -482,6 +492,10 @@ public class PlacilaFragment extends Fragment {
             return;
         }
 
+        final int racId = currentRacun.getRacunId();
+        // Kronologija ob kliku na katerokoli plačilo (točno po specifikaciji uporabnika):
+        Globals.getInstance().vpisiKronologijo("KLIK PLACILO R:" + racId + " Placilo ID: " + placiloId);
+
         final BigDecimal zaplacilo = getPreostanekZaPlacilo();
         if (zaplacilo.compareTo(BigDecimal.ZERO) <= 0) {
             Toast.makeText(requireContext(), "Račun je že v celoti plačan!", Toast.LENGTH_SHORT).show();
@@ -516,6 +530,21 @@ public class PlacilaFragment extends Fragment {
 
         final int tempmetoda = Globals.getInstance().placilometoda(placiloId);
         final String nacinNaziv = getPaymentName(placiloId);
+        final String uNaziv = nacinNaziv != null ? nacinNaziv.toUpperCase() : "";
+
+        // Za metodo 14 (ali karticno POS placilo):
+        // V Delphi: ob metodi 14 se placilo izvede TAKOJ brez odpiranja dialoga za vnos cene (celoten saldo zaplacilo)
+        boolean isPosPayment = (tempmetoda == 14
+                || uNaziv.contains("POS")
+                || uNaziv.contains("KREDITNA")
+                || uNaziv.contains("KARTICA")
+                || placiloId == 2);
+
+        if (tempmetoda == 14 || isPosPayment) {
+            nadaljujSPlacilom(placiloId, 14, nacinNaziv, zaplacilo);
+            return;
+        }
+
 
         // 2. Odpiranje okna za vnos zneska (privzeto racglava.znesek - racglava.placano)
         VnosCeneDialog.show(requireContext(), "ZNESEK - " + nacinNaziv, zaplacilo, false, new VnosCeneDialog.OnPriceEnteredListener() {
@@ -538,6 +567,49 @@ public class PlacilaFragment extends Fragment {
     }
 
     private void nadaljujSPlacilom(final int placiloId, final int tempmetoda, final String nacinNaziv, final BigDecimal znesekPlacila) {
+        // Ce racun se ni shranjen na strezniku (ali racunId <= 0):
+        // V Delphi: if (tblRacGlavaRACUN_ID < 0) or (tblRacGlavaprenos = 'N') then postRacun(...)
+        if (currentRacun.getRacunId() <= 0) {
+            disableEkran("Shranjevanje racuna pred placilom...");
+            executor.execute(() -> {
+                try {
+                    String serverUrl = prefs.getServerUrl();
+                    String token = prefs.getToken();
+                    int mobileId = 1;
+                    try { mobileId = Integer.parseInt(prefs.getMobileId()); } catch (Exception ignored) {}
+
+                    GetRacunRsTp resp = RosKasaSoapClient.setRacun(serverUrl, token, mobileId, currentRacun);
+                    mainHandler.post(() -> {
+                        enableEkran();
+                        if (resp != null && resp.getRacGlava() != null) {
+                            RacunTp saved = resp.getRacGlava();
+                            if ((saved.getRacPozic() == null || saved.getRacPozic().isEmpty()) && currentRacun.getRacPozic() != null) {
+                                saved.setRacPozic(currentRacun.getRacPozic());
+                            }
+                            if ((saved.getRacPlaci() == null || saved.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null) {
+                                saved.setRacPlaci(currentRacun.getRacPlaci());
+                            }
+                            if (currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
+                                saved.setZnesek(currentRacun.getZnesek());
+                            }
+                            currentRacun = saved;
+                            Globals.getInstance().setCurrentRacun(saved);
+                            prefs.setActiveRacunId(saved.getRacunId());
+                            izvediPlaciloPoMetodi(placiloId, tempmetoda, nacinNaziv, znesekPlacila);
+                        } else {
+                            Toast.makeText(requireContext(), "Napaka pri shranjevanju racuna pred placilom!", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } catch (Exception e) {
+                    mainHandler.post(() -> {
+                        enableEkran();
+                        Toast.makeText(requireContext(), "Napaka pri sinhronizaciji racuna: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+            return;
+        }
+
         // Če je račun že shranjen na strežniku (racunId > 0), preveri verzijo računa
         if (currentRacun.getRacunId() > 0) {
             disableEkran("Preverjanje verzije računa...");
@@ -580,11 +652,21 @@ public class PlacilaFragment extends Fragment {
     private void izvediPlaciloPoMetodi(int placiloId, int tempmetoda, String nacinNaziv, BigDecimal zaplacilo) {
         NacPlacTp np = Globals.getInstance().getPlaciloById(placiloId);
         int storitevId = (np != null && np.getStoritevId() != null) ? np.getStoritevId() : 0;
+        String uNaziv = nacinNaziv != null ? nacinNaziv.toUpperCase() : "";
 
-        if (tempmetoda == 6 || placiloId == 8) {
+        boolean isPosPayment = (tempmetoda == 14
+                || uNaziv.contains("POS")
+                || uNaziv.contains("KREDITNA")
+                || uNaziv.contains("KARTICA")
+                || placiloId == 2);
+
+        if (tempmetoda == 14 || isPosPayment) {
+            // POS Plačilni Intent (PayTen ali Worldline SoftPOS / SixTap) ima absolutno prednost
+            izvediPosPlacilo(placiloId, nacinNaziv, zaplacilo);
+        } else if (tempmetoda == 6 || placiloId == 8) {
             // Hotel kredit (sobe)
             showHotelKreditDialog(placiloId, nacinNaziv, zaplacilo);
-        } else if (tempmetoda == 3 || tempmetoda == 4 || placiloId == 4 || storitevId == 8 || storitevId == 31 || storitevId == 90 || (storitevId > 0 && storitevId == Globals.getInstance().getkKarticaTippartnerRocno())) {
+        } else if (tempmetoda == 3 || tempmetoda == 4 || placiloId == 4 || (storitevId > 0 && storitevId == Globals.getInstance().getkKarticaTippartnerRocno())) {
             // Dobavnica / Naročilnica / Partner
             showPartnerVnosDialog(placiloId, nacinNaziv, zaplacilo, storitevId);
         } else {
@@ -757,10 +839,262 @@ public class PlacilaFragment extends Fragment {
         binding.btnOpombaRacuna.setOnClickListener(v -> handleOpombaRacuna());
         binding.btnIzpisRacuna.setOnClickListener(v -> handleIzpisRacuna());
         binding.btnPayLoyPopust.setOnClickListener(v -> handleLojalnostPopustClick());
+        binding.btnTapOn.setOnClickListener(v -> handleTapOnClick());
     }
 
     private void brisiPlaciloNaStrezniku(PlaciloTp pl) {
         if (currentRacun == null || pl == null) return;
+
+        final int metoda = Globals.getInstance().placilometoda(pl.getPlaciloId());
+        final boolean isCardOrPos = (metoda == 14 || pl.getPlaciloId() == 2 || (pl.getMRef() != null && !pl.getMRef().trim().isEmpty()));
+        final boolean isSixTapActive = Globals.getInstance().isSixTap();
+        final boolean isPaytenActive = Globals.getInstance().isPayTenA();
+
+        if (isCardOrPos && (pl.getMRef() == null || pl.getMRef().trim().isEmpty())) {
+            // Poskusi pridobiti M_REF iz SLIP_EMA pred stornom
+            disableEkran("Preverjanje POS transakcije za storno...");
+            executor.execute(() -> {
+                try {
+                    List<SlipEmaTp> slips = RosKasaSoapClient.getSlipEma2(prefs.getServerUrl(), prefs.getToken(), currentRacun.getRacunId());
+                    if (slips != null && !slips.isEmpty()) {
+                        for (SlipEmaTp s : slips) {
+                            if (s != null && s.getAcqTransRef() != null && !s.getAcqTransRef().trim().isEmpty()) {
+                                pl.setMRef(s.getAcqTransRef().trim());
+                                break;
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+                mainHandler.post(() -> {
+                    enableEkran();
+                    final String fetchedRef = pl.getMRef() != null ? pl.getMRef().trim() : "";
+                    if (isSixTapActive && !fetchedRef.isEmpty()) {
+                        izvediSixTapStornoPlacila(pl);
+                    } else if (isPaytenActive && !fetchedRef.isEmpty()) {
+                        izvediPaytenStornoPlacila(pl);
+                    } else {
+                        izvediBrisanjePlacilaNaStreznikuDirect(pl);
+                    }
+                });
+            });
+            return;
+        }
+
+        final String mRef = pl.getMRef() != null ? pl.getMRef().trim() : "";
+
+        if (isSixTapActive && !mRef.isEmpty()) {
+            izvediSixTapStornoPlacila(pl);
+            return;
+        } else if (isPaytenActive && !mRef.isEmpty()) {
+            izvediPaytenStornoPlacila(pl);
+            return;
+        }
+
+        izvediBrisanjePlacilaNaStreznikuDirect(pl);
+    }
+
+
+    private void izvediSixTapStornoPlacila(PlaciloTp pl) {
+        if (!(getActivity() instanceof MainActivity)) {
+            Toast.makeText(requireContext(), "MainActivity ni na voljo!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        MainActivity activity = (MainActivity) getActivity();
+
+        final int racunId = currentRacun.getRacunId();
+        final int pozicijaId = pl.getPozicijaId();
+        final BigDecimal znesek = (pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) > 0)
+                ? pl.getDelniZnesek()
+                : (pl.getZnesek() != null ? pl.getZnesek() : BigDecimal.ZERO);
+        final BigDecimal napitnina = pl.getNapitnina() != null ? pl.getNapitnina() : BigDecimal.ZERO;
+        final BigDecimal skupajZnesek = znesek.add(napitnina);
+        final String mRef = pl.getMRef();
+        final String wpiSessionId = pl.getWpiSessionId();
+
+        // Delphi: if ZadnjiSixRacunId = RACUN_ID then WPI_SVC_CANCEL_PAYMENT else WPI_SVC_REFUND
+        final String op = (Globals.getInstance().getZadnjiSixRacunId() == racunId)
+                ? SixTapPaymentService.OP_CANCEL_PAYMENT
+                : SixTapPaymentService.OP_REFUND;
+
+        Intent sixTapIntent = SixTapPaymentService.buildPaymentIntent(requireContext(), racunId, pozicijaId, skupajZnesek, napitnina, op, mRef, wpiSessionId);
+        disableEkran("Storniranje na POS terminalu (Worldline Tap On)...");
+
+        activity.launchSixTap(sixTapIntent, new MainActivity.PaymentResultListener() {
+            @Override
+            public void onPaytenResult(int resultCode, Intent data) {}
+
+            @Override
+            public void onSixTapResult(int resultCode, Intent data) {
+                enableEkran();
+                if (resultCode == android.app.Activity.RESULT_OK && data != null) {
+                    SixTapResponse resp = SixTapPaymentService.parseResponseIntent(data);
+                    if (resp.isSuccess()) {
+                        String sessionId = resp.getpWpiSessionId() != null ? resp.getpWpiSessionId() : (Globals.getInstance().getZadnjiWpiSessionId() != null ? Globals.getInstance().getZadnjiWpiSessionId() : "");
+                        String errCond = resp.getErrorCondition() != null && !resp.getErrorCondition().isEmpty() ? resp.getErrorCondition() : "WPI_ERR_COND_NONE";
+                        String remark = resp.getRemark() != null ? resp.getRemark() : "";
+                        String znesekStr = String.format(Locale.GERMANY, "%.2f", skupajZnesek).replace(",00", ",0");
+                        String authAmt = resp.getAuthorizedAmount() != null ? resp.getAuthorizedAmount() : "";
+                        String tipAmt = resp.getTipAmount() != null ? resp.getTipAmount() : "";
+                        String pSolRef = resp.getPaymentSolutionReference() != null ? resp.getPaymentSolutionReference() : "";
+
+                        // SIXTAP RESULT OK R:61556 LokalReference R:8e4ee40a-43d1-4c34-a0c0-0167f4c4a554 SIXTAP WPI_SVC_CANCEL_PAYMENT result: WPI_RESULT_SUCCESS Error: WPI_ERR_COND_NONE za M_REF:  remark:  SESSION_ID: 6B7A3073747C4D59AC55
+                        Globals.getInstance().vpisiKronologijo("SIXTAP RESULT OK R:" + racunId + " LokalReference R:" + mRef + " SIXTAP " + op + " result: WPI_RESULT_SUCCESS Error: " + errCond + " za M_REF: " + pSolRef + " remark: " + remark + " SESSION_ID: " + sessionId);
+
+                        // SIXTAP WPI_RESULT_SUCCESS za  R:61556 reference: 8e4ee40a-43d1-4c34-a0c0-0167f4c4a554 paymentSolutionReference:  authorizedAmount:  tipAmount:  Z:3,52
+                        Globals.getInstance().vpisiKronologijo("SIXTAP WPI_RESULT_SUCCESS za  R:" + racunId + " reference: " + mRef + " paymentSolutionReference: " + pSolRef + " authorizedAmount: " + authAmt + " tipAmount: " + tipAmt + " Z:" + znesekStr);
+
+                        // SIXTAP setSlipEma R:61556 M_REF:  Op: WPI_SVC_CANCEL_PAYMENT
+                        Globals.getInstance().vpisiKronologijo("SIXTAP setSlipEma R:" + racunId + " M_REF: " + pSolRef + " Op: " + op);
+
+                        // SIXTAP ClearPendingPayment ReqEmaAfterRefund=6  R:61556
+                        Globals.getInstance().vpisiKronologijo("SIXTAP ClearPendingPayment ReqEmaAfterRefund=" + pozicijaId + "  R:" + racunId);
+
+                        disableEkran("Knjiženje storno slipa na strežnik...");
+                        executor.execute(() -> {
+                            try {
+                                String serverUrl = prefs.getServerUrl();
+                                String token = prefs.getToken();
+
+                                SlipEmaTp slip = new SlipEmaTp();
+                                slip.setStevilkaRacuna(racunId);
+                                slip.setPozicijaId(pozicijaId);
+                                slip.setSlipPrint(resp.getClient() != null ? resp.getClient() : "");
+                                slip.setSlipPrints(resp.getMerchant() != null ? resp.getMerchant() : "");
+                                slip.setStevilkaKartice(resp.getBrandName() != null ? resp.getBrandName() : (resp.getCardnumber() != null ? resp.getCardnumber() : ""));
+                                slip.setUspelo("DA");
+                                slip.setProjektId(3);
+                                slip.setStType(op);
+                                slip.setZnesek(znesek.negate());
+                                slip.setZnesekSlip(resp.getZnesekPOS().compareTo(BigDecimal.ZERO) > 0 ? resp.getZnesekPOS().negate() : skupajZnesek.negate());
+                                slip.setAcqTransRef(resp.getPaymentSolutionReference() != null ? resp.getPaymentSolutionReference() : mRef);
+                                slip.setAppIdentifier(resp.getApplicationIdentifier() != null ? resp.getApplicationIdentifier() : "");
+                                slip.setAcqReference(resp.getAcqreference() != null ? resp.getAcqreference() : mRef);
+                                slip.setAuthReference(resp.getAcqreference() != null ? resp.getAcqreference() : mRef);
+                                slip.setAvtorizacija("REF");
+
+                                RosKasaSoapClient.setSlipEma(serverUrl, token, slip);
+                                PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+
+                                mainHandler.post(() -> {
+                                    enableEkran();
+                                    izvediBrisanjePlacilaNaStreznikuDirect(pl);
+                                });
+                            } catch (Exception e) {
+                                mainHandler.post(() -> {
+                                    enableEkran();
+                                    Log.w(TAG, "setSlipEma storno opozorilo: " + e.getMessage());
+                                    izvediBrisanjePlacilaNaStreznikuDirect(pl);
+                                });
+                            }
+                        });
+                    } else {
+                        PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                        String sessionId = resp.getpWpiSessionId() != null ? resp.getpWpiSessionId() : "";
+                        Globals.getInstance().vpisiKronologijo("SIXTAP RESULT OK R:" + racunId + " LokalReference R:" + mRef + " SIXTAP " + op + " result: WPI_RESULT_FAILURE Error: " + resp.getErrorCondition() + " za M_REF:  remark: " + resp.getRemark() + " SESSION_ID: " + sessionId);
+                        Globals.getInstance().vpisiKronologijo("SIXTAP ClearPendingPayment ReqEmaAfterRefund=" + pozicijaId + " Error:" + resp.getErrorCondition() + "  R:" + racunId);
+
+                        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                                .setTitle("Napaka storno SixTap")
+                                .setMessage("Storno na POS terminalu ni uspel: " + resp.getErrorCondition() + " " + resp.getRemark() + "\n\nPlačilo NI bilo izbrisano!")
+                                .setPositiveButton("V redu", null)
+                                .show();
+                    }
+                } else {
+                    PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                    Globals.getInstance().vpisiKronologijo("SIXTAP ClearPendingPayment ReqEmaAfterRefund=" + pozicijaId + " Preklic_uporabnika  R:" + racunId);
+                    Toast.makeText(requireContext(), "Storno na POS terminalu preklican. Plačilo NI bilo izbrisano.", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
+
+    private void izvediPaytenStornoPlacila(PlaciloTp pl) {
+        if (!(getActivity() instanceof MainActivity)) {
+            Toast.makeText(requireContext(), "MainActivity ni na voljo!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        MainActivity activity = (MainActivity) getActivity();
+
+        final int racunId = currentRacun.getRacunId();
+        final int pozicijaId = pl.getPozicijaId();
+        final BigDecimal znesek = (pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) > 0)
+                ? pl.getDelniZnesek()
+                : (pl.getZnesek() != null ? pl.getZnesek() : BigDecimal.ZERO);
+        final BigDecimal napitnina = pl.getNapitnina() != null ? pl.getNapitnina() : BigDecimal.ZERO;
+        final BigDecimal skupajZnesek = znesek.add(napitnina);
+        final String mRef = pl.getMRef();
+
+        Intent paytenIntent = PaytenPaymentService.buildPaymentIntent(requireContext(), racunId, pozicijaId, skupajZnesek, "void", mRef);
+        disableEkran("Storniranje na POS terminalu (PayTen void)...");
+
+        activity.launchPayten(paytenIntent, new MainActivity.PaymentResultListener() {
+            @Override
+            public void onPaytenResult(int resultCode, Intent data) {
+                enableEkran();
+                if (resultCode == android.app.Activity.RESULT_OK && data != null) {
+                    PaytenResponse resp = PaytenPaymentService.parseResponseIntent(data);
+                    if (resp.isSuccess()) {
+                        Globals.getInstance().vpisiKronologijo("PAYTEN RESULT OK R:" + racunId + " void M_REF:" + resp.getPaymentSolutionReference() + " Auth:" + resp.getpAuthorizationCode());
+                        disableEkran("Knjiženje storno slipa na strežnik...");
+                        executor.execute(() -> {
+                            try {
+                                String serverUrl = prefs.getServerUrl();
+                                String token = prefs.getToken();
+
+                                SlipEmaTp slip = new SlipEmaTp();
+                                slip.setStevilkaRacuna(racunId);
+                                slip.setPozicijaId(pozicijaId);
+                                slip.setSlipPrint(resp.getClient() != null ? resp.getClient() : "");
+                                slip.setSlipPrints(resp.getReceipt() != null ? resp.getReceipt() : "");
+                                slip.setStevilkaKartice(resp.getCardNumber() != null ? resp.getCardNumber() : "");
+                                slip.setUspelo("DA");
+                                slip.setProjektId(3);
+                                slip.setStType("void");
+                                slip.setZnesek(znesek.negate());
+                                slip.setZnesekSlip(resp.getZnesekPOS().compareTo(BigDecimal.ZERO) > 0 ? resp.getZnesekPOS().negate() : skupajZnesek.negate());
+                                slip.setAcqTransRef(resp.getPaymentSolutionReference() != null ? resp.getPaymentSolutionReference() : mRef);
+                                slip.setAppIdentifier(resp.getApplicationIdentifier() != null ? resp.getApplicationIdentifier() : "");
+                                slip.setAcqReference(resp.getpAuthorizationCode() != null ? resp.getpAuthorizationCode() : mRef);
+                                slip.setAuthReference(resp.getpAuthorizationCode() != null ? resp.getpAuthorizationCode() : mRef);
+                                slip.setAvtorizacija("REF");
+
+                                RosKasaSoapClient.setSlipEma(serverUrl, token, slip);
+                                PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+
+                                mainHandler.post(() -> {
+                                    enableEkran();
+                                    izvediBrisanjePlacilaNaStreznikuDirect(pl);
+                                });
+                            } catch (Exception e) {
+                                mainHandler.post(() -> {
+                                    enableEkran();
+                                    Log.w(TAG, "setSlipEma Payten storno opozorilo: " + e.getMessage());
+                                    izvediBrisanjePlacilaNaStreznikuDirect(pl);
+                                });
+                            }
+                        });
+                    } else {
+                        PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                        Globals.getInstance().vpisiKronologijo("PAYTEN RESULT FAIL R:" + racunId + " void Code:" + resp.getCode() + " Msg:" + resp.getMessage());
+                        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                                .setTitle("Napaka storno PayTen")
+                                .setMessage("Storno na POS terminalu ni uspel: " + resp.getCode() + " " + resp.getMessage() + "\n\nPlačilo NI bilo izbrisano!")
+                                .setPositiveButton("V redu", null)
+                                .show();
+                    }
+                } else {
+                    PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                    Globals.getInstance().vpisiKronologijo("PAYTEN void prekinjen R:" + racunId);
+                    Toast.makeText(requireContext(), "Storno PayTen preklican. Plačilo NI bilo izbrisano.", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onSixTapResult(int resultCode, Intent data) {}
+        });
+    }
+
+    private void izvediBrisanjePlacilaNaStreznikuDirect(PlaciloTp pl) {
 
         // Zagotovi deep copy v originalObject pred spremembo
         if (currentRacun.getOriginalObject() == null) {
@@ -1378,9 +1712,9 @@ public class PlacilaFragment extends Fragment {
                     enableEkran();
                     Toast.makeText(requireContext(), "Račun #" + currentRacun.getRacunId() + " uspešno zaključen!", Toast.LENGTH_SHORT).show();
 
-                    // Sprožitev tiskanja računa preko Bluetooth z novim RacunPrintBuilder
+                    // Sprožitev celovitega tiskanja računa in dodatkov preko Bluetooth (Delphi uPrintData.pas skladnost)
                     if (natisniRacun) {
-                        BluetoothPrintHelper.printReceipt(requireContext(), finalRacunToPrint, 0, new BluetoothPrintHelper.OnPrintListener() {
+                        BluetoothPrintHelper.printReceiptComplete(requireContext(), finalRacunToPrint, new BluetoothPrintHelper.OnPrintListener() {
                             @Override
                             public void onStart() {}
 
@@ -1398,14 +1732,6 @@ public class PlacilaFragment extends Fragment {
                                 }
                             }
                         });
-
-                        // Tiskanje morebitnih dodatnih kopij glede na način plačila
-                        if (finalStKopij > 1) {
-                            for (int k = 2; k <= finalStKopij; k++) {
-                                final int kopijaIndex = k;
-                                BluetoothPrintHelper.printReceipt(requireContext(), finalRacunToPrint, kopijaIndex, null);
-                            }
-                        }
                     }
 
                     // Počisti aktivni račun
@@ -1435,6 +1761,446 @@ public class PlacilaFragment extends Fragment {
                 mainHandler.post(() -> {
                     enableEkran();
                     Toast.makeText(requireContext(), "Napaka pri zaključku računa: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    private void izvediPosPlacilo(final int placiloId, final String nacinNaziv, final BigDecimal zaplacilo) {
+        if (zaplacilo == null || zaplacilo.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        if (!(getActivity() instanceof MainActivity)) {
+            Toast.makeText(requireContext(), "Napaka: MainActivity ni dostopen!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        MainActivity activity = (MainActivity) getActivity();
+        if (currentRacun == null) return;
+        final int racunId = currentRacun.getRacunId();
+
+        if (Globals.getInstance().isPayTenA()) {
+            Globals.getInstance().setPayTenAPlaciloId(placiloId);
+            Globals.getInstance().vpisiKronologijo("PAYTEN purchase za R:" + racunId + " Z:" + zaplacilo);
+            android.content.Intent paytenIntent = PaytenPaymentService.buildPaymentIntent(requireContext(), racunId, 0, zaplacilo, "purchase", null);
+            disableEkran("Čakam na plačilo PayTen...");
+            activity.launchPayten(paytenIntent, new MainActivity.PaymentResultListener() {
+                @Override
+                public void onPaytenResult(int resultCode, android.content.Intent data) {
+                    enableEkran();
+                    handlePaytenResult(resultCode, data, placiloId, nacinNaziv, zaplacilo);
+                }
+
+                @Override
+                public void onSixTapResult(int resultCode, android.content.Intent data) {}
+            });
+        } else {
+            Globals.getInstance().setSixTapPlaciloId(placiloId);
+            android.content.Intent sixTapIntent = SixTapPaymentService.buildPaymentIntent(requireContext(), racunId, 0, zaplacilo, BigDecimal.ZERO, SixTapPaymentService.OP_PAYMENT, null, null);
+            disableEkran("Čakam na plačilo Worldline Tap On...");
+            activity.launchSixTap(sixTapIntent, new MainActivity.PaymentResultListener() {
+                @Override
+                public void onPaytenResult(int resultCode, android.content.Intent data) {}
+
+                @Override
+                public void onSixTapResult(int resultCode, android.content.Intent data) {
+                    enableEkran();
+                    handleSixTapResult(resultCode, data, placiloId, nacinNaziv, zaplacilo);
+                }
+            });
+        }
+    }
+
+    private void handlePaytenResult(int resultCode, android.content.Intent data, int placiloId, String nacinNaziv, BigDecimal zaplacilo) {
+        final int racunId = currentRacun != null ? currentRacun.getRacunId() : 0;
+        if (resultCode == android.app.Activity.RESULT_OK && data != null) {
+            PaytenResponse resp = PaytenPaymentService.parseResponseIntent(data);
+            if (resp.isSuccess()) {
+                Globals.getInstance().vpisiKronologijo("PAYTEN RESULT OK R:" + racunId + " M_REF:" + resp.getPaymentSolutionReference() + " Auth:" + resp.getpAuthorizationCode());
+                BigDecimal znesekPOS = resp.getZnesekPOS().compareTo(BigDecimal.ZERO) > 0 ? resp.getZnesekPOS() : zaplacilo;
+                zakljuciUspesnoPosPlacilo(nacinNaziv, placiloId, znesekPOS, resp.getCardNumber(), resp.getPaymentSolutionReference(),
+                        null, resp.getReceipt(), resp.getClient(), resp.getApplicationIdentifier(), resp.getpAuthorizationCode(),
+                        resp.getpAuthorizationCode(), resp.getpNapitnina(), "purchase");
+            } else {
+                PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                Globals.getInstance().vpisiKronologijo("PAYTEN RESULT FAIL R:" + racunId + " Code:" + resp.getCode() + " Msg:" + resp.getMessage());
+                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                        .setTitle("Napaka PayTen")
+                        .setMessage("Transakcija ni uspela: " + resp.getCode() + " " + resp.getMessage())
+                        .setPositiveButton("V redu", null)
+                        .show();
+            }
+        } else {
+            PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+            Globals.getInstance().vpisiKronologijo("PAYTEN preklican ali neuspešen R:" + racunId);
+            Toast.makeText(requireContext(), "Plačilo PayTen preklicano ali neuspešno.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void handleSixTapResult(int resultCode, android.content.Intent data, int placiloId, String nacinNaziv, BigDecimal zaplacilo) {
+        final int racunId = currentRacun != null ? currentRacun.getRacunId() : 0;
+        if (resultCode == android.app.Activity.RESULT_OK && data != null) {
+            SixTapResponse resp = SixTapPaymentService.parseResponseIntent(data);
+            if (resp.isSuccess()) {
+                PaymentRecoveryManager.saveConfirmedPOSTransaction(requireContext(), resp, PaymentRecoveryManager.POS_STATE_POS_CONFIRMED);
+                BigDecimal znesekPOS = resp.getZnesekPOS().compareTo(BigDecimal.ZERO) > 0 ? resp.getZnesekPOS() : zaplacilo;
+
+                String ref = resp.getReference() != null && !resp.getReference().isEmpty() ? resp.getReference() : String.valueOf(racunId);
+                String mRef = resp.getPaymentSolutionReference() != null ? resp.getPaymentSolutionReference() : "";
+                String authAmt = resp.getAuthorizedAmount() != null ? resp.getAuthorizedAmount() : "";
+                String tipAmt = resp.getTipAmount() != null ? resp.getTipAmount() : "";
+                String remark = resp.getRemark() != null ? resp.getRemark() : "Transaction finished";
+                String sessionId = resp.getpWpiSessionId() != null ? resp.getpWpiSessionId() : (Globals.getInstance().getZadnjiWpiSessionId() != null ? Globals.getInstance().getZadnjiWpiSessionId() : "");
+                String znesekPOSStr = String.format(Locale.GERMANY, "%.2f", znesekPOS).replace(",00", ",0");
+                String zaplaciloStr = String.format(Locale.GERMANY, "%.2f", zaplacilo).replace(",00", ",0");
+
+                // Kronologija uspešnega SixTap plačila (točno po vzorcu iz uporabnikovih specifikacij):
+                // 1. RESULT OK
+                Globals.getInstance().vpisiKronologijo("SIXTAP RESULT OK R:" + racunId + " LokalReference R:" + ref + " SIXTAP " + SixTapPaymentService.OP_PAYMENT + " result: WPI_RESULT_SUCCESS Error: WPI_ERR_COND_NONE za M_REF: " + mRef + " remark: " + remark + " SESSION_ID: " + sessionId);
+
+                // 2. Kontrola napitnina (če je napitnina)
+                if (resp.getTipAmount() != null && !resp.getTipAmount().isEmpty() && !"0".equals(resp.getTipAmount())) {
+                    Globals.getInstance().vpisiKronologijo("SIXTAP Kontrola napitnina R:" + racunId + " " + SixTapPaymentService.OP_PAYMENT + " znesek: " + zaplaciloStr + " znesekPOS: " + znesekPOSStr + " napitnina: " + tipAmt + " TapOn napitnina: " + tipAmt);
+                }
+
+                // 3. WPI_SVC_PAYMENT
+                Globals.getInstance().vpisiKronologijo("SIXTAP " + SixTapPaymentService.OP_PAYMENT + " za  R:" + racunId + " reference: " + ref + " paymentSolutionReference: " + mRef + " authorizedAmount: " + authAmt + " tipAmount: " + tipAmt);
+
+                // 4. WPI_RESULT_SUCCESS
+                Globals.getInstance().vpisiKronologijo("SIXTAP WPI_RESULT_SUCCESS za  R:" + racunId + " reference: " + ref + " paymentSolutionReference: " + mRef + " authorizedAmount: " + authAmt + " tipAmount: " + tipAmt + " Z:" + zaplaciloStr);
+
+                zakljuciUspesnoPosPlacilo(nacinNaziv, placiloId, znesekPOS, resp.getCardnumber(), resp.getPaymentSolutionReference(),
+                        resp.getpWpiSessionId(), resp.getClient(), resp.getMerchant(), resp.getApplicationIdentifier(), resp.getAcqreference(),
+                        resp.getAuthNumber(), resp.getpNapitnina(), resp.getpOperacija());
+            } else {
+                PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                String errCond = resp.getErrorCondition() != null && !resp.getErrorCondition().isEmpty() ? resp.getErrorCondition() : "WPI_ERR_COND_FAIL";
+                String remark = resp.getRemark() != null ? resp.getRemark() : "";
+                String sessionId = resp.getpWpiSessionId() != null ? resp.getpWpiSessionId() : (Globals.getInstance().getZadnjiWpiSessionId() != null ? Globals.getInstance().getZadnjiWpiSessionId() : "");
+
+                Globals.getInstance().vpisiKronologijo("SIXTAP RESULT OK R:" + racunId + " LokalReference R: SIXTAP " + SixTapPaymentService.OP_PAYMENT + " result: WPI_RESULT_FAILURE Error: " + errCond + " za M_REF:  remark: " + remark + " SESSION_ID: " + sessionId);
+                Globals.getInstance().vpisiKronologijo("SIXTAP ClearPendingPayment paymentSolutionReference=null " + errCond + "  R:" + racunId);
+
+                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                        .setTitle("Napaka SixTap")
+                        .setMessage("Transakcija ni uspela: " + resp.getErrorCondition() + " " + resp.getRemark())
+                        .setPositiveButton("V redu", null)
+                        .show();
+            }
+        } else {
+            // Preklic s strani uporabnika ali napaka klica
+            Globals g = Globals.getInstance();
+            final String sessionId = g.getZadnjiWpiSessionId() != null ? g.getZadnjiWpiSessionId() : "";
+            int amountCents = zaplacilo.multiply(new BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).intValue();
+
+            // Kronologija ob preklicu s strani uporabnika:
+            Globals.getInstance().vpisiKronologijo("SIXTAP RESULT OK R:" + racunId + " LokalReference R: SIXTAP " + SixTapPaymentService.OP_PAYMENT + " result: WPI_RESULT_FAILURE Error: WPI_ERR_COND_USER_CANCEL za M_REF:  remark: Transaction cancelled by user. SESSION_ID: " + sessionId);
+            Globals.getInstance().vpisiKronologijo("SIXTAP ClearPendingPayment paymentSolutionReference=null WPI_ERR_COND_USER_CANCEL  R:" + racunId);
+
+            if (g.isSixTapManualLast() || g.isSixTapAutoLast()) {
+                PaymentRecoveryManager.saveRecoveryPayment(requireContext(), sessionId, String.valueOf(racunId), String.valueOf(amountCents),
+                        sessionId, String.valueOf(racunId), String.valueOf(amountCents));
+                if (g.isSixTapAutoLast()) {
+                    Toast.makeText(requireContext(), "Prekinjeno. Avtomatsko preverjam status plačila...", Toast.LENGTH_SHORT).show();
+                    izvediSixTapLastTransaction(sessionId, racunId, zaplacilo, placiloId, nacinNaziv);
+                } else {
+                    new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                            .setTitle("Plačilo prekinjeno")
+                            .setMessage("Plačila - Tap On tipka !")
+                            .setPositiveButton("V redu", null)
+                            .show();
+                }
+            } else {
+                PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                Toast.makeText(requireContext(), "Plačilo Worldline Tap On preklicano.", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void handleTapOnClick() {
+        if (!Globals.getInstance().isSixTap()) {
+            Toast.makeText(requireContext(), "Worldline Tap On ni vklopljen v nastavitvah.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (currentRacun == null) {
+            Toast.makeText(requireContext(), "Ni odprtega računa!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 1. Preveri, ali že imamo potrjeno transakcijo
+        SixTapResponse confirmedResp = new SixTapResponse();
+        int[] confirmedState = new int[1];
+        if (PaymentRecoveryManager.tryGetConfirmedPOSTransaction(requireContext(), confirmedResp, confirmedState)) {
+            if (confirmedState[0] >= PaymentRecoveryManager.POS_STATE_POS_CONFIRMED && confirmedResp.getpRacunId() == currentRacun.getRacunId()) {
+                Toast.makeText(requireContext(), "Zaključujem že potrjeno plačilo...", Toast.LENGTH_SHORT).show();
+                String nacin = getPaymentName(confirmedResp.getpPlaciloId() > 0 ? confirmedResp.getpPlaciloId() : 2);
+                zakljuciUspesnoPosPlacilo(nacin, confirmedResp.getpPlaciloId() > 0 ? confirmedResp.getpPlaciloId() : 2,
+                        confirmedResp.getZnesekPOS(), confirmedResp.getCardnumber(), confirmedResp.getPaymentSolutionReference(),
+                        confirmedResp.getpWpiSessionId(), confirmedResp.getClient(), confirmedResp.getMerchant(),
+                        confirmedResp.getApplicationIdentifier(), confirmedResp.getAcqreference(), confirmedResp.getAuthNumber(),
+                        confirmedResp.getpNapitnina(), confirmedResp.getpOperacija());
+                return;
+            }
+        }
+
+        // 2. Preveri shranjene vrednosti seje
+        PaymentRecoveryManager.PendingPaymentInfo info = PaymentRecoveryManager.tryGetRecoveryPayment(requireContext());
+        if (!info.isValid()) {
+            info = PaymentRecoveryManager.tryGetPendingPayment(requireContext());
+        }
+
+        if (!info.isValid()) {
+            Toast.makeText(requireContext(), "Ni podatkov o zadnji plačilni seansi!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String savedRacunIdStr = info.getEffectiveRacunId();
+        if (!String.valueOf(currentRacun.getRacunId()).equals(savedRacunIdStr)) {
+            Toast.makeText(requireContext(), "Ni pravilen račun - izberite račun #" + savedRacunIdStr, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        BigDecimal preostanek = getPreostanekZaPlacilo();
+        if (preostanek.compareTo(BigDecimal.ZERO) <= 0) {
+            Toast.makeText(requireContext(), "Račun nima odprtega zneska za plačilo!", Toast.LENGTH_SHORT).show();
+            PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+            return;
+        }
+
+        int retry = PaymentRecoveryManager.incrementRecoveryRetryCount(requireContext());
+        if (retry >= 3) {
+            PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+            Toast.makeText(requireContext(), "Obnova transakcije 3x ni uspela. Shramba plačil je bila ponastavljena.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        int placiloId = Globals.getInstance().getSixTapPlaciloId() > 0 ? Globals.getInstance().getSixTapPlaciloId() : 2;
+        String nacinNaziv = getPaymentName(placiloId);
+        izvediSixTapLastTransaction(info.getEffectiveSessionId(), currentRacun.getRacunId(), preostanek, placiloId, nacinNaziv);
+    }
+
+    private void izvediSixTapLastTransaction(String sessionId, int racunId, BigDecimal preostanek, int placiloId, String nacinNaziv) {
+        if (!(getActivity() instanceof MainActivity)) return;
+        MainActivity activity = (MainActivity) getActivity();
+
+        android.content.Intent lastIntent = SixTapPaymentService.buildPaymentIntent(requireContext(), racunId, 0, preostanek, BigDecimal.ZERO,
+                SixTapPaymentService.OP_LAST_TRANSACTION, null, sessionId);
+        disableEkran("Preverjam zadnjo transakcijo na POS terminalu...");
+        activity.launchSixTap(lastIntent, new MainActivity.PaymentResultListener() {
+            @Override
+            public void onPaytenResult(int resultCode, android.content.Intent data) {}
+
+            @Override
+            public void onSixTapResult(int resultCode, android.content.Intent data) {
+                enableEkran();
+                if (resultCode == android.app.Activity.RESULT_OK && data != null) {
+                    SixTapResponse resp = SixTapPaymentService.parseResponseIntent(data);
+                    if (resp.isSuccess() && resp.getPaymentSolutionReference() != null && !resp.getPaymentSolutionReference().isEmpty()) {
+                        PaymentRecoveryManager.saveConfirmedPOSTransaction(requireContext(), resp, PaymentRecoveryManager.POS_STATE_POS_CONFIRMED);
+                        BigDecimal znesekPOS = resp.getZnesekPOS().compareTo(BigDecimal.ZERO) > 0 ? resp.getZnesekPOS() : preostanek;
+                        zakljuciUspesnoPosPlacilo(nacinNaziv, placiloId, znesekPOS, resp.getCardnumber(), resp.getPaymentSolutionReference(),
+                                resp.getpWpiSessionId(), resp.getClient(), resp.getMerchant(), resp.getApplicationIdentifier(), resp.getAcqreference(),
+                                resp.getAuthNumber(), resp.getpNapitnina(), resp.getpOperacija());
+                    } else {
+                        PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                        Toast.makeText(requireContext(), "LAST_TRANSACTION: Transakcija na POS ni bila uspešna.", Toast.LENGTH_LONG).show();
+                    }
+                } else {
+                    PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                    Toast.makeText(requireContext(), "LAST_TRANSACTION: Preverjanje prekinjeno ali neuspešno.", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
+
+    private void zakljuciUspesnoPosPlacilo(final String nacin, final int placiloId, final BigDecimal znesek,
+                                           final String stKartice, final String mRef, final String wpiSessionId,
+                                           final String slipClient, final String slipMerchant,
+                                           final String appIdentifier, final String authRef, final String authNumber,
+                                           final BigDecimal napitnina, final String operacija) {
+        if (currentRacun == null) return;
+
+        final int racunId = currentRacun.getRacunId();
+
+        if (currentRacun.getOriginalObject() == null) {
+            currentRacun.setOriginalObject(currentRacun.deepCopy());
+        }
+
+        int nextPozId = -1;
+        if (currentRacun.getRacPlaci() != null) {
+            for (PlaciloTp p : currentRacun.getRacPlaci()) {
+                if (p != null && p.getPozicijaId() <= nextPozId) {
+                    nextPozId = p.getPozicijaId() - 1;
+                }
+            }
+        }
+
+        final PlaciloTp pl = new PlaciloTp(racunId, placiloId, znesek);
+        pl.setPlaciloId(placiloId);
+        pl.setDelniZnesek(znesek);
+        pl.setZnesek(BigDecimal.ZERO);
+        pl.setPozicijaId(nextPozId);
+        pl.setVerzijaZapisa(0);
+        pl.setRowDeleted(false);
+        pl.setOriginalObject(null);
+
+        // Za kreditno kartico se knjižijo KUPEC_ID, M_REF in NAPITNINA (če > 0, če 0 se ne knjiži)
+        NacPlacTp np = Globals.getInstance().getPlaciloById(placiloId);
+        int kupecId = (np != null && np.getKupecId() != null && np.getKupecId() > 0)
+                ? np.getKupecId().intValue()
+                : Globals.getInstance().getKredKarticaKupecId();
+        if (kupecId > 0) {
+            pl.setKupecId(kupecId);
+            pl.setPartnerId(kupecId);
+        }
+        pl.setMRef(mRef != null ? mRef.trim() : "");
+        if (napitnina != null && napitnina.compareTo(BigDecimal.ZERO) > 0) {
+            pl.setNapitnina(napitnina);
+        } else {
+            pl.setNapitnina(null);
+        }
+
+        int tocId = (currentRacun.getTocilnicaId() != null && currentRacun.getTocilnicaId() > 0)
+                ? currentRacun.getTocilnicaId()
+                : (Globals.getInstance().getTocilnicaId() != null && Globals.getInstance().getTocilnicaId() > 0 ? Globals.getInstance().getTocilnicaId() : 512200);
+        pl.setTocilnicaId(tocId);
+
+        if (currentRacun.getRacPozic() != null) {
+            for (PozicijaTp p : currentRacun.getRacPozic()) {
+                if (p != null) p.setNeNarocaj(true);
+            }
+        }
+        currentRacun.setStatus(1);
+        currentRacun.setMarker(activeMarker);
+        currentRacun.setfPosId(prefs.getfPosId() > 0 ? prefs.getfPosId() : (Globals.getInstance().getfPosId() != null && Globals.getInstance().getfPosId() > 0 ? Globals.getInstance().getfPosId() : 500));
+        currentRacun.setfPoslovniProstorId(Globals.getInstance().getfPoslovniProstorId() != null && Globals.getInstance().getfPoslovniProstorId() > 0 ? Globals.getInstance().getfPoslovniProstorId() : 5000);
+        currentRacun.setTocilnicaId(tocId);
+        if (Globals.getInstance().getTekocaOsebaId() > 0) {
+            currentRacun.setKasiral(Globals.getInstance().getTekocaOsebaId());
+        } else if (currentRacun.getKasiral() == null || currentRacun.getKasiral() <= 0) {
+            currentRacun.setKasiral(9999);
+        }
+        if (currentRacun.getTipRacuna() == null || currentRacun.getTipRacuna() <= 0) {
+            currentRacun.setTipRacuna(1);
+        }
+        if (currentRacun.getStPogrinjkov() == null || currentRacun.getStPogrinjkov() <= 0) {
+            currentRacun.setStPogrinjkov(1);
+        }
+        if (currentRacun.getStKopij() == null) {
+            currentRacun.setStKopij(0);
+        }
+
+        if (currentRacun.getRacPlaci() == null) {
+            currentRacun.setRacPlaci(new ArrayList<>());
+        }
+        currentRacun.getRacPlaci().add(pl);
+        BigDecimal trenPlacano = currentRacun.getPlacano() != null ? currentRacun.getPlacano() : BigDecimal.ZERO;
+        currentRacun.setPlacano(trenPlacano.add(znesek));
+        currentRacun.preracunajVsote();
+        updatePlacilaSummary();
+
+        disableEkran("Knjiženje POS plačila na strežnik...");
+        executor.execute(() -> {
+            try {
+                String serverUrl = prefs.getServerUrl();
+                String token = prefs.getToken();
+                int mobileId = 1;
+                try { mobileId = Integer.parseInt(prefs.getMobileId()); } catch (Exception ignored) {}
+
+                // 1. setSlipEma
+                String fullSlip = (slipClient != null && !slipClient.isEmpty()) ? slipClient : (slipMerchant != null ? slipMerchant : "");
+                if (!fullSlip.isEmpty()) {
+                    Globals.getInstance().setZadnjiSlipText(fullSlip);
+                }
+
+                String op = (operacija != null && !operacija.isEmpty()) ? operacija : SixTapPaymentService.OP_PAYMENT;
+                SlipEmaTp slip = new SlipEmaTp();
+                slip.setStevilkaRacuna(racunId);
+                slip.setPozicijaId(1);
+                slip.setSlipPrint(slipClient != null ? slipClient : "");
+                slip.setSlipPrints(slipMerchant != null ? slipMerchant : "");
+
+                // STEVILKA_KARTICE: samo številka kartice brez "Mastercard" (npr. "543661******0033")
+                String samoStKartice = SixTapPaymentService.extractDigitsOnly(stKartice);
+                slip.setStevilkaKartice(samoStKartice);
+
+                slip.setUspelo("DA");
+                slip.setProjektId(3);
+                slip.setStType(op);
+                slip.setZnesek(znesek);
+                slip.setZnesekSlip(znesek);
+                slip.setAcqTransRef(wpiSessionId != null ? wpiSessionId : mRef);
+                slip.setAppIdentifier(appIdentifier != null ? appIdentifier : "");
+                slip.setAcqReference(authRef != null ? authRef : "");
+                slip.setAuthReference(authNumber != null && !authNumber.isEmpty() ? authNumber : (authRef != null ? authRef : ""));
+                slip.setAuthNumber(authNumber != null ? authNumber : "");
+
+                // CARDNUMBER: celotna maskirana številka z znamko (npr. "Mastercard 543661******0033")
+                String cleanFullCard = SixTapPaymentService.cleanCardNumber(stKartice);
+                slip.setCardNumber(cleanFullCard);
+
+                slip.setAvtorizacija("PAY");
+                slip.setStrmId(tocId);
+
+                Globals.getInstance().vpisiKronologijo("SIXTAP setSlipEma R:" + racunId + " Kartica:" + slip.getStevilkaKartice() + " Auth:" + slip.getAuthNumber() + " M_REF: " + mRef + " Op: " + op);
+
+                boolean slipOk = RosKasaSoapClient.setSlipEma(serverUrl, token, slip);
+                if (slipOk) {
+                    Globals.getInstance().vpisiKronologijo("SIXTAP setSlipEma USPEH R:" + racunId);
+                } else {
+                    Globals.getInstance().vpisiKronologijo("SIXTAP setSlipEma OPOZORILO: strežnik ni potrdil slipa R:" + racunId);
+                }
+
+                // 2. setRacun
+                Globals.getInstance().vpisiKronologijo("setRacun START R:" + racunId + " Znesek:" + znesek + " Placano:" + currentRacun.getPlacano());
+                GetRacunRsTp response = RosKasaSoapClient.setRacun(serverUrl, token, mobileId, currentRacun);
+                Globals.getInstance().vpisiKronologijo("setRacun USPEH R:" + racunId);
+                mainHandler.post(() -> {
+                    enableEkran();
+                    // Počisti vse začasne podatke transakcije
+                    PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+
+                    if (response != null && response.getRacGlava() != null) {
+                        RacunTp returned = response.getRacGlava();
+                        if ((returned.getRacPozic() == null || returned.getRacPozic().isEmpty()) && currentRacun.getRacPozic() != null) {
+                            returned.setRacPozic(currentRacun.getRacPozic());
+                        }
+                        if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null) {
+                            returned.setRacPlaci(currentRacun.getRacPlaci());
+                        }
+                        if (currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
+                            returned.setZnesek(currentRacun.getZnesek());
+                        }
+                        currentRacun = returned;
+                        currentRacun.preracunajVsote();
+                        currentRacun.setOriginalObject(currentRacun.deepCopy());
+                        Globals.getInstance().setCurrentRacun(currentRacun);
+                        prefs.setActiveRacunId(currentRacun.getRacunId());
+                        populatePlacilaListFromCurrentRacun();
+
+                        // Samodejno tiskanje zaključenega računa s slipom
+                        BluetoothPrintHelper.printReceiptComplete(requireContext(), currentRacun, null);
+                        Toast.makeText(requireContext(), "Plačilo " + nacin + " uspešno knjiženo in račun natisnjen!", Toast.LENGTH_SHORT).show();
+
+                        // Po izpisu zaključenega računa se aplikacija vrne na fragment mize (enako kot tap na gumb Mize)
+                        if (currentRacun.getPlacano().compareTo(currentRacun.getZnesek()) >= 0) {
+                            prefs.setActiveRacunId(0);
+                            Globals.getInstance().setCurrentRacun(null);
+                            if (Globals.getInstance().ispLogoutPoIzpisu()) {
+                                if (getActivity() instanceof MainActivity) {
+                                    ((MainActivity) getActivity()).navigateToFragment(new LoginFragment());
+                                }
+                            } else if (getActivity() instanceof MainActivity) {
+                                ((MainActivity) getActivity()).navigateToFragment(new MizeFragment());
+                            }
+                        }
+                    }
+                });
+            } catch (Exception e) {
+                Globals.getInstance().vpisiKronologijo("setRacun NAPAKA R:" + racunId + ": " + e.getMessage());
+                mainHandler.post(() -> {
+                    enableEkran();
+                    Toast.makeText(requireContext(), "Plačilo je bilo izvedeno na POS, vendar je prišlo do napake pri knjiženju na strežnik: " + e.getMessage() + ". Uporabite Tap On za zaključek.", Toast.LENGTH_LONG).show();
                 });
             }
         });

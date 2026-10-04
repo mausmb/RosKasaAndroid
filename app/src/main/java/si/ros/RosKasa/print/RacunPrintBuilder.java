@@ -48,6 +48,10 @@ public class RacunPrintBuilder {
     }
 
     public static ReceiptResult buildReceipt(RacunTp racun, Globals globals, int stKopij) {
+        return buildReceipt(racun, globals, stKopij, null);
+    }
+
+    public static ReceiptResult buildReceipt(RacunTp racun, Globals globals, int stKopij, PrintDataWS printData) {
         if (racun == null) {
             return new ReceiptResult("", new byte[0]);
         }
@@ -150,6 +154,9 @@ public class RacunPrintBuilder {
                 : (racun.getStornoRacunId() != null && racun.getStornoRacunId() > 0 ? racun.getStornoRacunId() : 0);
         if (stornoRef > 0) {
             writeLine(preview, printStream, "Storno računa: " + stornoRef, true, false, globals);
+            if (printData != null && !printData.getStornoRazlog().isEmpty()) {
+                writeLine(preview, printStream, "Razlog: " + printData.getStornoRazlog(), false, false, globals);
+            }
         }
 
         // Kopija oznaka
@@ -193,15 +200,23 @@ public class RacunPrintBuilder {
         String partnerNaziv = "";
         String partnerNaslov = "";
         String partnerDavcna = "";
+        String stNarocilnice = "";
         if (racun.getRacPlaci() != null) {
             for (PlaciloTp pl : racun.getRacPlaci()) {
                 if (pl != null && pl.getNazivPartner() != null && !pl.getNazivPartner().trim().isEmpty()) {
                     partnerNaziv = pl.getNazivPartner().trim();
                     partnerNaslov = pl.getNaslovPartner() != null ? pl.getNaslovPartner().trim() : "";
                     partnerDavcna = pl.getDavcnaSt() != null ? pl.getDavcnaSt().trim() : "";
+                    stNarocilnice = pl.getStNarocilnice() != null ? pl.getStNarocilnice().trim() : "";
                     break;
                 }
             }
+        }
+        if (partnerNaziv.isEmpty() && printData != null && !printData.getPartnerNaziv().isEmpty()) {
+            partnerNaziv = printData.getPartnerNaziv();
+            partnerNaslov = printData.getPartnerNaslov();
+            partnerDavcna = printData.getPartnerDavcna();
+            if (stNarocilnice.isEmpty()) stNarocilnice = printData.getStNarocilnice();
         }
         if (!partnerNaziv.isEmpty()) {
             writeBlankLine(preview, printStream);
@@ -212,6 +227,9 @@ public class RacunPrintBuilder {
             }
             if (!partnerDavcna.isEmpty()) {
                 writeLine(preview, printStream, partnerDavcna, false, false, globals);
+            }
+            if (!stNarocilnice.isEmpty()) {
+                writeLine(preview, printStream, "Št. naročilnice: " + stNarocilnice, false, false, globals);
             }
         }
 
@@ -446,6 +464,16 @@ public class RacunPrintBuilder {
                 writeLine(preview, printStream, formatKeyValue(plNaziv, formatCurrency(plZn), width), false, false, globals);
                 hasPrintedPayment = true;
 
+                // Gost hotela / soba
+                if ((pl.getGostPrijavaId() != null && pl.getGostPrijavaId() > 0) || (pl.getHisCenikAi() != null && pl.getHisCenikAi() > 0)) {
+                    if (printData != null && !printData.getPrijavaImeGosta().isEmpty()) {
+                        String gostLine = printData.getPrijavaImeGosta();
+                        if (gostLine.length() > width) gostLine = gostLine.substring(0, width);
+                        writeLine(preview, printStream, gostLine, false, false, globals);
+                    }
+                    needsSignature = true;
+                }
+
                 // Če je dobavnica ali nepogodbeni kupec -> zahteva podpis
                 if (plNaziv.toUpperCase().contains("DOBAVNICA") || plNaziv.toUpperCase().contains("SOBA") || (pl.getPartnerId() != null && pl.getPartnerId() > 0)) {
                     needsSignature = true;
@@ -544,6 +572,23 @@ public class RacunPrintBuilder {
             if (globals.getDpoVr4() != null && !globals.getDpoVr4().trim().isEmpty()) writeLine(preview, printStream, globals.getDpoVr4().trim(), false, false, globals);
             if (globals.getDpoVr5() != null && !globals.getDpoVr5().trim().isEmpty()) writeLine(preview, printStream, globals.getDpoVr5().trim(), false, false, globals);
             if (globals.getDpoVr6() != null && !globals.getDpoVr6().trim().isEmpty()) writeLine(preview, printStream, globals.getDpoVr6().trim(), false, false, globals);
+        }
+
+        // 10. POS TERMINAL SLIP (Ema2 / Worldline) - ČISTO NA KONCU RAČUNA
+        if (printData != null && !printData.getSlipString().isEmpty()) {
+            String cleanSlip = si.ros.RosKasa.payment.SixTapPaymentService.cleanSlipText(printData.getSlipString());
+            if (!cleanSlip.isEmpty()) {
+                writeBlankLine(preview, printStream);
+                writeLine(preview, printStream, makeDashes(width), false, false, globals);
+                writeLine(preview, printStream, "POS TRANSAKCIJA (SLIP):", true, false, globals);
+                String[] slipLines = cleanSlip.split("\r?\n");
+                for (String sLine : slipLines) {
+                    if (sLine != null && !sLine.trim().isEmpty()) {
+                        writeLine(preview, printStream, sLine.trim(), false, false, globals);
+                    }
+                }
+                writeLine(preview, printStream, makeDashes(width), false, false, globals);
+            }
         }
 
         // Odrez papirja

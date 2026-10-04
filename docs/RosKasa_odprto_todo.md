@@ -15,11 +15,13 @@
 13. akcije in kuponi
 14. darilni boni
 15. kuponi
-16. lojalnost po starem
-17. hodi
+//16. lojalnost po starem
+//17. hodi
 18. crm
 //19. delovni nalogi
 //20. enota prodaje lestvice pri knjiženju naročila
+21. WorldLine
+22. Payten
 
 
 

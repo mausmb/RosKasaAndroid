@@ -2164,7 +2164,7 @@ public class NarocilaFragment extends Fragment {
                     }
 
                     if (getContext() != null) {
-                        BluetoothPrintHelper.printReceipt(requireContext(), finalRacunToPrint, 0, new BluetoothPrintHelper.OnPrintListener() {
+                        BluetoothPrintHelper.printReceiptComplete(requireContext(), finalRacunToPrint, new BluetoothPrintHelper.OnPrintListener() {
                             @Override
                             public void onStart() {}
 
@@ -2182,13 +2182,6 @@ public class NarocilaFragment extends Fragment {
                                 }
                             }
                         });
-
-                        if (finalStKopij > 1) {
-                            for (int k = 2; k <= finalStKopij; k++) {
-                                final int kopijaIndex = k;
-                                BluetoothPrintHelper.printReceipt(requireContext(), finalRacunToPrint, kopijaIndex, null);
-                            }
-                        }
                     }
 
                     prefs.setActiveRacunId(0);

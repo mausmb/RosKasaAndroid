@@ -1,5 +1,7 @@
 package si.ros.RosKasa.ui;
 
+import android.content.Intent;
+
 import android.Manifest;
 import android.app.Dialog;
 import android.content.pm.PackageManager;
@@ -33,6 +35,12 @@ import com.google.android.material.button.MaterialButton;
 import si.ros.RosKasa.Globals;
 import si.ros.RosKasa.R;
 import si.ros.RosKasa.models.PlaciloTp;
+import si.ros.RosKasa.models.SlipEmaTp;
+import si.ros.RosKasa.payment.PaytenPaymentService;
+import si.ros.RosKasa.payment.PaymentRecoveryManager;
+import si.ros.RosKasa.payment.SixTapPaymentService;
+import si.ros.RosKasa.payment.models.PaytenResponse;
+import si.ros.RosKasa.payment.models.SixTapResponse;
 import si.ros.RosKasa.models.PraviceConsts;
 import si.ros.RosKasa.models.StornoResult;
 
@@ -57,6 +65,7 @@ import si.ros.RosKasa.print.RacunPrintBuilder;
 import si.ros.RosKasa.soap.RosKasaSoapClient;
 
 public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnItemClickListener {
+    private static final String TAG = "RacuniFragment";
 
     private FragmentRacuniBinding binding;
     private AppPreferences prefs;
@@ -184,6 +193,9 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
     }
 
     private void checkPermissionsAndPrint() {
+        // Opomba po ToDoPayment: v primeru težav, da se blagajna 'zacikla' pri Worldline TapOn, gumb Test tiskanja počisti shranjene vrednosti
+        si.ros.RosKasa.payment.PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
@@ -562,6 +574,250 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
     private void izvediStornoRacuna(RacunSeznamItem item, RacunTp racun, Integer stornoRazlogId, boolean novoNarocilo, int urejamStorno) {
         if (getContext() == null) return;
 
+        // Preveri ali racun vsebuje karticno/POS placilo za POS storno (Delphi stornoExecute)
+        PlaciloTp posPlacilo = null;
+        if (racun != null && racun.getRacPlaci() != null) {
+            for (PlaciloTp p : racun.getRacPlaci()) {
+                if (p != null && !p.isRowDeleted()) {
+                    int metoda = Globals.getInstance().placilometoda(p.getPlaciloId());
+                    if (metoda == 14 || p.getPlaciloId() == 2 || (p.getMRef() != null && !p.getMRef().trim().isEmpty())) {
+                        posPlacilo = p;
+                        break;
+                    }
+                }
+            }
+        }
+
+        final boolean isSixTapActive = Globals.getInstance().isSixTap();
+        final boolean isPaytenActive = Globals.getInstance().isPayTenA();
+
+        if (posPlacilo != null && (posPlacilo.getMRef() == null || posPlacilo.getMRef().trim().isEmpty())) {
+            // Poskusi pridobiti M_REF iz SLIP_EMA pred stornom
+            final PlaciloTp finalPosPlacilo = posPlacilo;
+            Toast.makeText(requireContext(), "Preverjanje POS transakcije za storno...", Toast.LENGTH_SHORT).show();
+            executor.execute(() -> {
+                try {
+                    List<SlipEmaTp> slips = RosKasaSoapClient.getSlipEma2(prefs.getServerUrl(), prefs.getToken(), item.getRacunId());
+                    if (slips != null && !slips.isEmpty()) {
+                        for (SlipEmaTp s : slips) {
+                            if (s != null && s.getAcqTransRef() != null && !s.getAcqTransRef().trim().isEmpty()) {
+                                finalPosPlacilo.setMRef(s.getAcqTransRef().trim());
+                                break;
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+                mainHandler.post(() -> {
+                    final String fetchedRef = finalPosPlacilo.getMRef() != null ? finalPosPlacilo.getMRef().trim() : "";
+                    if (isSixTapActive && !fetchedRef.isEmpty()) {
+                        izvediSixTapStornoPredStornoRacuna(item, racun, finalPosPlacilo, stornoRazlogId, novoNarocilo, urejamStorno);
+                    } else if (isPaytenActive && !fetchedRef.isEmpty()) {
+                        izvediPaytenStornoPredStornoRacuna(item, racun, finalPosPlacilo, stornoRazlogId, novoNarocilo, urejamStorno);
+                    } else {
+                        izvediStornoRacunaNaStrezniku(item, racun, stornoRazlogId, novoNarocilo, urejamStorno);
+                    }
+                });
+            });
+            return;
+        }
+
+        final String mRef = (posPlacilo != null && posPlacilo.getMRef() != null) ? posPlacilo.getMRef().trim() : "";
+
+        if (posPlacilo != null && isSixTapActive && !mRef.isEmpty()) {
+            izvediSixTapStornoPredStornoRacuna(item, racun, posPlacilo, stornoRazlogId, novoNarocilo, urejamStorno);
+            return;
+        } else if (posPlacilo != null && isPaytenActive && !mRef.isEmpty()) {
+            izvediPaytenStornoPredStornoRacuna(item, racun, posPlacilo, stornoRazlogId, novoNarocilo, urejamStorno);
+            return;
+        }
+
+        izvediStornoRacunaNaStrezniku(item, racun, stornoRazlogId, novoNarocilo, urejamStorno);
+    }
+
+    private void izvediSixTapStornoPredStornoRacuna(RacunSeznamItem item, RacunTp racun, PlaciloTp pl,
+                                                    Integer stornoRazlogId, boolean novoNarocilo, int urejamStorno) {
+        if (!(getActivity() instanceof MainActivity)) {
+            izvediStornoRacunaNaStrezniku(item, racun, stornoRazlogId, novoNarocilo, urejamStorno);
+            return;
+        }
+        MainActivity activity = (MainActivity) getActivity();
+
+        final int racunId = item.getRacunId();
+        final int pozicijaId = pl.getPozicijaId();
+        final BigDecimal znesek = (pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) > 0)
+                ? pl.getDelniZnesek()
+                : (pl.getZnesek() != null ? pl.getZnesek() : (racun.getZnesek() != null ? racun.getZnesek() : BigDecimal.ZERO));
+        final BigDecimal napitnina = pl.getNapitnina() != null ? pl.getNapitnina() : BigDecimal.ZERO;
+        final BigDecimal skupajZnesek = znesek.add(napitnina);
+        final String mRef = pl.getMRef();
+        final String wpiSessionId = pl.getWpiSessionId();
+
+        final String op = (Globals.getInstance().getZadnjiSixRacunId() == racunId)
+                ? SixTapPaymentService.OP_CANCEL_PAYMENT
+                : SixTapPaymentService.OP_REFUND;
+
+        Intent sixTapIntent = SixTapPaymentService.buildPaymentIntent(requireContext(), racunId, pozicijaId, skupajZnesek, napitnina, op, mRef, wpiSessionId);
+        Toast.makeText(requireContext(), "Storniranje POS transakcije (Worldline Tap On)...", Toast.LENGTH_SHORT).show();
+
+        activity.launchSixTap(sixTapIntent, new MainActivity.PaymentResultListener() {
+            @Override
+            public void onPaytenResult(int resultCode, Intent data) {}
+
+            @Override
+            public void onSixTapResult(int resultCode, Intent data) {
+                if (resultCode == android.app.Activity.RESULT_OK && data != null) {
+                    SixTapResponse resp = SixTapPaymentService.parseResponseIntent(data);
+                    if (resp.isSuccess()) {
+                        String sessionId = resp.getpWpiSessionId() != null ? resp.getpWpiSessionId() : (Globals.getInstance().getZadnjiWpiSessionId() != null ? Globals.getInstance().getZadnjiWpiSessionId() : "");
+                        String errCond = resp.getErrorCondition() != null && !resp.getErrorCondition().isEmpty() ? resp.getErrorCondition() : "WPI_ERR_COND_NONE";
+                        String remark = resp.getRemark() != null ? resp.getRemark() : "";
+                        String znesekStr = String.format(Locale.GERMANY, "%.2f", skupajZnesek).replace(",00", ",0");
+                        String authAmt = resp.getAuthorizedAmount() != null ? resp.getAuthorizedAmount() : "";
+                        String tipAmt = resp.getTipAmount() != null ? resp.getTipAmount() : "";
+                        String pSolRef = resp.getPaymentSolutionReference() != null ? resp.getPaymentSolutionReference() : "";
+
+                        // SIXTAP RESULT OK
+                        Globals.getInstance().vpisiKronologijo("SIXTAP RESULT OK R:" + racunId + " LokalReference R:" + mRef + " SIXTAP " + op + " result: WPI_RESULT_SUCCESS Error: " + errCond + " za M_REF: " + pSolRef + " remark: " + remark + " SESSION_ID: " + sessionId);
+
+                        // SIXTAP WPI_RESULT_SUCCESS
+                        Globals.getInstance().vpisiKronologijo("SIXTAP WPI_RESULT_SUCCESS za  R:" + racunId + " reference: " + mRef + " paymentSolutionReference: " + pSolRef + " authorizedAmount: " + authAmt + " tipAmount: " + tipAmt + " Z:" + znesekStr);
+
+                        // SIXTAP setSlipEma
+                        Globals.getInstance().vpisiKronologijo("SIXTAP setSlipEma R:" + racunId + " M_REF: " + pSolRef + " Op: " + op);
+
+                        // SIXTAP ClearPendingPayment
+                        Globals.getInstance().vpisiKronologijo("SIXTAP ClearPendingPayment ReqEmaAfterRefund=" + pozicijaId + "  R:" + racunId);
+
+                        executor.execute(() -> {
+                            try {
+                                String serverUrl = prefs.getServerUrl();
+                                String token = prefs.getToken();
+
+                                SlipEmaTp slip = new SlipEmaTp();
+                                slip.setStevilkaRacuna(racunId);
+                                slip.setPozicijaId(pozicijaId);
+                                slip.setSlipPrint(resp.getClient() != null ? resp.getClient() : "");
+                                slip.setSlipPrints(resp.getMerchant() != null ? resp.getMerchant() : "");
+                                slip.setStevilkaKartice(resp.getBrandName() != null ? resp.getBrandName() : (resp.getCardnumber() != null ? resp.getCardnumber() : ""));
+                                slip.setUspelo("DA");
+                                slip.setProjektId(3);
+                                slip.setStType(op);
+                                slip.setZnesek(znesek.negate());
+                                slip.setZnesekSlip(resp.getZnesekPOS().compareTo(BigDecimal.ZERO) > 0 ? resp.getZnesekPOS().negate() : skupajZnesek.negate());
+                                slip.setAcqTransRef(resp.getPaymentSolutionReference() != null ? resp.getPaymentSolutionReference() : mRef);
+                                slip.setAppIdentifier(resp.getApplicationIdentifier() != null ? resp.getApplicationIdentifier() : "");
+                                slip.setAcqReference(resp.getAcqreference() != null ? resp.getAcqreference() : mRef);
+                                slip.setAuthReference(resp.getAcqreference() != null ? resp.getAcqreference() : mRef);
+                                slip.setAvtorizacija("REF");
+
+                                RosKasaSoapClient.setSlipEma(serverUrl, token, slip);
+                                PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                            } catch (Exception e) {
+                                Log.w(TAG, "setSlipEma storno racuna napaka: " + e.getMessage());
+                            }
+                            mainHandler.post(() -> izvediStornoRacunaNaStrezniku(item, racun, stornoRazlogId, novoNarocilo, urejamStorno));
+                        });
+                    } else {
+                        PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                        String sessionId = resp.getpWpiSessionId() != null ? resp.getpWpiSessionId() : "";
+                        Globals.getInstance().vpisiKronologijo("SIXTAP RESULT OK R:" + racunId + " LokalReference R:" + mRef + " SIXTAP " + op + " result: WPI_RESULT_FAILURE Error: " + resp.getErrorCondition() + " za M_REF:  remark: " + resp.getRemark() + " SESSION_ID: " + sessionId);
+                        Globals.getInstance().vpisiKronologijo("SIXTAP ClearPendingPayment ReqEmaAfterRefund=" + pozicijaId + " Error:" + resp.getErrorCondition() + "  R:" + racunId);
+
+                        new AlertDialog.Builder(requireContext())
+                                .setTitle("Napaka storno SixTap")
+                                .setMessage("Storno na POS terminalu ni uspel: " + resp.getErrorCondition() + " " + resp.getRemark() + "\n\nRačun NI bil storniran!")
+                                .setPositiveButton("V redu", null)
+                                .show();
+                    }
+                } else {
+                    PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                    Globals.getInstance().vpisiKronologijo("SIXTAP ClearPendingPayment ReqEmaAfterRefund=" + pozicijaId + " Preklic_uporabnika  R:" + racunId);
+                    Toast.makeText(requireContext(), "Storno na POS terminalu prekinjen. Račun NI bil storniran.", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
+
+    private void izvediPaytenStornoPredStornoRacuna(RacunSeznamItem item, RacunTp racun, PlaciloTp pl,
+                                                    Integer stornoRazlogId, boolean novoNarocilo, int urejamStorno) {
+        if (!(getActivity() instanceof MainActivity)) {
+            izvediStornoRacunaNaStrezniku(item, racun, stornoRazlogId, novoNarocilo, urejamStorno);
+            return;
+        }
+        MainActivity activity = (MainActivity) getActivity();
+
+        final int racunId = item.getRacunId();
+        final int pozicijaId = pl.getPozicijaId();
+        final BigDecimal znesek = (pl.getDelniZnesek() != null && pl.getDelniZnesek().compareTo(BigDecimal.ZERO) > 0)
+                ? pl.getDelniZnesek()
+                : (pl.getZnesek() != null ? pl.getZnesek() : (racun.getZnesek() != null ? racun.getZnesek() : BigDecimal.ZERO));
+        final BigDecimal napitnina = pl.getNapitnina() != null ? pl.getNapitnina() : BigDecimal.ZERO;
+        final BigDecimal skupajZnesek = znesek.add(napitnina);
+        final String mRef = pl.getMRef();
+
+        Intent paytenIntent = PaytenPaymentService.buildPaymentIntent(requireContext(), racunId, pozicijaId, skupajZnesek, "void", mRef);
+        Toast.makeText(requireContext(), "Storniranje POS transakcije (PayTen void)...", Toast.LENGTH_SHORT).show();
+
+        activity.launchPayten(paytenIntent, new MainActivity.PaymentResultListener() {
+            @Override
+            public void onPaytenResult(int resultCode, Intent data) {
+                if (resultCode == android.app.Activity.RESULT_OK && data != null) {
+                    PaytenResponse resp = PaytenPaymentService.parseResponseIntent(data);
+                    if (resp.isSuccess()) {
+                        Globals.getInstance().vpisiKronologijo("PAYTEN RESULT OK R:" + racunId + " void M_REF:" + resp.getPaymentSolutionReference() + " Auth:" + resp.getpAuthorizationCode());
+                        executor.execute(() -> {
+                            try {
+                                String serverUrl = prefs.getServerUrl();
+                                String token = prefs.getToken();
+
+                                SlipEmaTp slip = new SlipEmaTp();
+                                slip.setStevilkaRacuna(racunId);
+                                slip.setPozicijaId(pozicijaId);
+                                slip.setSlipPrint(resp.getClient() != null ? resp.getClient() : "");
+                                slip.setSlipPrints(resp.getReceipt() != null ? resp.getReceipt() : "");
+                                slip.setStevilkaKartice(resp.getCardNumber() != null ? resp.getCardNumber() : "");
+                                slip.setUspelo("DA");
+                                slip.setProjektId(3);
+                                slip.setStType("void");
+                                slip.setZnesek(znesek.negate());
+                                slip.setZnesekSlip(resp.getZnesekPOS().compareTo(BigDecimal.ZERO) > 0 ? resp.getZnesekPOS().negate() : skupajZnesek.negate());
+                                slip.setAcqTransRef(resp.getPaymentSolutionReference() != null ? resp.getPaymentSolutionReference() : mRef);
+                                slip.setAppIdentifier(resp.getApplicationIdentifier() != null ? resp.getApplicationIdentifier() : "");
+                                slip.setAcqReference(resp.getpAuthorizationCode() != null ? resp.getpAuthorizationCode() : mRef);
+                                slip.setAuthReference(resp.getpAuthorizationCode() != null ? resp.getpAuthorizationCode() : mRef);
+                                slip.setAvtorizacija("REF");
+
+                                RosKasaSoapClient.setSlipEma(serverUrl, token, slip);
+                                PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                            } catch (Exception e) {
+                                Log.w(TAG, "setSlipEma Payten storno racuna napaka: " + e.getMessage());
+                            }
+                            mainHandler.post(() -> izvediStornoRacunaNaStrezniku(item, racun, stornoRazlogId, novoNarocilo, urejamStorno));
+                        });
+                    } else {
+                        PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                        Globals.getInstance().vpisiKronologijo("PAYTEN RESULT FAIL R:" + racunId + " void Code:" + resp.getCode() + " Msg:" + resp.getMessage());
+                        new AlertDialog.Builder(requireContext())
+                                .setTitle("Napaka storno PayTen")
+                                .setMessage("Storno na POS terminalu ni uspel: " + resp.getCode() + " " + resp.getMessage() + "\n\nRačun NI bil storniran!")
+                                .setPositiveButton("V redu", null)
+                                .show();
+                    }
+                } else {
+                    PaymentRecoveryManager.clearAllRecoveryData(requireContext());
+                    Globals.getInstance().vpisiKronologijo("PAYTEN void prekinjen R:" + racunId);
+                    Toast.makeText(requireContext(), "Storno PayTen prekinjen. Račun NI bil storniran.", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onSixTapResult(int resultCode, Intent data) {}
+        });
+    }
+
+    private void izvediStornoRacunaNaStrezniku(RacunSeznamItem item, RacunTp racun, Integer stornoRazlogId, boolean novoNarocilo, int urejamStorno) {
+        if (getContext() == null) return;
+
         int racunId = item.getRacunId();
         int verzija = racun != null ? racun.getVerzijaZapisa() : 0;
         int osebaId = Globals.getInstance().getTekocaOsebaId();
@@ -696,7 +952,7 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
                     if (result != null && result.isSuccess()) {
                         // 1. Samodejno tiskanje storno računa (osvežen s pridobljenimi fiskalnimi podatki)
                         if (finalStornoRacun != null) {
-                            BluetoothPrintHelper.printReceipt(requireContext(), finalStornoRacun, 1, new BluetoothPrintHelper.OnPrintListener() {
+                            BluetoothPrintHelper.printReceiptComplete(requireContext(), finalStornoRacun, new BluetoothPrintHelper.OnPrintListener() {
                                 @Override
                                 public void onStart() {
                                     Toast.makeText(requireContext(), "Tiskanje storno računa #" + finalStornoRacunId + "...", Toast.LENGTH_SHORT).show();
@@ -717,7 +973,7 @@ public class RacuniFragment extends Fragment implements RacunSeznamAdapter.OnIte
                                                 .setMessage("Storno račun #" + finalStornoRacunId + " je bil uspešno kreiran na strežniku, vendar tiskanje ni uspelo:\n\n" + errorMessage + "\n\nPreverite tiskalnik in kliknite 'Ponovi tisk'.")
                                                 .setPositiveButton("Ponovi tisk", (dRetry, wRetry) -> {
                                                     if (finalStornoRacun != null) {
-                                                        BluetoothPrintHelper.printReceipt(requireContext(), finalStornoRacun, 1, this);
+                                                        BluetoothPrintHelper.printReceiptComplete(requireContext(), finalStornoRacun, this);
                                                     }
                                                 })
                                                 .setNegativeButton("Zapri", null)

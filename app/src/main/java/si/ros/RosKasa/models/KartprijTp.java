@@ -8,6 +8,7 @@ public class KartprijTp {
     private String nazivStoritve = "";
     private String nazivStrm = "";
     private String tipKart = ""; // "X" (v odhodu), "S" (Blokada HK)
+    private String obratNaziv = "";
 
     public KartprijTp() {}
 
@@ -65,6 +66,14 @@ public class KartprijTp {
 
     public void setTipKart(String tipKart) {
         this.tipKart = tipKart;
+    }
+
+    public String getObratNaziv() {
+        return obratNaziv != null ? obratNaziv : "";
+    }
+
+    public void setObratNaziv(String obratNaziv) {
+        this.obratNaziv = obratNaziv;
     }
 
     public boolean isBlokadaHK() {

@@ -42,6 +42,7 @@ public class RacunTp {
     private String dnId = "";
     private String lokator = "";
     private Integer partnerId;
+    private Integer akcijaId;
 
     private List<PozicijaTp> racPozic = new ArrayList<>();
     private List<PlaciloTp> racPlaci = new ArrayList<>();
@@ -242,6 +243,8 @@ public class RacunTp {
 
     public Integer getfStevilkaRacuna() { return fStevilkaRacuna; }
     public void setfStevilkaRacuna(Integer fStevilkaRacuna) { this.fStevilkaRacuna = fStevilkaRacuna; }
+    public Integer getFiskalniRacunId() { return fStevilkaRacuna; }
+    public void setFiskalniRacunId(Integer fiskalniRacunId) { this.fStevilkaRacuna = fiskalniRacunId; }
 
     public String getfOznakaDu() { return fOznakaDu; }
     public void setfOznakaDu(String fOznakaDu) { this.fOznakaDu = fOznakaDu != null ? fOznakaDu : ""; }
@@ -317,5 +320,8 @@ public class RacunTp {
 
     public Integer getPartnerId() { return partnerId; }
     public void setPartnerId(Integer partnerId) { this.partnerId = partnerId; }
+
+    public Integer getAkcijaId() { return akcijaId; }
+    public void setAkcijaId(Integer akcijaId) { this.akcijaId = akcijaId; }
 }
 

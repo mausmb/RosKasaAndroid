@@ -24,8 +24,11 @@ public class PlaciloTp {
     private BigDecimal napitnina = BigDecimal.ZERO;
     private BigDecimal status = BigDecimal.ZERO;
     private Integer gostPrijavaId;
+    private Integer hisCenikAi;
     private String stNarocilnice = "";
     private Integer kupecId;
+    private String mRef = "";
+    private String wpiSessionId = "";
 
     // Vgnezdeni predhodni objekt
     private PlaciloTp originalObject;
@@ -70,6 +73,8 @@ public class PlaciloTp {
         copy.gostPrijavaId = this.gostPrijavaId;
         copy.stNarocilnice = this.stNarocilnice;
         copy.kupecId = this.kupecId;
+        copy.mRef = this.mRef;
+        copy.wpiSessionId = this.wpiSessionId;
         if (this.originalObject != null) {
             copy.originalObject = this.originalObject.deepCopy();
         }
@@ -143,10 +148,19 @@ public class PlaciloTp {
     public Integer getGostPrijavaId() { return gostPrijavaId; }
     public void setGostPrijavaId(Integer gostPrijavaId) { this.gostPrijavaId = gostPrijavaId; }
 
+    public Integer getHisCenikAi() { return hisCenikAi; }
+    public void setHisCenikAi(Integer hisCenikAi) { this.hisCenikAi = hisCenikAi; }
+
     public String getStNarocilnice() { return stNarocilnice; }
     public void setStNarocilnice(String stNarocilnice) { this.stNarocilnice = stNarocilnice != null ? stNarocilnice : ""; }
 
     public Integer getKupecId() { return kupecId; }
     public void setKupecId(Integer kupecId) { this.kupecId = kupecId; }
+
+    public String getMRef() { return mRef; }
+    public void setMRef(String mRef) { this.mRef = mRef != null ? mRef : ""; }
+
+    public String getWpiSessionId() { return wpiSessionId; }
+    public void setWpiSessionId(String wpiSessionId) { this.wpiSessionId = wpiSessionId != null ? wpiSessionId : ""; }
 }
 

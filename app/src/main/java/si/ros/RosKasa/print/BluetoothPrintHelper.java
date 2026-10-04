@@ -47,6 +47,10 @@ public class BluetoothPrintHelper {
         return true;
     }
 
+    public static void printReceiptComplete(Context context, si.ros.RosKasa.models.RacunTp racun, OnPrintListener listener) {
+        PrintDataHandler.printReceiptComplete(context, racun, listener);
+    }
+
     public static void printReceipt(Context context, si.ros.RosKasa.models.RacunTp racun, int stKopij, OnPrintListener listener) {
         si.ros.RosKasa.print.RacunPrintBuilder.ReceiptResult result = si.ros.RosKasa.print.RacunPrintBuilder.buildReceipt(racun, Globals.getInstance(), stKopij);
         printReceiptBytes(context, result.getPrintBytes(), new OnPrintListener() {
@@ -290,8 +294,6 @@ public class BluetoothPrintHelper {
                     outputStream.write(new byte[]{0x1D, 0x56, 0x42, 0x00}); // GS V B 0 (cut)
                     outputStream.flush();
                 }
-
-                Thread.sleep(500);
                 postSuccess(listener, "Izpis uspešno poslan na " + deviceName + "!");
 
             } catch (SecurityException se) {
