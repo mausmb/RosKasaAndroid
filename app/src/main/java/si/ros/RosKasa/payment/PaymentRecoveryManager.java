@@ -265,7 +265,6 @@ public class PaymentRecoveryManager {
         clearConfirmedPOSTransaction(context);
         Globals.getInstance().setSixtapintransaction(false);
         Globals.getInstance().setPayTenIntransaction(false);
-        Globals.getInstance().setZadnjiSixRacunId(0);
         Globals.getInstance().setZadnjiPayTenARacunId(0);
         Log.i(TAG, "clearAllRecoveryData: Vsi začasni podatki plačilnih sej in flagi so bili uspešno ponastavljeni.");
     }

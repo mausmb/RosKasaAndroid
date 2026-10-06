@@ -1,9 +1,11 @@
 package si.ros.RosKasa.print;
 
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -201,6 +203,7 @@ public class PrintDataHandler {
                 Log.e(TAG, "Napaka pri celovitem tiskanju", e);
                 postError(listener, "Napaka tiskanja: " + (e.getMessage() != null ? e.getMessage() : e.toString()));
             } finally {
+                Globals.getInstance().clearZadnjiSlip();
                 try {
                     if (outputStream != null) outputStream.close();
                     if (socket != null) socket.close();
@@ -307,7 +310,7 @@ public class PrintDataHandler {
                     si.ros.RosKasa.models.NacPlacTp np = globals.getPlaciloById(pl.getPlaciloId());
                     String plNaz = (np != null && np.getNaziv() != null) ? np.getNaziv() : "";
                     int metoda = (np != null) ? np.getMetoda() : globals.placilometoda(pl.getPlaciloId());
-                    if (metoda == 14 || pl.getPlaciloId() == 399 || pl.getPlaciloId() == 2
+                    if (metoda == 3 || metoda == 14 || pl.getPlaciloId() == 399 || pl.getPlaciloId() == 2
                             || (pl.getMRef() != null && !pl.getMRef().trim().isEmpty())
                             || plNaz.toUpperCase().contains("KART") || plNaz.toUpperCase().contains("POS")) {
                         hasCardPayment = true;
@@ -340,8 +343,12 @@ public class PrintDataHandler {
         }
 
         // Fallback: če iz strežnika nismo pridobili slipa, preveri lokalni zadnji prejeti POS slip
-        if (data.getSlipString().isEmpty() && globals.getZadnjiSlipText() != null && !globals.getZadnjiSlipText().trim().isEmpty()) {
-            data.setSlipString(si.ros.RosKasa.payment.SixTapPaymentService.cleanSlipText(globals.getZadnjiSlipText()));
+        // POMEMBNO: Fallback se SME izvesti SAMO, če gre dejansko za kartično/POS plačilo (hasCardPayment == true)
+        // IN če lokalni slip pripada temu računu ali je bil pravkar sprejet za ta račun!
+        if (hasCardPayment && data.getSlipString().isEmpty() && globals.getZadnjiSlipText() != null && !globals.getZadnjiSlipText().trim().isEmpty()) {
+            if (globals.getZadnjiSlipRacunId() == 0 || globals.getZadnjiSlipRacunId() == racun.getRacunId()) {
+                data.setSlipString(si.ros.RosKasa.payment.SixTapPaymentService.cleanSlipText(globals.getZadnjiSlipText()));
+            }
         }
 
         // E. Akcije in kuponi
@@ -368,38 +375,68 @@ public class PrintDataHandler {
     }
 
     /**
-     * Varna pavza za odrez papirja med kopijami in dodatki (skladno z WaitForUserCut iz Delphi uPrintData.pas).
+     * Varna pavza za odrez papirja med kopijami in dodatki (skladno z Delphi uPrintData.pas in FormKasaMobile.pas).
+     * Upošteva TISKANJEPAVZA (modalni dialog za odrez z gumbom OK) in PRINTBLOKPAVZA (časovna pavza v ms ali s).
      */
     public static void waitForUserCut(Context context, String sporocilo) {
         Globals g = Globals.getInstance();
-        if (!g.isTiskanjePavza()) {
-            // Če pavza ni vklopljena, se takoj nadaljuje (PRINTBLOKPAVZA/sleep se ne izvaja zaradi preprečevanja ANR)
-            return;
+
+        // 1. Določitev časovne pavze iz MobIni PRINTBLOKPAVZA
+        int rawPavza = g.getPrintBlokPavza();
+        long casPavzeMs;
+        if (rawPavza > 0) {
+            // Če je vrednost <= 30, pomeni sekunde (npr. 2, 3, 4 s -> 2000, 3000, 4000 ms), sicer milisekunde (npr. 1000, 2000, 4000 ms)
+            casPavzeMs = (rawPavza <= 30) ? (rawPavza * 1000L) : rawPavza;
+        } else {
+            // Privzeta varna pavza med kopijami, če PRINTBLOKPAVZA ni določen (skladno z Delphi sleep(4000) / 3s)
+            casPavzeMs = 3000L;
         }
 
-        if (context == null) return;
+        Activity act = findActivity(context);
 
-        CountDownLatch latch = new CountDownLatch(1);
-        mainHandler.post(() -> {
+        // 2. Če je vklopljena interaktivna pavza z dialogom (TISKANJEPAVZA = 'D' oz. true) in imamo aktiven Activity
+        if (g.isTiskanjePavza() && act != null && !act.isFinishing()) {
+            g.vpisiKronologijo("Tiskanje dialog pavza za odrez: " + sporocilo);
+            CountDownLatch latch = new CountDownLatch(1);
+            mainHandler.post(() -> {
+                try {
+                    new AlertDialog.Builder(act)
+                            .setTitle("Tiskanje")
+                            .setMessage(sporocilo != null ? sporocilo : "Odrežite papir in pritisnite OK za nadaljevanje.")
+                            .setCancelable(false)
+                            .setPositiveButton("OK", (dialog, which) -> {
+                                dialog.dismiss();
+                                latch.countDown();
+                            })
+                            .show();
+                } catch (Exception e) {
+                    latch.countDown();
+                }
+            });
+
             try {
-                new AlertDialog.Builder(context)
-                        .setTitle("Tiskanje")
-                        .setMessage(sporocilo != null ? sporocilo : "Odrežite papir in pritisnite OK za nadaljevanje.")
-                        .setCancelable(false)
-                        .setPositiveButton("OK", (dialog, which) -> {
-                            dialog.dismiss();
-                            latch.countDown();
-                        })
-                        .show();
-            } catch (Exception e) {
-                latch.countDown();
-            }
-        });
+                // Počakamo na uporabnikov pritisk na OK (največ 30 sekund)
+                boolean ok = latch.await(30, TimeUnit.SECONDS);
+                if (!ok) {
+                    g.vpisiKronologijo("Tiskanje pavza: potekel 30s timeout za dialog");
+                }
+            } catch (InterruptedException ignored) {}
+        } else {
+            // 3. Avtomatska časovna pavza brez dialoga (PRINTBLOKPAVZA oz. 3000 ms)
+            g.vpisiKronologijo("Tiskanje časovna pavza med kopijama: " + casPavzeMs + " ms");
+            try {
+                Thread.sleep(casPavzeMs);
+            } catch (InterruptedException ignored) {}
+        }
+    }
 
-        try {
-            // Varnostni časovni limit 60 sekund, da nit ne obtiči za vedno
-            latch.await(60, TimeUnit.SECONDS);
-        } catch (InterruptedException ignored) {}
+    private static Activity findActivity(Context context) {
+        if (context instanceof Activity) {
+            return (Activity) context;
+        } else if (context instanceof ContextWrapper) {
+            return findActivity(((ContextWrapper) context).getBaseContext());
+        }
+        return null;
     }
 
     private static void sendBytesToPrinter(OutputStream outputStream, byte[] bytes) throws Exception {

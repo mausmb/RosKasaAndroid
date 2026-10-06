@@ -377,6 +377,7 @@ public class Globals {
     private int htFontAndroid = 0;
     private boolean tiskanjePavza = true; // Privzeto true po navodilu (TISKANJEPAVZA)
     private String zadnjiSlipText = "";
+    private int zadnjiSlipRacunId = 0;
     private boolean obracunAndroid = false;
     private boolean payTenA = false;
     private String payTenARosPackage = "si.ros.RosKasaLight2";
@@ -1588,12 +1589,130 @@ public class Globals {
     }
 
     public synchronized int placilometoda(int placiloId) {
-        for (NacPlacTp np : cachedPlacila) {
-            if (np.getPlaciloId() == placiloId) {
-                return np.getMetoda();
+        if (isPosIntentActive()) {
+            if ((sixTapPlaciloId > 0 && placiloId == sixTapPlaciloId) ||
+                (payTenAPlaciloId > 0 && placiloId == payTenAPlaciloId)) {
+                return 14;
             }
         }
+        for (NacPlacTp np : cachedPlacila) {
+            if (np != null && np.getPlaciloId() == placiloId) {
+                int m = np.getMetoda();
+                if (isPosIntentActive()) {
+                    if (m == 14) return 14;
+                    String naz = np.getNaziv() != null ? np.getNaziv().toUpperCase() : "";
+                    if (naz.contains("POS") || naz.contains("KARTIC") || naz.contains("KREDITN")) {
+                        return 14;
+                    }
+                } else if (m == 14) {
+                    return 2;
+                }
+                return m;
+            }
+        }
+        if (placiloId == 14) return 14;
+        if (placiloId == 3 || placiloId == 399) return 3;
+        if (placiloId == 6 || placiloId == 8) return 6;
+        if (placiloId == 4) return 4;
+        if (placiloId == 5) return 5;
+        if (placiloId == 2) {
+            return isPosIntentActive() ? 14 : 2;
+        }
         return 1; // Privzeto 1 (Gotovina)
+    }
+
+    public synchronized NacPlacTp getPlaciloByMetoda(int metoda) {
+        if (cachedPlacila != null && !cachedPlacila.isEmpty()) {
+            // 1. Točno ujemanje po metodi
+            for (NacPlacTp np : cachedPlacila) {
+                if (np != null && np.getMetoda() == metoda) {
+                    return np;
+                }
+            }
+            // 2. Če je metoda 14 (Intent plačilo), a specifične metode 14 ni v bazi:
+            if (metoda == 14) {
+                if (sixTapPlaciloId > 0) {
+                    NacPlacTp np = getPlaciloById(sixTapPlaciloId);
+                    if (np != null) return np;
+                }
+                if (payTenAPlaciloId > 0) {
+                    NacPlacTp np = getPlaciloById(payTenAPlaciloId);
+                    if (np != null) return np;
+                }
+                for (NacPlacTp np : cachedPlacila) {
+                    if (np != null) {
+                        String naz = np.getNaziv().toUpperCase();
+                        if (naz.contains("POS") || naz.contains("KARTIC") || naz.contains("KREDITN")) {
+                            return np;
+                        }
+                    }
+                }
+            }
+            // 3. Fallback po privzetih ID-jih za standardne metode
+            if (metoda == 1) {
+                NacPlacTp np = getPlaciloById(1);
+                if (np != null) return np;
+            } else if (metoda == 3) {
+                NacPlacTp np = getPlaciloById(3);
+                if (np != null) return np;
+                np = getPlaciloById(399);
+                if (np != null) return np;
+            } else if (metoda == 6) {
+                NacPlacTp np = getPlaciloById(8);
+                if (np != null) return np;
+            } else if (metoda == 4) {
+                NacPlacTp np = getPlaciloById(4);
+                if (np != null) return np;
+            } else if (metoda == 5) {
+                NacPlacTp np = getPlaciloById(5);
+                if (np != null) return np;
+            }
+        }
+
+        // Sintetični fallback objekti (če cachedPlacila še niso na voljo)
+        if (metoda == 1) {
+            NacPlacTp np = new NacPlacTp(1, "GOTOVINA", 1);
+            np.setFiskalno(1);
+            return np;
+        } else if (metoda == 14) {
+            int pid = sixTapPlaciloId > 0 ? sixTapPlaciloId : (payTenAPlaciloId > 0 ? payTenAPlaciloId : 2);
+            NacPlacTp np = new NacPlacTp(pid, "KREDITNA K POS", 14);
+            np.setFiskalno(1);
+            return np;
+        } else if (metoda == 3) {
+            NacPlacTp np = new NacPlacTp(3, "KRED. K ROCNO", 3);
+            np.setFiskalno(1);
+            return np;
+        } else if (metoda == 6) {
+            NacPlacTp np = new NacPlacTp(8, "GOST HOTELA", 6);
+            np.setFiskalno(0);
+            return np;
+        } else if (metoda == 4) {
+            NacPlacTp np = new NacPlacTp(4, "DOBAVNICA", 4);
+            np.setFiskalno(0);
+            return np;
+        } else if (metoda == 5) {
+            NacPlacTp np = new NacPlacTp(5, "REPREZENTANCA", 5);
+            np.setFiskalno(0);
+            return np;
+        }
+        return new NacPlacTp(metoda, "Plačilo #" + metoda, metoda);
+    }
+
+    public synchronized NacPlacTp findPlaciloByNameContains(String namePart) {
+        if (cachedPlacila != null && namePart != null) {
+            String q = namePart.trim().toUpperCase();
+            for (NacPlacTp np : cachedPlacila) {
+                if (np != null && np.getNaziv().toUpperCase().contains(q)) {
+                    return np;
+                }
+            }
+        }
+        return null;
+    }
+
+    public boolean isPosIntentActive() {
+        return payTenA || sixTap;
     }
 
     public synchronized NacPlacTp getPlaciloById(int placiloId) {
@@ -1620,8 +1739,11 @@ public class Globals {
         return maxKopije;
     }
     public int getHotkey3() { return hotkey3; }
+    public void setHotkey3(int hotkey3) { this.hotkey3 = hotkey3; }
     public int getHotkey4() { return hotkey4; }
+    public void setHotkey4(int hotkey4) { this.hotkey4 = hotkey4; }
     public int getHotkey5() { return hotkey5; }
+    public void setHotkey5(int hotkey5) { this.hotkey5 = hotkey5; }
     public boolean isTipkaGotovina() { return tipkaGotovina; }
     public void setTipkaGotovina(boolean tipkaGotovina) { this.tipkaGotovina = tipkaGotovina; }
     public int getPraznikiObrat() { return praznikiObrat; }
@@ -1735,6 +1857,16 @@ public class Globals {
     public void setTiskanjePavza(boolean val) { this.tiskanjePavza = val; }
     public String getZadnjiSlipText() { return zadnjiSlipText != null ? zadnjiSlipText : ""; }
     public void setZadnjiSlipText(String slip) { this.zadnjiSlipText = slip != null ? slip : ""; }
+    public int getZadnjiSlipRacunId() { return zadnjiSlipRacunId; }
+    public void setZadnjiSlipRacunId(int racunId) { this.zadnjiSlipRacunId = racunId; }
+    public void setZadnjiSlip(int racunId, String slip) {
+        this.zadnjiSlipRacunId = racunId;
+        this.zadnjiSlipText = slip != null ? slip : "";
+    }
+    public void clearZadnjiSlip() {
+        this.zadnjiSlipRacunId = 0;
+        this.zadnjiSlipText = "";
+    }
     public boolean isObracunAndroid() { return obracunAndroid; }
     public boolean isPayTenA() { return payTenA; }
     public void setPayTenA(boolean payTenA) {

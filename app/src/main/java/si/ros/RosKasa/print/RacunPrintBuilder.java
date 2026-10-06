@@ -576,18 +576,36 @@ public class RacunPrintBuilder {
 
         // 10. POS TERMINAL SLIP (Ema2 / Worldline) - ČISTO NA KONCU RAČUNA
         if (printData != null && !printData.getSlipString().isEmpty()) {
-            String cleanSlip = si.ros.RosKasa.payment.SixTapPaymentService.cleanSlipText(printData.getSlipString());
-            if (!cleanSlip.isEmpty()) {
-                writeBlankLine(preview, printStream);
-                writeLine(preview, printStream, makeDashes(width), false, false, globals);
-                writeLine(preview, printStream, "POS TRANSAKCIJA (SLIP):", true, false, globals);
-                String[] slipLines = cleanSlip.split("\r?\n");
-                for (String sLine : slipLines) {
-                    if (sLine != null && !sLine.trim().isEmpty()) {
-                        writeLine(preview, printStream, sLine.trim(), false, false, globals);
+            boolean hasCardPayment = false;
+            if (racun != null && racun.getRacPlaci() != null) {
+                for (PlaciloTp pl : racun.getRacPlaci()) {
+                    if (pl != null) {
+                        si.ros.RosKasa.models.NacPlacTp np = globals.getPlaciloById(pl.getPlaciloId());
+                        String plNaz = (np != null && np.getNaziv() != null) ? np.getNaziv() : "";
+                        int metoda = (np != null) ? np.getMetoda() : globals.placilometoda(pl.getPlaciloId());
+                        if (metoda == 3 || metoda == 14 || pl.getPlaciloId() == 399 || pl.getPlaciloId() == 2
+                                || (pl.getMRef() != null && !pl.getMRef().trim().isEmpty())
+                                || plNaz.toUpperCase().contains("KART") || plNaz.toUpperCase().contains("POS")) {
+                            hasCardPayment = true;
+                            break;
+                        }
                     }
                 }
-                writeLine(preview, printStream, makeDashes(width), false, false, globals);
+            }
+            if (hasCardPayment) {
+                String cleanSlip = si.ros.RosKasa.payment.SixTapPaymentService.cleanSlipText(printData.getSlipString());
+                if (!cleanSlip.isEmpty()) {
+                    writeBlankLine(preview, printStream);
+                    writeLine(preview, printStream, makeDashes(width), false, false, globals);
+                    writeLine(preview, printStream, "POS TRANSAKCIJA (SLIP):", true, false, globals);
+                    String[] slipLines = cleanSlip.split("\r?\n");
+                    for (String sLine : slipLines) {
+                        if (sLine != null && !sLine.trim().isEmpty()) {
+                            writeLine(preview, printStream, sLine.trim(), false, false, globals);
+                        }
+                    }
+                    writeLine(preview, printStream, makeDashes(width), false, false, globals);
+                }
             }
         }
 

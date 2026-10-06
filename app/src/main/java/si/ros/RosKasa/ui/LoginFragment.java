@@ -53,6 +53,10 @@ public class LoginFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        if (getActivity() instanceof MainActivity) {
+            ((MainActivity) getActivity()).resetTapOnRecoverPrijava();
+        }
+
         updateUiMode();
 
         if (prefs.isRegistered()) {
@@ -335,7 +339,9 @@ public class LoginFragment extends Fragment {
         }
 
         if (getActivity() instanceof MainActivity) {
-            ((MainActivity) getActivity()).navigateToFragment(new MizeFragment());
+            MainActivity mainAct = (MainActivity) getActivity();
+            mainAct.tapOnRecoverExecute();
+            mainAct.navigateToFragment(new MizeFragment());
         }
     }
 
