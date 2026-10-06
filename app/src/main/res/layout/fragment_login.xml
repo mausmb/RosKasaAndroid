@@ -83,15 +83,34 @@
             android:text="@string/lbl_password"
             android:textColor="#CCCCCC" />
 
-        <EditText
-            android:id="@+id/etPassword"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="48dp"
+            android:orientation="horizontal"
             android:background="#333333"
-            android:textColor="#FFFFFF"
-            android:padding="8dp"
-            android:inputType="textPassword"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="16dp"
+            android:gravity="center_vertical">
+
+            <EditText
+                android:id="@+id/etPassword"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@null"
+                android:textColor="#FFFFFF"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:inputType="textPassword" />
+
+            <ImageButton
+                android:id="@+id/btnTogglePassword"
+                android:layout_width="48dp"
+                android:layout_height="match_parent"
+                android:background="#444444"
+                android:src="@android:drawable/ic_menu_view"
+                android:contentDescription="Prikaži geslo"
+                android:tint="#CCCCCC" />
+        </LinearLayout>
 
         <Button
             android:id="@+id/btnRegister"
@@ -111,34 +130,43 @@
         android:gravity="center"
         android:visibility="visible">
 
-        <TextView
+        <LinearLayout
+            android:id="@+id/layoutPinLogin"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/lbl_pin"
-            android:textColor="#CCCCCC"
-            android:textSize="16sp"
-            android:gravity="center"
-            android:layout_marginBottom="16dp" />
+            android:orientation="vertical"
+            android:gravity="center">
 
-        <EditText
-            android:id="@+id/etPinCode"
-            android:layout_width="200dp"
-            android:layout_height="54dp"
-            android:background="#333333"
-            android:textColor="#FFFFFF"
-            android:textSize="24sp"
-            android:gravity="center"
-            android:inputType="numberPassword"
-            android:layout_marginBottom="16dp" />
+            <TextView
+                android:id="@+id/tvPinLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/lbl_pin"
+                android:textColor="#CCCCCC"
+                android:textSize="16sp"
+                android:gravity="center"
+                android:layout_marginBottom="16dp" />
 
-        <Button
-            android:id="@+id/btnLoginPin"
-            android:layout_width="200dp"
-            android:layout_height="54dp"
-            android:text="Prijava s PIN"
-            android:backgroundTint="@color/pos_accent_green"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="8dp" />
+            <EditText
+                android:id="@+id/etPinCode"
+                android:layout_width="200dp"
+                android:layout_height="54dp"
+                android:background="#333333"
+                android:textColor="#FFFFFF"
+                android:textSize="24sp"
+                android:gravity="center"
+                android:inputType="numberPassword"
+                android:layout_marginBottom="16dp" />
+
+            <Button
+                android:id="@+id/btnLoginPin"
+                android:layout_width="200dp"
+                android:layout_height="54dp"
+                android:text="Prijava s PIN"
+                android:backgroundTint="@color/pos_accent_green"
+                android:textColor="#FFFFFF"
+                android:layout_marginBottom="8dp" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tvNfcHint"

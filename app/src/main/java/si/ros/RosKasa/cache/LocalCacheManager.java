@@ -105,6 +105,10 @@ public class LocalCacheManager {
             }
             root.put("mobileSetupPlacila", arrPlac);
 
+            if (setup.getMobIni0() != null) root.put("mobIni0", setup.getMobIni0());
+            if (setup.getMobIni() != null) root.put("mobIni", setup.getMobIni());
+            if (setup.getMobIni2() != null) root.put("mobIni2", setup.getMobIni2());
+
             File file = new File(context.getFilesDir(), SIFRANTI_FILENAME);
             try (FileOutputStream fos = new FileOutputStream(file)) {
                 fos.write(root.toString().getBytes(StandardCharsets.UTF_8));
@@ -214,6 +218,10 @@ public class LocalCacheManager {
                 g.getPlacilnaSredstva().clear();
                 g.getPlacilnaSredstva().addAll(placila);
             }
+
+            if (root.has("mobIni0")) g.mobIniRead(root.optString("mobIni0"));
+            if (root.has("mobIni")) g.mobIniRead(root.optString("mobIni"));
+            if (root.has("mobIni2")) g.mobIniRead(root.optString("mobIni2"));
 
             Log.d(TAG, "Lokalni šifranti naloženi: Osebe=" + osebe.size() + ", Prioritete=" + prioritete.size() + ", Tarife=" + tarife.size() + ", Mize=" + mize.size());
             return true;

@@ -181,7 +181,7 @@ public class PrintDataHandler {
                 if (globals.isAkcije() && printData.isAkcijePrint() && !printData.getAkcijeList().isEmpty()) {
                     List<RacunPrintBuilder.ReceiptResult> kuponiRes = AkcijePrintBuilder.buildAkcijeKuponi(racun, printData.getAkcijeList(), globals);
                     for (RacunPrintBuilder.ReceiptResult kRes : kuponiRes) {
-                        waitForUserCut(context, "Odrežite papir in pritisnite OK.");
+                        waitForUserCut(context, "Odrežite papir in pritisnite OK za nadaljevanje.");
                         sendBytesToPrinter(outputStream, kRes.getPrintBytes());
                     }
                 }
@@ -351,9 +351,46 @@ public class PrintDataHandler {
             }
         }
 
-        // E. Akcije in kuponi
-        if (globals.isAkcije() && serverUrl != null && !serverUrl.isEmpty() && (racun.getStatus() <= 1)) {
+        // E. Akcije in kuponi (skladno z Delphi uPrintData.pas)
+        boolean isAkcije = globals.isAkcije();
+        int racId = racun.getRacunId();
+        int racStatus = racun.getStatus();
+        int stornoRacId = racun.getStornoRazlogId() != null ? racun.getStornoRazlogId() : (racun.getStornoRacunId() != null ? racun.getStornoRacunId() : 0);
+        int stornoOrig = racun.getStornoOriginal() != null ? racun.getStornoOriginal() : 0;
+        boolean hasServer = serverUrl != null && !serverUrl.trim().isEmpty();
+
+        String diagAkcije = "retrievePrintData preverjanje akcij: racunId=" + racId
+                + ", isAkcije=" + isAkcije
+                + ", status=" + racStatus
+                + ", stornoRacunId=" + stornoRacId
+                + ", stornoOriginal=" + stornoOrig
+                + ", hasServerUrl=" + hasServer;
+        Log.d(TAG, diagAkcije);
+        globals.vpisiKronologijoDebugL0(diagAkcije);
+
+        if (!isAkcije) {
+            String razlog = "Akcije preskocene: AKCIJE niso omogocene v nastavitvah (isAkcije=false).";
+            Log.d(TAG, razlog);
+            globals.vpisiKronologijoDebugL0(razlog);
+        } else if (!hasServer) {
+            String razlog = "Akcije preskocene: ni povezave s streznikom (serverUrl je prazen).";
+            Log.w(TAG, razlog);
+            globals.vpisiKronologijoDebugL0(razlog);
+        } else if (racId <= 0) {
+            String razlog = "Akcije preskocene: racunId <= 0 (" + racId + ").";
+            Log.w(TAG, razlog);
+            globals.vpisiKronologijoDebugL0(razlog);
+        } else if (stornoRacId > 0 || stornoOrig > 0) {
+            String razlog = "Akcije preskocene: racun je storno (stornoRacunId=" + stornoRacId + ", stornoOriginal=" + stornoOrig + ").";
+            Log.d(TAG, razlog);
+            globals.vpisiKronologijoDebugL0(razlog);
+        } else if (racStatus != 1 && racStatus != 2) {
+            String razlog = "Akcije preskocene: status racuna (" + racStatus + ") ni 1 ali 2.";
+            Log.d(TAG, razlog);
+            globals.vpisiKronologijoDebugL0(razlog);
+        } else {
             try {
+                // 1. Naziv akcije, če je akcija vezana na sam račun
                 if (racun.getAkcijaId() != null && racun.getAkcijaId() > 0) {
                     AkcijaTp an = RosKasaSoapClient.akcijaNaziv(serverUrl, token, racun.getAkcijaId());
                     if (an != null) {
@@ -361,13 +398,31 @@ public class PrintDataHandler {
                         data.setAkcijaTipNaziv(an.getTipNaziv());
                     }
                 }
-                List<AkcijaTp> kuponi = RosKasaSoapClient.akcijaGet(serverUrl, token, racun.getRacunId());
+
+                // 2. Klic akcijaSetKuponiRacuna: preveri artikle na računu in KREIRA kupone na strežniku
+                List<AkcijaTp> kuponi = RosKasaSoapClient.akcijaSetKuponiRacuna(serverUrl, token, racId);
+
+                // 3. Fallback na akcijaGet, če akcijaSetKuponiRacuna ni vrnila seznama neposredno
+                if (kuponi == null || kuponi.isEmpty()) {
+                    kuponi = RosKasaSoapClient.akcijaGet(serverUrl, token, racId);
+                }
+
+                // 4. Če imamo kupone, jih dodamo v podatke za tisk
                 if (kuponi != null && !kuponi.isEmpty()) {
                     data.setAkcijeList(kuponi);
                     data.setAkcijePrint(true);
+                    String kMsg = "Akcije uspesno pripravljene za tisk: " + kuponi.size() + " kuponov.";
+                    Log.d(TAG, kMsg);
+                    globals.vpisiKronologijoDebugL0(kMsg);
+                } else {
+                    String kMsg = "Za racunId=" + racId + " ni bilo generiranih promocijskih kuponov.";
+                    Log.d(TAG, kMsg);
+                    globals.vpisiKronologijoDebugL0(kMsg);
                 }
             } catch (Exception e) {
-                Log.w(TAG, "retrievePrintData napaka akcije: " + e.getMessage());
+                String errMsg = "retrievePrintData napaka akcije: " + e.getMessage();
+                Log.w(TAG, errMsg, e);
+                globals.vpisiKronologijoDebugL0(errMsg);
             }
         }
 
@@ -388,8 +443,8 @@ public class PrintDataHandler {
             // Če je vrednost <= 30, pomeni sekunde (npr. 2, 3, 4 s -> 2000, 3000, 4000 ms), sicer milisekunde (npr. 1000, 2000, 4000 ms)
             casPavzeMs = (rawPavza <= 30) ? (rawPavza * 1000L) : rawPavza;
         } else {
-            // Privzeta varna pavza med kopijami, če PRINTBLOKPAVZA ni določen (skladno z Delphi sleep(4000) / 3s)
-            casPavzeMs = 3000L;
+            // Privzeta varna pavza: zmanjšana na 1 sekundo (1000 ms)
+            casPavzeMs = 1000L;
         }
 
         Activity act = findActivity(context);

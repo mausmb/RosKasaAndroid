@@ -541,11 +541,15 @@ public class NarocilaFragment extends Fragment {
             binding.btnPreklopiCenik.setText("PREKLOPI\nCENIK");
         }
 
-        if (cena2LockedByHolidayOrWeekend) {
-            binding.btnPreklopiCenik.setEnabled(false);
-        } else {
-            binding.btnPreklopiCenik.setEnabled(true);
+        boolean enablePreklop = true;
+        if (g.isCena2PreklopOff()) {
+            enablePreklop = false;
+        } else if (!g.isLahkoPreklopiCenik()) {
+            enablePreklop = false;
+        } else if (cena2LockedByHolidayOrWeekend) {
+            enablePreklop = false;
         }
+        binding.btnPreklopiCenik.setEnabled(enablePreklop);
     }
 
     public void cena2VikendPrazniki() {
@@ -1464,7 +1468,7 @@ public class NarocilaFragment extends Fragment {
         // Gumb PREKLOPI CENIK: preklaplja tarifo med CENA 1 in CENA 2 (CENA2AKTIVNA)
         binding.btnPreklopiCenik.setOnClickListener(v -> {
             Globals g = Globals.getInstance();
-            if (cena2LockedByHolidayOrWeekend) {
+            if (g.isCena2PreklopOff() || cena2LockedByHolidayOrWeekend) {
                 Toast.makeText(requireContext(), "Preklop cenika ni dovoljen (CENA2PREKLOPOFF)!", Toast.LENGTH_SHORT).show();
                 return;
             }

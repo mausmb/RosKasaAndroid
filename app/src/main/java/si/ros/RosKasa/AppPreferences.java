@@ -100,6 +100,9 @@ public class AppPreferences {
         if (setup.getNazivZahvala2() != null) editor.putString(KEY_NAZIV_ZAHVALA_2, setup.getNazivZahvala2());
         if (setup.getNazivZahvala3() != null) editor.putString(KEY_NAZIV_ZAHVALA_3, setup.getNazivZahvala3());
         if (setup.getNazivZahvala4() != null) editor.putString(KEY_NAZIV_ZAHVALA_4, setup.getNazivZahvala4());
+        if (setup.getMobIni0() != null) editor.putString("mob_ini_0", setup.getMobIni0());
+        if (setup.getMobIni() != null) editor.putString("mob_ini", setup.getMobIni());
+        if (setup.getMobIni2() != null) editor.putString("mob_ini_2", setup.getMobIni2());
         editor.apply();
 
         int mobId = 1;
@@ -117,6 +120,16 @@ public class AppPreferences {
 
     public boolean loadSavedSifranti() {
         return si.ros.RosKasa.cache.LocalCacheManager.loadSifrantiIfValid(context);
+    }
+
+    public void loadSavedMobIni(Globals g) {
+        if (g == null) return;
+        String ini0 = prefs.getString("mob_ini_0", "");
+        if (!ini0.isEmpty()) g.mobIniRead(ini0);
+        String ini = prefs.getString("mob_ini", "");
+        if (!ini.isEmpty()) g.mobIniRead(ini);
+        String ini2 = prefs.getString("mob_ini_2", "");
+        if (!ini2.isEmpty()) g.mobIniRead(ini2);
     }
 
     public void loadSavedPrinterSetup(Globals g) {
@@ -171,6 +184,14 @@ public class AppPreferences {
     public boolean isRegistered() {
         String token = getToken();
         return token != null && !token.trim().isEmpty();
+    }
+
+    public boolean hasSavedUrl() {
+        return prefs.contains(KEY_SERVER_URL) && prefs.getString(KEY_SERVER_URL, "").trim().length() > 0;
+    }
+
+    public boolean hasSavedToken() {
+        return prefs.contains(KEY_TOKEN) && prefs.getString(KEY_TOKEN, "").trim().length() > 0;
     }
 
     public String getServerUrl() {

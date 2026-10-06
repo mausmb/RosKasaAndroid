@@ -57,12 +57,14 @@ public class LoginFragment extends Fragment {
             ((MainActivity) getActivity()).resetTapOnRecoverPrijava();
         }
 
+        prefs.loadSavedMobIni(Globals.getInstance());
+        if (Globals.getInstance().getCachedOsebje().isEmpty()) {
+            prefs.loadSavedSifranti();
+        }
+
         updateUiMode();
 
         if (prefs.isRegistered()) {
-            if (Globals.getInstance().getCachedOsebje().isEmpty()) {
-                prefs.loadSavedSifranti();
-            }
             if (Globals.getInstance().getCachedOsebje().isEmpty()) {
                 executor.execute(() -> {
                     try {
@@ -70,10 +72,36 @@ public class LoginFragment extends Fragment {
                         try { mId = Integer.parseInt(prefs.getMobileId()); } catch (Exception ignored) {}
                         MobileSetupTp setup = RosKasaSoapClient.getAppConfig(prefs.getServerUrl(), prefs.getToken(), mId);
                         prefs.saveMobileSetup(setup);
+                        mainHandler.post(() -> {
+                            if (isAdded() && binding != null) {
+                                updateUiMode();
+                            }
+                        });
                     } catch (Exception ignored) {}
                 });
             }
         }
+
+        final boolean[] isPasswordVisible = {false};
+        binding.btnTogglePassword.setOnClickListener(v -> {
+            isPasswordVisible[0] = !isPasswordVisible[0];
+            if (isPasswordVisible[0]) {
+                binding.etPassword.setTransformationMethod(android.text.method.HideReturnsTransformationMethod.getInstance());
+                binding.btnTogglePassword.setColorFilter(android.graphics.Color.parseColor("#4CAF50"));
+            } else {
+                binding.etPassword.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+                binding.btnTogglePassword.setColorFilter(android.graphics.Color.parseColor("#CCCCCC"));
+            }
+            binding.etPassword.setSelection(binding.etPassword.getText().length());
+        });
+
+        binding.tvTitle.setOnLongClickListener(v -> {
+            if (binding.btnResetConfig.getVisibility() != View.VISIBLE) {
+                binding.btnResetConfig.setVisibility(View.VISIBLE);
+                Toast.makeText(requireContext(), "Gumb za ponastavitev omogočen", Toast.LENGTH_SHORT).show();
+            }
+            return true;
+        });
 
         binding.btnRegister.setOnClickListener(v -> handleRegistration());
         binding.btnLoginPin.setOnClickListener(v -> handlePinLogin());
@@ -90,12 +118,24 @@ public class LoginFragment extends Fragment {
     }
 
     private void updateUiMode() {
+        boolean hasSavedConfig = prefs.hasSavedUrl() && prefs.hasSavedToken();
+        binding.btnResetConfig.setVisibility(hasSavedConfig ? View.GONE : View.VISIBLE);
+
         if (prefs.isRegistered()) {
             binding.containerFirstRun.setVisibility(View.GONE);
             binding.containerRegularLogin.setVisibility(View.VISIBLE);
-            binding.etPinCode.post(() -> {
-                if (binding != null) binding.etPinCode.requestFocus();
-            });
+
+            boolean isHid = Globals.getInstance().ispHidPrijava();
+            if (isHid) {
+                binding.layoutPinLogin.setVisibility(View.GONE);
+                binding.tvNfcHint.setVisibility(View.VISIBLE);
+            } else {
+                binding.layoutPinLogin.setVisibility(View.VISIBLE);
+                binding.tvNfcHint.setVisibility(View.VISIBLE);
+                binding.etPinCode.post(() -> {
+                    if (binding != null) binding.etPinCode.requestFocus();
+                });
+            }
         } else {
             binding.containerFirstRun.setVisibility(View.VISIBLE);
             binding.containerRegularLogin.setVisibility(View.GONE);

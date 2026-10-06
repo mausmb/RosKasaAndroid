@@ -12,22 +12,20 @@
 //10. osebje, kartica_id, kartica2_id
 //11. prioritete
 //12. rajoni filter mize
-13. akcije in kuponi
+13. akcije in kuponi - test iz pisa qr kode; ostalo NI podprto
 14. darilni boni
-15. kuponi
+15. kuponi stari 
 //16. lojalnost po starem
 //17. hodi
 18. crm
 //19. delovni nalogi
 //20. enota prodaje lestvice pri knjiženju naročila
-21. WorldLine
-22. Payten
+//21. WorldLine
+//22. Payten
 
 
 
 ## NFC support :
 //1. Login with NFC card
 //2. Plačilo hotel kredit z NFC kartico (ključem)
-
-
 

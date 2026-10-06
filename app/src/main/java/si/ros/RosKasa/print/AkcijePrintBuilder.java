@@ -39,27 +39,44 @@ public class AkcijePrintBuilder {
             StringBuilder preview = new StringBuilder();
             ByteArrayOutputStream printStream = new ByteArrayOutputStream();
 
-            // 1. Init
+            // 1. Init (enak font in inicializacija kot v RacunPrintBuilder)
             try {
+                // ESC @ (Hardware reset)
                 printStream.write(new byte[]{0x1B, 0x40});
+
+                // OptiPos UTF-8 & multi-byte init (FS & / FS C 255)
                 printStream.write(new byte[]{0x1C, 0x26});
                 printStream.write(new byte[]{0x1C, 0x43, (byte) 0xFF});
-                printStream.write(new byte[]{0x1B, 0x4D, 0x00});
+
+                // Izbira standardnega Font A (12x24) in ponastavitev načina znakov (ESC ! 0)
+                printStream.write(new byte[]{0x1B, 0x21, 0x00});
             } catch (Exception ignored) {}
+
+            // Custom ESC kode iz MobileSetup (enako kot pri računu)
+            if (globals.getEscReset() != null && !globals.getEscReset().isEmpty()) {
+                writeEsc(printStream, globals.getEscReset());
+            }
+            if (globals.getEscInitPrint() != null && !globals.getEscInitPrint().isEmpty()) {
+                writeEsc(printStream, globals.getEscInitPrint());
+            }
 
             // 2. Glava
             preview.append(podjetje).append("\n");
             writeEsc(printStream, globals.getEscAlignCenter());
-            writeEsc(printStream, globals.getEscBoldOn());
             if (globals.getEscWidth2xOn() != null && !globals.getEscWidth2xOn().isEmpty()) {
                 writeEsc(printStream, globals.getEscWidth2xOn());
+            } else {
+                writeEsc(printStream, "\u001B!\u0020"); // ESC ! 32 (double width)
             }
+            writeEsc(printStream, globals.getEscBoldOn());
             try {
                 printStream.write(podjetje.getBytes(StandardCharsets.UTF_8));
                 printStream.write(0x0A);
             } catch (Exception ignored) {}
             if (globals.getEscWidth2xOff() != null && !globals.getEscWidth2xOff().isEmpty()) {
                 writeEsc(printStream, globals.getEscWidth2xOff());
+            } else {
+                writeEsc(printStream, "\u001B!\u0000"); // Normal
             }
             writeEsc(printStream, globals.getEscBoldOff());
 
@@ -98,10 +115,10 @@ public class AkcijePrintBuilder {
 
             // 6. Veljavnost
             if (k.getDatumOd() != null && !k.getDatumOd().trim().isEmpty()) {
-                writeLine(preview, printStream, "VELJA OD: " + k.getDatumOd().trim(), false, false, globals);
+                writeLine(preview, printStream, "VELJA OD: " + formatKuponDatum(k.getDatumOd()), false, false, globals);
             }
             if (k.getDatumDo() != null && !k.getDatumDo().trim().isEmpty()) {
-                writeLine(preview, printStream, "VELJA DO: " + k.getDatumDo().trim(), false, false, globals);
+                writeLine(preview, printStream, "VELJA DO: " + formatKuponDatum(k.getDatumDo()), false, false, globals);
             }
 
             // 7. Odrez
@@ -110,9 +127,9 @@ public class AkcijePrintBuilder {
             if (globals.getEscCut() != null && !globals.getEscCut().isEmpty()) {
                 writeEsc(printStream, globals.getEscCut());
             } else {
-                writeEsc(printStream, "\n\n\n");
+                writeEsc(printStream, "\n\n\n\n");
                 try {
-                    printStream.write(new byte[]{0x1D, 0x56, 0x42, 0x00}); // GS V B 0
+                    printStream.write(new byte[]{0x1D, 0x56, 0x00});
                 } catch (Exception ignored) {}
             }
 
@@ -120,6 +137,23 @@ public class AkcijePrintBuilder {
         }
 
         return list;
+    }
+
+    private static String formatKuponDatum(String dStr) {
+        if (dStr == null || dStr.trim().isEmpty()) return "";
+        dStr = dStr.trim();
+        try {
+            if (dStr.contains("T")) {
+                dStr = dStr.substring(0, dStr.indexOf("T"));
+            }
+            if (dStr.contains("-")) {
+                String[] parts = dStr.split("-");
+                if (parts.length == 3) {
+                    return parts[2] + "." + parts[1] + "." + parts[0];
+                }
+            }
+        } catch (Exception ignored) {}
+        return dStr;
     }
 
     private static void writeLine(StringBuilder preview, ByteArrayOutputStream printStream, String line, boolean bold, boolean center, Globals g) {
