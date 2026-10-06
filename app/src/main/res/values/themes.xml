@@ -5,6 +5,43 @@
         <item name="colorSecondary">@color/pos_accent_green</item>
         <item name="android:windowBackground">@color/pos_bg_dark</item>
         <item name="android:textColor">@color/pos_btn_text</item>
+
+        <!-- Nastavitev teme za vse potrditvene dialoge v aplikaciji -->
+        <item name="alertDialogTheme">@style/RosAlertDialogTheme</item>
+        <item name="android:alertDialogTheme">@style/RosAlertDialogTheme</item>
+        <item name="materialAlertDialogTheme">@style/RosAlertDialogTheme</item>
+    </style>
+
+    <style name="RosAlertDialogTheme" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
+        <!-- Temno ozadje dialoga -->
+        <item name="android:windowBackground">@color/pos_card_bg</item>
+        <!-- Bel naslov in belo besedilo vprašanja/odločitve za maksimalno berljivost -->
+        <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <!-- Potrditveni tekst: rumena barva za odlično vidljivost na temnem ozadju -->
+        <item name="colorAccent">@color/pos_dialog_btn_yellow</item>
+        <item name="colorPrimary">@color/pos_dialog_btn_yellow</item>
+        <item name="buttonBarPositiveButtonStyle">@style/RosDialogPositiveButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/RosDialogNegativeButton</item>
+        <item name="buttonBarNeutralButtonStyle">@style/RosDialogNeutralButton</item>
+    </style>
+
+    <style name="RosDialogPositiveButton" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/pos_dialog_btn_yellow</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
+    <style name="RosDialogNegativeButton" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/pos_dialog_btn_cancel</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
+    <style name="RosDialogNeutralButton" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/pos_dialog_btn_yellow</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">16sp</item>
     </style>
 
     <style name="PosButtonStyle" parent="Widget.MaterialComponents.Button">

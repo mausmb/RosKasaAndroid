@@ -12,4 +12,6 @@
     <color name="pos_region_bg">#99CCEE</color>
     <color name="pos_table_free">#607D8B</color>
     <color name="pos_table_occupied">#C62828</color>
+    <color name="pos_dialog_btn_yellow">#FFD700</color>
+    <color name="pos_dialog_btn_cancel">#E0E0E0</color>
 </resources>

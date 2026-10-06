@@ -107,7 +107,7 @@ public class PartnerVnosDialog {
                 query = etDavcna.getText().toString().trim();
             }
 
-            if (query.length() < 2 && storitevId != 8 && storitevId != 31 && storitevId != 90) {
+            if (query.length() < 2 && storitevId != 8 && storitevId != 31 && storitevId != 90 && storitevId != globals.getkKarticaTippartnerRocno()) {
                 Toast.makeText(context, "Vnesite vsaj 2 znaka za iskanje partnerja!", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -212,7 +212,8 @@ public class PartnerVnosDialog {
             return false;
         });
 
-        if ((initNaziv != null && initNaziv.trim().length() >= 2) || (initDavcna != null && initDavcna.trim().length() >= 3)) {
+        if ((initNaziv != null && initNaziv.trim().length() >= 2) || (initDavcna != null && initDavcna.trim().length() >= 3)
+                || storitevId == globals.getkKarticaTippartnerRocno()) {
             mainHandler.post(performSearch);
         }
 

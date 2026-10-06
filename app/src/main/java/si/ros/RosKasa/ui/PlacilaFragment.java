@@ -1193,7 +1193,21 @@ public class PlacilaFragment extends Fragment {
         } else if (tempmetoda == 6 || placiloId == 8) {
             // Hotel kredit (sobe)
             showHotelKreditDialog(placiloId, nacinNaziv, zaplacilo);
-        } else if (tempmetoda == 3 || tempmetoda == 4 || placiloId == 4 || (storitevId > 0 && storitevId == Globals.getInstance().getkKarticaTippartnerRocno())) {
+        } else if (tempmetoda == 3) {
+            // Kreditna kartica ročno:
+            Globals g = Globals.getInstance();
+            int kupecIdRocno = g.getkKarticaKupecIdRocno();
+            if (kupecIdRocno > 0) {
+                // 1.1 Če je v MOBIni in v globals KKARTICA_KUPECID_ROCNO <> 0:
+                // AVTOMATSKO se napolni RACPLACI.KUPEC_ID s to šifro in zaključi račun
+                g.vpisiKronologijo("Placilo KK ročno avtomatski KUPEC_ID: " + kupecIdRocno + " za R:" + (currentRacun != null ? currentRacun.getRacunId() : 0));
+                addPlaciloFull(nacinNaziv, placiloId, zaplacilo, null, null, kupecIdRocno, null, null, null, null, null);
+            } else {
+                // Ročno za listo partnerjev, da izberemo KUPEC_ID (KKROCNO ali privzeto KKarticaTippartnerRocno)
+                int tipPartner = (storitevId > 0) ? storitevId : g.getkKarticaTippartnerRocno();
+                showPartnerVnosDialog(placiloId, nacinNaziv, zaplacilo, tipPartner);
+            }
+        } else if (tempmetoda == 4 || placiloId == 4 || (storitevId > 0 && storitevId == Globals.getInstance().getkKarticaTippartnerRocno())) {
             // Dobavnica / Naročilnica / Partner
             showPartnerVnosDialog(placiloId, nacinNaziv, zaplacilo, storitevId);
         } else {
@@ -2618,9 +2632,10 @@ public class PlacilaFragment extends Fragment {
 
         // Za kreditno kartico se knjižijo KUPEC_ID, M_REF in NAPITNINA (če > 0, če 0 se ne knjiži)
         NacPlacTp np = Globals.getInstance().getPlaciloById(placiloId);
-        int kupecId = (np != null && np.getKupecId() != null && np.getKupecId() > 0)
-                ? np.getKupecId().intValue()
-                : Globals.getInstance().getKredKarticaKupecId();
+        int kupecId = Globals.getInstance().getKredKarticaKupecId();
+        if (kupecId <= 0 && np != null && np.getKupecId() != null && np.getKupecId() > 0) {
+            kupecId = np.getKupecId().intValue();
+        }
         if (kupecId > 0) {
             pl.setKupecId(kupecId);
             pl.setPartnerId(kupecId);

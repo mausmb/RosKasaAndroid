@@ -874,6 +874,7 @@ public class Globals {
         if (kvPairs.containsKey("KREDKARTICA_KUPECID_DINERS")) { try { this.kredKarticaKupecIdDiners = Integer.parseInt(kvPairs.get("KREDKARTICA_KUPECID_DINERS")); } catch (Exception ignored) {} }
         if (kvPairs.containsKey("KKARTICA_KUPECID_ROCNO")) { try { this.kKarticaKupecIdRocno = Integer.parseInt(kvPairs.get("KKARTICA_KUPECID_ROCNO")); } catch (Exception ignored) {} }
         if (kvPairs.containsKey("KKARTICATIPPARTNERROCNO")) { try { this.kKarticaTippartnerRocno = Integer.parseInt(kvPairs.get("KKARTICATIPPARTNERROCNO")); } catch (Exception ignored) {} }
+        if (kvPairs.containsKey("KKARTICA_TIPPARTNER_ROCNO")) { try { this.kKarticaTippartnerRocno = Integer.parseInt(kvPairs.get("KKARTICA_TIPPARTNER_ROCNO")); } catch (Exception ignored) {} }
         if (kvPairs.containsKey("HOTKEY3PLACILOID")) { try { this.hotkey3 = Integer.parseInt(kvPairs.get("HOTKEY3PLACILOID")); } catch (Exception ignored) {} }
         if (kvPairs.containsKey("HOTKEY4PLACILOID")) { try { this.hotkey4 = Integer.parseInt(kvPairs.get("HOTKEY4PLACILOID")); } catch (Exception ignored) {} }
         if (kvPairs.containsKey("HOTKEY5PLACILOID")) { try { this.hotkey5 = Integer.parseInt(kvPairs.get("HOTKEY5PLACILOID")); } catch (Exception ignored) {} }

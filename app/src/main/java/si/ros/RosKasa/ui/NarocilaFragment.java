@@ -2248,15 +2248,33 @@ public class NarocilaFragment extends Fragment {
             HotelSobeDialog.show(requireContext(), zaplacilo, selectedRoom -> {
                 zakljuciInNatisniHotelKredit(placiloId, nacinNaziv, zaplacilo, selectedRoom);
             });
-        } else if (metoda == 3 || metoda == 4 || placiloId == 4) {
-            // Metoda 3: kreditnakartica za določenega kupca
+        } else if (metoda == 3 || (metoda == 14 && !isIntentOn)) {
+            // Metoda 3 ali ročna kreditna kartica:
+            Globals g = Globals.getInstance();
+            int kupecIdRocno = g.getkKarticaKupecIdRocno();
+            if (kupecIdRocno > 0) {
+                // 1.1 Če je v MOBIni KKARTICA_KUPECID_ROCNO <> 0, se AVTOMATSKO napolni RACPLACI.KUPEC_ID s to šifro in zaključi račun
+                g.vpisiKronologijo("Hitro plačilo KK ročno avtomatski KUPEC_ID: " + kupecIdRocno + " za R:" + (currentRacun != null ? currentRacun.getRacunId() : 0));
+                zakljuciInNatisniRocnaKreditnaKartica(placiloId, nacinNaziv, zaplacilo, kupecIdRocno);
+            } else {
+                // Ročno za listo partnerjev, da izberemo KUPEC_ID
+                NacPlacTp np = g.getPlaciloById(placiloId);
+                int storitevId = (np != null && np.getStoritevId() != null && np.getStoritevId() > 0)
+                        ? np.getStoritevId()
+                        : g.getkKarticaTippartnerRocno();
+                PartnerVnosDialog.show(requireContext(), zaplacilo, storitevId, (partnerId, naziv, naslov, davcna, stNarocilnice, rabat) -> {
+                    zakljuciInNatisniPartner(placiloId, nacinNaziv, zaplacilo, partnerId, naziv, naslov, davcna, stNarocilnice, rabat);
+                });
+            }
+        } else if (metoda == 4 || placiloId == 4) {
+            // Metoda 4: partner / dobavnica
             NacPlacTp np = Globals.getInstance().getPlaciloById(placiloId);
             int storitevId = (np != null && np.getStoritevId() != null) ? np.getStoritevId() : 0;
             PartnerVnosDialog.show(requireContext(), zaplacilo, storitevId, (partnerId, naziv, naslov, davcna, stNarocilnice, rabat) -> {
                 zakljuciInNatisniPartner(placiloId, nacinNaziv, zaplacilo, partnerId, naziv, naslov, davcna, stNarocilnice, rabat);
             });
         } else {
-            // Metoda 1: gotovina (ali kartica če intent ni vklopljen ali ostale metode)
+            // Metoda 1: gotovina in ostale ne-kartične metode
             zakljuciInNatisniHitroPlacilo(placiloId, nacinNaziv, zaplacilo);
         }
     }
@@ -2382,9 +2400,10 @@ public class NarocilaFragment extends Fragment {
         pl.setZnesek(BigDecimal.ZERO);
 
         NacPlacTp np = Globals.getInstance().getPlaciloById(placiloId);
-        int kupecId = (np != null && np.getKupecId() != null && np.getKupecId() > 0)
-                ? np.getKupecId().intValue()
-                : Globals.getInstance().getKredKarticaKupecId();
+        int kupecId = Globals.getInstance().getKredKarticaKupecId();
+        if (kupecId <= 0 && np != null && np.getKupecId() != null && np.getKupecId() > 0) {
+            kupecId = np.getKupecId().intValue();
+        }
         if (kupecId > 0) {
             pl.setKupecId(kupecId);
             pl.setPartnerId(kupecId);
@@ -2490,12 +2509,36 @@ public class NarocilaFragment extends Fragment {
         zakljuciInNatisniHitroPlaciloInterno(pl, nacinNaziv, dejanskiZnesek);
     }
 
+    private void zakljuciInNatisniRocnaKreditnaKartica(final int placiloId, final String nacinNaziv, final BigDecimal zaplacilo, final int kupecId) {
+        if (currentRacun == null) return;
+        final PlaciloTp pl = new PlaciloTp(currentRacun.getRacunId(), placiloId, zaplacilo);
+        pl.setPlaciloId(placiloId);
+        pl.setDelniZnesek(zaplacilo);
+        pl.setZnesek(BigDecimal.ZERO);
+        if (kupecId > 0) {
+            pl.setKupecId(kupecId);
+            pl.setPartnerId(kupecId);
+            currentRacun.setPartnerId(kupecId);
+        }
+        zakljuciInNatisniHitroPlaciloInterno(pl, nacinNaziv, zaplacilo);
+    }
+
     private void zakljuciInNatisniHitroPlacilo(final int placiloId, final String nacinNaziv, final BigDecimal zaplacilo) {
         if (currentRacun == null) return;
         final PlaciloTp pl = new PlaciloTp(currentRacun.getRacunId(), placiloId, zaplacilo);
         pl.setPlaciloId(placiloId);
         pl.setDelniZnesek(zaplacilo);
         pl.setZnesek(BigDecimal.ZERO);
+        Globals g = Globals.getInstance();
+        int metoda = g.placilometoda(placiloId);
+        if (metoda == 3 || g.getkKarticaKupecIdRocno() > 0) {
+            int kupecId = g.getkKarticaKupecIdRocno();
+            if (kupecId > 0) {
+                pl.setKupecId(kupecId);
+                pl.setPartnerId(kupecId);
+                currentRacun.setPartnerId(kupecId);
+            }
+        }
         zakljuciInNatisniHitroPlaciloInterno(pl, nacinNaziv, zaplacilo);
     }
 
