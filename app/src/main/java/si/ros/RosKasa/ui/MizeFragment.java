@@ -35,6 +35,7 @@ import si.ros.RosKasa.databinding.FragmentMizeBinding;
 import si.ros.RosKasa.models.MizaTp;
 import si.ros.RosKasa.models.OsebaTp;
 import si.ros.RosKasa.models.RacunSeznamItem;
+import si.ros.RosKasa.models.RacunTp;
 import si.ros.RosKasa.soap.RosKasaSoapClient;
 
 public class MizeFragment extends Fragment {
@@ -184,7 +185,11 @@ public class MizeFragment extends Fragment {
             Globals.getInstance().setActiveRacunId(miza.racunId);
             Toast.makeText(requireContext(), "Izbrana " + miza.naziv + (miza.racunId > 0 ? " (Račun #" + miza.racunId + ")" : " (Nova miza)"), Toast.LENGTH_SHORT).show();
             if (getActivity() instanceof MainActivity) {
-                ((MainActivity) getActivity()).navigateToFragment(new NarocilaFragment());
+                if (miza.isPlacano) {
+                    ((MainActivity) getActivity()).navigateToFragment(new PlacilaFragment());
+                } else {
+                    ((MainActivity) getActivity()).navigateToFragment(new NarocilaFragment());
+                }
             }
         });
 
@@ -233,6 +238,42 @@ public class MizeFragment extends Fragment {
                 mainHandler.post(() -> populateMizeGrid(new ArrayList<>()));
             }
         });
+    }
+
+    private boolean isRacunPlacan(RacunSeznamItem acc) {
+        if (acc == null) return false;
+        if (acc.isPlacan()) return true;
+        Globals g = Globals.getInstance();
+        if (g.isRacunPlacan(acc.getRacunId(), acc.getZnesek())) {
+            return true;
+        }
+        RacunTp cur = g.getCurrentRacun();
+        if (cur != null && cur.getRacunId() == acc.getRacunId()) {
+            if (cur.getPlacano() != null && cur.getPlacano().compareTo(BigDecimal.ZERO) > 0) {
+                if (cur.getZnesek() == null || cur.getZnesek().compareTo(BigDecimal.ZERO) <= 0
+                        || cur.getPlacano().compareTo(cur.getZnesek()) >= 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private BigDecimal getRacunPlacanoZnesek(RacunSeznamItem acc) {
+        if (acc == null) return BigDecimal.ZERO;
+        if (acc.getPlacano() != null && acc.getPlacano().compareTo(BigDecimal.ZERO) > 0) {
+            return acc.getPlacano();
+        }
+        Globals g = Globals.getInstance();
+        BigDecimal p = g.getRacunPlacano(acc.getRacunId());
+        if (p != null && p.compareTo(BigDecimal.ZERO) > 0) {
+            return p;
+        }
+        RacunTp cur = g.getCurrentRacun();
+        if (cur != null && cur.getRacunId() == acc.getRacunId() && cur.getPlacano() != null) {
+            return cur.getPlacano();
+        }
+        return BigDecimal.ZERO;
     }
 
     private void populateMizeGrid(List<RacunSeznamItem> openAccounts) {
@@ -294,9 +335,11 @@ public class MizeFragment extends Fragment {
                     String kasiralNaziv = kasiralOseba != null ? kasiralOseba.getNaziv() : "";
                     String kasiralIni = kasiralOseba != null ? kasiralOseba.getInicialke() : "";
                     boolean isMy = kasiralId > 0 && kasiralId == Globals.getInstance().getTekocaOsebaId();
+                    boolean isPlacano = isRacunPlacan(firstAcc);
+                    BigDecimal placano = getRacunPlacanoZnesek(firstAcc);
 
                     mizeList.add(new MizeAdapter.MizaItem(mizaName, true, firstAcc.getZnesek(), firstAcc.getRacunId(),
-                            kasiralId, kasiralNaziv, kasiralIni, isMy));
+                            kasiralId, kasiralNaziv, kasiralIni, isMy, isPlacano, placano));
                     processedRacunIds.add(firstAcc.getRacunId());
                     markerCounts.put(mizaName.toLowerCase(Locale.getDefault()), 1);
                 } else {
@@ -324,9 +367,11 @@ public class MizeFragment extends Fragment {
                     String kasiralNaziv = kasiralOseba != null ? kasiralOseba.getNaziv() : "";
                     String kasiralIni = kasiralOseba != null ? kasiralOseba.getInicialke() : "";
                     boolean isMy = kasiralId > 0 && kasiralId == Globals.getInstance().getTekocaOsebaId();
+                    boolean isPlacano = isRacunPlacan(firstAcc);
+                    BigDecimal placano = getRacunPlacanoZnesek(firstAcc);
 
                     mizeList.add(new MizeAdapter.MizaItem(mizaName, true, firstAcc.getZnesek(), firstAcc.getRacunId(),
-                            kasiralId, kasiralNaziv, kasiralIni, isMy));
+                            kasiralId, kasiralNaziv, kasiralIni, isMy, isPlacano, placano));
                     processedRacunIds.add(firstAcc.getRacunId());
                     markerCounts.put(mizaName.toLowerCase(Locale.getDefault()), 1);
                 } else {
@@ -366,9 +411,11 @@ public class MizeFragment extends Fragment {
                 String kasiralNaziv = kasiralOseba != null ? kasiralOseba.getNaziv() : "";
                 String kasiralIni = kasiralOseba != null ? kasiralOseba.getInicialke() : "";
                 boolean isMy = kasiralId > 0 && kasiralId == Globals.getInstance().getTekocaOsebaId();
+                boolean isPlacano = isRacunPlacan(acc);
+                BigDecimal placano = getRacunPlacanoZnesek(acc);
 
                 mizeList.add(new MizeAdapter.MizaItem(buttonName, true, acc.getZnesek(), acc.getRacunId(),
-                        kasiralId, kasiralNaziv, kasiralIni, isMy));
+                        kasiralId, kasiralNaziv, kasiralIni, isMy, isPlacano, placano));
                 processedRacunIds.add(acc.getRacunId());
             }
         }

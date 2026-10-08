@@ -106,19 +106,7 @@ public class PlacilaFragment extends Fragment {
                     mainHandler.post(() -> {
                         enableEkran();
                         if (loaded != null) {
-                            currentRacun = loaded;
-                            if (loaded.getRacPozic() != null) {
-                                for (PozicijaTp p : loaded.getRacPozic()) {
-                                    if (p != null && (p.getNaziv() == null || p.getNaziv().trim().isEmpty()) && p.getNivo4Id() != null && p.getNivo4Id() > 0) {
-                                        String n = Globals.getInstance().findNazivByNivo4Id(p.getNivo4Id());
-                                        if (n != null && !n.trim().isEmpty()) {
-                                            p.setNaziv(n.trim());
-                                        }
-                                    }
-                                }
-                            }
-                            Globals.getInstance().setCurrentRacun(loaded);
-                            populatePlacilaListFromCurrentRacun();
+                            posodobiRacunIzStreznik(loaded);
                         } else {
                             Toast.makeText(requireContext(), "Račun #" + activeRacunId + " ni bil najden na strežniku.", Toast.LENGTH_SHORT).show();
                             updatePlacilaSummary();
@@ -389,45 +377,11 @@ public class PlacilaFragment extends Fragment {
                 try { mobileId = Integer.parseInt(prefs.getMobileId()); } catch (Exception ignored) {}
 
                 GetRacunRsTp response = RosKasaSoapClient.setRacun(serverUrl, token, mobileId, currentRacun);
-
                 mainHandler.post(() -> {
                     enableEkran();
                     if (response != null && response.getRacGlava() != null) {
-                        RacunTp returned = response.getRacGlava();
-                        // Ohrani lokalne pozicije, če jih strežnik v setRacun ni poslal nazaj
-                        if ((returned.getRacPozic() == null || returned.getRacPozic().isEmpty()) && currentRacun.getRacPozic() != null && !currentRacun.getRacPozic().isEmpty()) {
-                            returned.setRacPozic(currentRacun.getRacPozic());
-                        }
-                        // Ohrani plačila, če jih strežnik ni poslal nazaj
-                        if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null && !currentRacun.getRacPlaci().isEmpty()) {
-                            returned.setRacPlaci(currentRacun.getRacPlaci());
-                        }
-                        // 100% KONTROLA: RACGLAVA.ZNESEK je vedno suma narocila in se NIKOLI ne spreminja ob placilih!
-                        if (currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
-                            returned.setZnesek(currentRacun.getZnesek());
-                        }
-                        // Ohrani placano, če strežnik vrne 0 ali manj od lokalnega
-                        if (currentRacun.getPlacano() != null && (returned.getPlacano() == null || returned.getPlacano().compareTo(currentRacun.getPlacano()) < 0)) {
-                            returned.setPlacano(currentRacun.getPlacano());
-                        }
-                        if (returned.getRacPozic() != null) {
-                            for (PozicijaTp p : returned.getRacPozic()) {
-                                if (p != null && (p.getNaziv() == null || p.getNaziv().trim().isEmpty()) && p.getNivo4Id() != null && p.getNivo4Id() > 0) {
-                                    String lookupName = Globals.getInstance().findNazivByNivo4Id(p.getNivo4Id());
-                                    if (lookupName != null && !lookupName.trim().isEmpty()) {
-                                        p.setNaziv(lookupName.trim());
-                                    }
-                                }
-                            }
-                        }
-                        currentRacun = returned;
-                        currentRacun.preracunajVsote();
-                        currentRacun.setOriginalObject(currentRacun.deepCopy());
-                        Globals.getInstance().setCurrentRacun(currentRacun);
-                        prefs.setActiveRacunId(currentRacun.getRacunId());
-                        populatePlacilaListFromCurrentRacun();
+                        posodobiRacunIzStreznik(response.getRacGlava());
 
-                        currentRacun.preracunajVsote();
                         if (currentRacun.getPlacano().compareTo(currentRacun.getZnesek()) >= 0) {
                             new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                                     .setTitle("Račun v celoti plačan")
@@ -535,10 +489,7 @@ public class PlacilaFragment extends Fragment {
         // Za metodo 14 (ali karticno POS placilo):
         // V Delphi: ob metodi 14 se placilo izvede TAKOJ brez odpiranja dialoga za vnos cene (celoten saldo zaplacilo)
         boolean isPosPayment = (tempmetoda == 14
-                || uNaziv.contains("POS")
-                || uNaziv.contains("KREDITNA")
-                || uNaziv.contains("KARTICA")
-                || placiloId == 2);
+                || (tempmetoda != 3 && (uNaziv.contains("POS") || placiloId == 2)));
 
         if (tempmetoda == 14 || isPosPayment) {
             boolean isIntentOn = Globals.getInstance().isPosIntentActive();
@@ -647,22 +598,19 @@ public class PlacilaFragment extends Fragment {
         klikniHitroPlacilo(placiloId);
     }
 
-    private void posodobiLokalniRacun(RacunTp saved) {
-        if (saved == null) return;
-        if ((saved.getRacPozic() == null || saved.getRacPozic().isEmpty()) && currentRacun != null && currentRacun.getRacPozic() != null) {
-            saved.setRacPozic(currentRacun.getRacPozic());
+    private void posodobiRacunIzStreznik(RacunTp returned) {
+        if (returned == null) return;
+        if ((returned.getRacPozic() == null || returned.getRacPozic().isEmpty()) && currentRacun != null && currentRacun.getRacPozic() != null) {
+            returned.setRacPozic(currentRacun.getRacPozic());
         }
-        if ((saved.getRacPlaci() == null || saved.getRacPlaci().isEmpty()) && currentRacun != null && currentRacun.getRacPlaci() != null) {
-            saved.setRacPlaci(currentRacun.getRacPlaci());
+        if (returned.getRacPlaci() == null) {
+            returned.setRacPlaci(new ArrayList<>());
         }
         if (currentRacun != null && currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
-            saved.setZnesek(currentRacun.getZnesek());
+            returned.setZnesek(currentRacun.getZnesek());
         }
-        if (currentRacun != null && currentRacun.getPlacano() != null && (saved.getPlacano() == null || saved.getPlacano().compareTo(currentRacun.getPlacano()) < 0)) {
-            saved.setPlacano(currentRacun.getPlacano());
-        }
-        if (saved.getRacPozic() != null) {
-            for (PozicijaTp p : saved.getRacPozic()) {
+        if (returned.getRacPozic() != null) {
+            for (PozicijaTp p : returned.getRacPozic()) {
                 if (p != null && (p.getNaziv() == null || p.getNaziv().trim().isEmpty()) && p.getNivo4Id() != null && p.getNivo4Id() > 0) {
                     String lookupName = Globals.getInstance().findNazivByNivo4Id(p.getNivo4Id());
                     if (lookupName != null && !lookupName.trim().isEmpty()) {
@@ -671,11 +619,26 @@ public class PlacilaFragment extends Fragment {
                 }
             }
         }
-        currentRacun = saved;
+        currentRacun = returned;
         currentRacun.preracunajVsote();
         currentRacun.setOriginalObject(currentRacun.deepCopy());
+        if (currentRacun.getRacPozic() != null) {
+            for (PozicijaTp p : currentRacun.getRacPozic()) {
+                if (p != null) p.setOriginalObject(p.deepCopy());
+            }
+        }
+        if (currentRacun.getRacPlaci() != null) {
+            for (PlaciloTp pl : currentRacun.getRacPlaci()) {
+                if (pl != null) pl.setOriginalObject(pl.deepCopy());
+            }
+        }
         Globals.getInstance().setCurrentRacun(currentRacun);
         prefs.setActiveRacunId(currentRacun.getRacunId());
+        populatePlacilaListFromCurrentRacun();
+    }
+
+    private void posodobiLokalniRacun(RacunTp saved) {
+        posodobiRacunIzStreznik(saved);
     }
 
     private void zagotoviRacunNaStrezniku(final Runnable onReady) {
@@ -791,11 +754,36 @@ public class PlacilaFragment extends Fragment {
             HotelSobeDialog.show(requireContext(), zaplacilo, selectedRoom -> {
                 zakljuciInNatisniHotelKredit(placiloId, nacinNaziv, zaplacilo, selectedRoom);
             });
-        } else if (metoda == 3 || metoda == 4 || placiloId == 4) {
-            // Metoda 3: kreditnakartica za določenega kupca (ali metoda 4 dobavnica)
+        } else if (metoda == 3) {
+            // Metoda 3: kreditnakartica za določenega kupca / ročno
+            Globals g = Globals.getInstance();
+            NacPlacTp np = g.getPlaciloById(placiloId);
+            int PlaciloPartnerStoritevId = 0;
+            if (np != null && np.getStoritevId() != null) {
+                PlaciloPartnerStoritevId = np.getStoritevId();
+            }
+            int nacplacstoritevid = PlaciloPartnerStoritevId;
+            int kKarticaTippartnerRocno = g.getkKarticaTippartnerRocno();
+            int KKARTICA_KUPECID_ROCNO = g.getkKarticaKupecIdRocno();
+
+            if ((nacplacstoritevid == kKarticaTippartnerRocno) && ((KKARTICA_KUPECID_ROCNO > 0) && (PlaciloPartnerStoritevId == 0))) {
+                // Knjižimo plačilo na KKARTICA_KUPECID_ROCNO
+                g.vpisiKronologijo("Hitro plačilo KK ročno avtomatski KUPEC_ID: " + KKARTICA_KUPECID_ROCNO + " za R:" + (currentRacun != null ? currentRacun.getRacunId() : 0));
+                zakljuciInNatisniHitroPlacilo(placiloId, nacinNaziv, zaplacilo, (KKARTICA_KUPECID_ROCNO > 0 ? KKARTICA_KUPECID_ROCNO : null));
+            } else {
+                // Izbor partnerja iz liste za tip partner = STORITEV_ID
+                PartnerVnosDialog.show(requireContext(), zaplacilo, PlaciloPartnerStoritevId, (partnerId, naziv, naslov, davcna, stNarocilnice, rabat) -> {
+                    zakljuciInNatisniPartner(placiloId, nacinNaziv, zaplacilo, partnerId, naziv, naslov, davcna, stNarocilnice, rabat);
+                });
+            }
+        } else if (metoda == 4 || placiloId == 4) {
+            // Metoda 4: dobavnica / partner
             NacPlacTp np = Globals.getInstance().getPlaciloById(placiloId);
-            int storitevId = (np != null && np.getStoritevId() != null) ? np.getStoritevId() : 0;
-            PartnerVnosDialog.show(requireContext(), zaplacilo, storitevId, (partnerId, naziv, naslov, davcna, stNarocilnice, rabat) -> {
+            int PlaciloPartnerStoritevId = 0;
+            if (np != null && np.getStoritevId() != null) {
+                PlaciloPartnerStoritevId = np.getStoritevId();
+            }
+            PartnerVnosDialog.show(requireContext(), zaplacilo, PlaciloPartnerStoritevId, (partnerId, naziv, naslov, davcna, stNarocilnice, rabat) -> {
                 zakljuciInNatisniPartner(placiloId, nacinNaziv, zaplacilo, partnerId, naziv, naslov, davcna, stNarocilnice, rabat);
             });
         } else {
@@ -805,6 +793,10 @@ public class PlacilaFragment extends Fragment {
     }
 
     private void zakljuciInNatisniHitroPlacilo(final int placiloId, final String nacinNaziv, final BigDecimal zaplacilo) {
+        zakljuciInNatisniHitroPlacilo(placiloId, nacinNaziv, zaplacilo, null);
+    }
+
+    private void zakljuciInNatisniHitroPlacilo(final int placiloId, final String nacinNaziv, final BigDecimal zaplacilo, final Integer kupecId) {
         if (currentRacun == null) return;
         disableEkran("Knjiženje in zaključek (" + nacinNaziv + ")...");
 
@@ -823,6 +815,11 @@ public class PlacilaFragment extends Fragment {
         pl.setRowDeleted(false);
         pl.setDelniZnesek(zaplacilo);
         pl.setZnesek(BigDecimal.ZERO);
+        if (kupecId != null && kupecId > 0) {
+            pl.setKupecId(kupecId);
+            pl.setPartnerId(kupecId);
+            currentRacun.setPartnerId(kupecId);
+        }
 
         int tocId = (currentRacun.getTocilnicaId() != null && currentRacun.getTocilnicaId() > 0)
                 ? currentRacun.getTocilnicaId()
@@ -890,7 +887,7 @@ public class PlacilaFragment extends Fragment {
                     if ((returned.getRacPozic() == null || returned.getRacPozic().isEmpty()) && currentRacun.getRacPozic() != null) {
                         returned.setRacPozic(currentRacun.getRacPozic());
                     }
-                    if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null) {
+                    if (returned.getRacPlaci() == null && currentRacun.getRacPlaci() != null) {
                         returned.setRacPlaci(currentRacun.getRacPlaci());
                     }
                     if (returned.getFiskalizacija() == null && currentRacun.getFiskalizacija() != null) {
@@ -1178,14 +1175,15 @@ public class PlacilaFragment extends Fragment {
 
     private void izvediPlaciloPoMetodi(int placiloId, int tempmetoda, String nacinNaziv, BigDecimal zaplacilo) {
         NacPlacTp np = Globals.getInstance().getPlaciloById(placiloId);
-        int storitevId = (np != null && np.getStoritevId() != null) ? np.getStoritevId() : 0;
+        int PlaciloPartnerStoritevId = 0;
+        if (np != null && np.getStoritevId() != null) {
+            PlaciloPartnerStoritevId = np.getStoritevId();
+        }
+        int nacplacstoritevid = PlaciloPartnerStoritevId;
         String uNaziv = nacinNaziv != null ? nacinNaziv.toUpperCase() : "";
 
         boolean isPosPayment = (tempmetoda == 14
-                || uNaziv.contains("POS")
-                || uNaziv.contains("KREDITNA")
-                || uNaziv.contains("KARTICA")
-                || placiloId == 2);
+                || (tempmetoda != 3 && (uNaziv.contains("POS") || placiloId == 2)));
 
         if (tempmetoda == 14 || isPosPayment) {
             // POS Plačilni Intent (PayTen ali Worldline SoftPOS / SixTap) ima absolutno prednost
@@ -1196,20 +1194,20 @@ public class PlacilaFragment extends Fragment {
         } else if (tempmetoda == 3) {
             // Kreditna kartica ročno:
             Globals g = Globals.getInstance();
-            int kupecIdRocno = g.getkKarticaKupecIdRocno();
-            if (kupecIdRocno > 0) {
-                // 1.1 Če je v MOBIni in v globals KKARTICA_KUPECID_ROCNO <> 0:
-                // AVTOMATSKO se napolni RACPLACI.KUPEC_ID s to šifro in zaključi račun
-                g.vpisiKronologijo("Placilo KK ročno avtomatski KUPEC_ID: " + kupecIdRocno + " za R:" + (currentRacun != null ? currentRacun.getRacunId() : 0));
-                addPlaciloFull(nacinNaziv, placiloId, zaplacilo, null, null, kupecIdRocno, null, null, null, null, null);
+            int kKarticaTippartnerRocno = g.getkKarticaTippartnerRocno();
+            int KKARTICA_KUPECID_ROCNO = g.getkKarticaKupecIdRocno();
+
+            if ((nacplacstoritevid == kKarticaTippartnerRocno) && ((KKARTICA_KUPECID_ROCNO > 0) && (PlaciloPartnerStoritevId == 0))) {
+                // Knjižimo partner in kupec preko parametra:
+                g.vpisiKronologijo("Placilo KK ročno avtomatski KUPEC_ID: " + KKARTICA_KUPECID_ROCNO + " za R:" + (currentRacun != null ? currentRacun.getRacunId() : 0));
+                addPlaciloFull(nacinNaziv, placiloId, zaplacilo, null, null, (KKARTICA_KUPECID_ROCNO > 0 ? KKARTICA_KUPECID_ROCNO : null), null, null, null, null, null);
             } else {
-                // Ročno za listo partnerjev, da izberemo KUPEC_ID (KKROCNO ali privzeto KKarticaTippartnerRocno)
-                int tipPartner = (storitevId > 0) ? storitevId : g.getkKarticaTippartnerRocno();
-                showPartnerVnosDialog(placiloId, nacinNaziv, zaplacilo, tipPartner);
+                // Izbor partnerja iz liste za tip partner = STORITEV_ID
+                showPartnerVnosDialog(placiloId, nacinNaziv, zaplacilo, PlaciloPartnerStoritevId);
             }
-        } else if (tempmetoda == 4 || placiloId == 4 || (storitevId > 0 && storitevId == Globals.getInstance().getkKarticaTippartnerRocno())) {
+        } else if (tempmetoda == 4 || placiloId == 4) {
             // Dobavnica / Naročilnica / Partner
-            showPartnerVnosDialog(placiloId, nacinNaziv, zaplacilo, storitevId);
+            showPartnerVnosDialog(placiloId, nacinNaziv, zaplacilo, PlaciloPartnerStoritevId);
         } else {
             addPlacilo(nacinNaziv, placiloId, zaplacilo, null);
         }
@@ -1282,7 +1280,7 @@ public class PlacilaFragment extends Fragment {
                 btn.setEnabled(true);
                 btn.setText(np.getNaziv());
                 btn.setOnClickListener(v -> {
-                    if (met == 14 || naz.contains("POS") || naz.contains("KARTIC") || naz.contains("KREDITN")) {
+                    if (met == 14 || (met != 3 && (naz.contains("POS") || naz.contains("KARTIC") || naz.contains("KREDITN")))) {
                         klikniHitroPlacilo(pid);
                     } else {
                         klikniPlacilo(pid);
@@ -1716,39 +1714,10 @@ public class PlacilaFragment extends Fragment {
                 try { mobileId = Integer.parseInt(prefs.getMobileId()); } catch (Exception ignored) {}
 
                 GetRacunRsTp response = RosKasaSoapClient.setRacun(serverUrl, token, mobileId, currentRacun);
-
                 mainHandler.post(() -> {
                     enableEkran();
                     if (response != null && response.getRacGlava() != null) {
-                        RacunTp returned = response.getRacGlava();
-                        // Ohrani lokalne pozicije, če jih strežnik v setRacun ni poslal nazaj
-                        if ((returned.getRacPozic() == null || returned.getRacPozic().isEmpty()) && currentRacun.getRacPozic() != null && !currentRacun.getRacPozic().isEmpty()) {
-                            returned.setRacPozic(currentRacun.getRacPozic());
-                        }
-                        // Ohrani plačila, če jih strežnik ni poslal nazaj
-                        if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null && !currentRacun.getRacPlaci().isEmpty()) {
-                            returned.setRacPlaci(currentRacun.getRacPlaci());
-                        }
-                        // 100% KONTROLA: RACGLAVA.ZNESEK je vedno suma narocila in se NIKOLI ne spreminja ob brisanju placila!
-                        if (currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
-                            returned.setZnesek(currentRacun.getZnesek());
-                        }
-                        if (returned.getRacPozic() != null) {
-                            for (PozicijaTp p : returned.getRacPozic()) {
-                                if (p != null && (p.getNaziv() == null || p.getNaziv().trim().isEmpty()) && p.getNivo4Id() != null && p.getNivo4Id() > 0) {
-                                    String lookupName = Globals.getInstance().findNazivByNivo4Id(p.getNivo4Id());
-                                    if (lookupName != null && !lookupName.trim().isEmpty()) {
-                                        p.setNaziv(lookupName.trim());
-                                    }
-                                }
-                            }
-                        }
-                        currentRacun = returned;
-                        currentRacun.preracunajVsote();
-                        currentRacun.setOriginalObject(currentRacun.deepCopy());
-                        Globals.getInstance().setCurrentRacun(currentRacun);
-                        prefs.setActiveRacunId(currentRacun.getRacunId());
-                        populatePlacilaListFromCurrentRacun();
+                        posodobiRacunIzStreznik(response.getRacGlava());
                         Toast.makeText(requireContext(), "Plačilo uspešno izbrisano na strežniku.", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(requireContext(), "Strežnik ni vrnil posodobljenega računa.", Toast.LENGTH_SHORT).show();
@@ -1972,37 +1941,10 @@ public class PlacilaFragment extends Fragment {
                 try { mobileId = Integer.parseInt(prefs.getMobileId()); } catch (Exception ignored) {}
 
                 GetRacunRsTp response = RosKasaSoapClient.setRacun(serverUrl, token, mobileId, currentRacun);
-
                 mainHandler.post(() -> {
                     enableEkran();
                     if (response != null && response.getRacGlava() != null) {
-                        RacunTp returned = response.getRacGlava();
-                        if ((returned.getRacPozic() == null || returned.getRacPozic().isEmpty()) && currentRacun.getRacPozic() != null && !currentRacun.getRacPozic().isEmpty()) {
-                            returned.setRacPozic(currentRacun.getRacPozic());
-                        }
-                        if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null && !currentRacun.getRacPlaci().isEmpty()) {
-                            returned.setRacPlaci(currentRacun.getRacPlaci());
-                        }
-                        // 100% KONTROLA: RACGLAVA.ZNESEK je vedno suma narocila in se NIKOLI ne spreminja ob popustu 99!
-                        if (currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
-                            returned.setZnesek(currentRacun.getZnesek());
-                        }
-                        if (returned.getRacPozic() != null) {
-                            for (PozicijaTp p : returned.getRacPozic()) {
-                                if (p != null && (p.getNaziv() == null || p.getNaziv().trim().isEmpty()) && p.getNivo4Id() != null && p.getNivo4Id() > 0) {
-                                    String lookupName = Globals.getInstance().findNazivByNivo4Id(p.getNivo4Id());
-                                    if (lookupName != null && !lookupName.trim().isEmpty()) {
-                                        p.setNaziv(lookupName.trim());
-                                    }
-                                }
-                            }
-                        }
-                        currentRacun = returned;
-                        currentRacun.preracunajVsote();
-                        currentRacun.setOriginalObject(currentRacun.deepCopy());
-                        Globals.getInstance().setCurrentRacun(currentRacun);
-                        prefs.setActiveRacunId(currentRacun.getRacunId());
-                        populatePlacilaListFromCurrentRacun();
+                        posodobiRacunIzStreznik(response.getRacGlava());
                         Toast.makeText(requireContext(), "Popust uspešno knjižen (-" + String.format(Locale.getDefault(), "%.2f €", totalPopust) + ")!", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(requireContext(), "Strežnik ni vrnil posodobljenega računa.", Toast.LENGTH_SHORT).show();
@@ -2168,19 +2110,7 @@ public class PlacilaFragment extends Fragment {
                 mainHandler.post(() -> {
                     enableEkran();
                     if (response != null && response.getRacGlava() != null) {
-                        RacunTp returned = response.getRacGlava();
-                        if ((returned.getRacPozic() == null || returned.getRacPozic().isEmpty()) && currentRacun.getRacPozic() != null) {
-                            returned.setRacPozic(currentRacun.getRacPozic());
-                        }
-                        if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null) {
-                            returned.setRacPlaci(currentRacun.getRacPlaci());
-                        }
-                        if (currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
-                            returned.setZnesek(currentRacun.getZnesek());
-                        }
-                        currentRacun = returned;
-                        Globals.getInstance().setCurrentRacun(returned);
-                        populatePlacilaListFromCurrentRacun();
+                        posodobiRacunIzStreznik(response.getRacGlava());
                     }
                 });
             } catch (Exception e) {
@@ -2258,7 +2188,7 @@ public class PlacilaFragment extends Fragment {
                     if ((returned.getRacPozic() == null || returned.getRacPozic().isEmpty()) && currentRacun.getRacPozic() != null) {
                         returned.setRacPozic(currentRacun.getRacPozic());
                     }
-                    if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null) {
+                    if (returned.getRacPlaci() == null && currentRacun.getRacPlaci() != null) {
                         returned.setRacPlaci(currentRacun.getRacPlaci());
                     }
                     if (returned.getFiskalizacija() == null && currentRacun.getFiskalizacija() != null) {
@@ -2752,22 +2682,7 @@ public class PlacilaFragment extends Fragment {
                     PaymentRecoveryManager.clearAllRecoveryData(requireContext());
 
                     if (response != null && response.getRacGlava() != null) {
-                        RacunTp returned = response.getRacGlava();
-                        if ((returned.getRacPozic() == null || returned.getRacPozic().isEmpty()) && currentRacun.getRacPozic() != null) {
-                            returned.setRacPozic(currentRacun.getRacPozic());
-                        }
-                        if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null) {
-                            returned.setRacPlaci(currentRacun.getRacPlaci());
-                        }
-                        if (currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
-                            returned.setZnesek(currentRacun.getZnesek());
-                        }
-                        currentRacun = returned;
-                        currentRacun.preracunajVsote();
-                        currentRacun.setOriginalObject(currentRacun.deepCopy());
-                        Globals.getInstance().setCurrentRacun(currentRacun);
-                        prefs.setActiveRacunId(currentRacun.getRacunId());
-                        populatePlacilaListFromCurrentRacun();
+                        posodobiRacunIzStreznik(response.getRacGlava());
 
                         // Samodejno tiskanje zaključenega računa s slipom
                         BluetoothPrintHelper.printReceiptComplete(requireContext(), currentRacun, null);

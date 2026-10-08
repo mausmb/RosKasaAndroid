@@ -1939,8 +1939,55 @@ public class Globals {
     public int getActiveRacunId() { return activeRacunId; }
     public void setActiveRacunId(int activeRacunId) { this.activeRacunId = activeRacunId; }
 
+    private final java.util.concurrent.ConcurrentHashMap<Integer, BigDecimal> paidRacuniMap = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public void setRacunPlacano(int racunId, BigDecimal placano) {
+        if (racunId > 0) {
+            if (placano != null && placano.compareTo(BigDecimal.ZERO) > 0) {
+                paidRacuniMap.put(racunId, placano);
+            } else {
+                paidRacuniMap.remove(racunId);
+            }
+        }
+    }
+
+    public BigDecimal getRacunPlacano(int racunId) {
+        if (racunId <= 0) return BigDecimal.ZERO;
+        BigDecimal val = paidRacuniMap.get(racunId);
+        return val != null ? val : BigDecimal.ZERO;
+    }
+
+    public boolean isRacunPlacan(int racunId, BigDecimal znesek) {
+        if (racunId <= 0) return false;
+        BigDecimal p = paidRacuniMap.get(racunId);
+        if (p != null && p.compareTo(BigDecimal.ZERO) > 0) {
+            if (znesek != null && znesek.compareTo(BigDecimal.ZERO) > 0) {
+                return p.compareTo(znesek) >= 0;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    public void removeRacunPlacano(int racunId) {
+        if (racunId > 0) {
+            paidRacuniMap.remove(racunId);
+        }
+    }
+
     public RacunTp getCurrentRacun() { return currentRacun; }
-    public void setCurrentRacun(RacunTp currentRacun) { this.currentRacun = currentRacun; }
+    public void setCurrentRacun(RacunTp currentRacun) {
+        this.currentRacun = currentRacun;
+        if (currentRacun != null && currentRacun.getRacunId() > 0) {
+            if (currentRacun.getStatus() == 2) {
+                removeRacunPlacano(currentRacun.getRacunId());
+            } else if (currentRacun.getPlacano() != null && currentRacun.getPlacano().compareTo(BigDecimal.ZERO) > 0) {
+                setRacunPlacano(currentRacun.getRacunId(), currentRacun.getPlacano());
+            } else {
+                removeRacunPlacano(currentRacun.getRacunId());
+            }
+        }
+    }
 
     public String getMobIniValue(String key) {
         if (key == null) return null;

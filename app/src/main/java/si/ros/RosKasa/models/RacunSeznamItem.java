@@ -10,6 +10,8 @@ public class RacunSeznamItem {
     private Integer stornoRacunId;
     private Integer stornoOriginal;
     private BigDecimal znesek;
+    private BigDecimal placano;
+    private Boolean isLocked;
 
     public RacunSeznamItem() {
     }
@@ -77,6 +79,38 @@ public class RacunSeznamItem {
 
     public void setZnesek(BigDecimal znesek) {
         this.znesek = znesek;
+    }
+
+    public BigDecimal getPlacano() {
+        return placano;
+    }
+
+    public void setPlacano(BigDecimal placano) {
+        this.placano = placano;
+    }
+
+    public Boolean getIsLocked() {
+        return isLocked;
+    }
+
+    public void setIsLocked(Boolean isLocked) {
+        this.isLocked = isLocked;
+    }
+
+    public boolean isPlacan() {
+        if (Boolean.TRUE.equals(isLocked)) return true;
+        if (placano != null && placano.compareTo(BigDecimal.ZERO) > 0) {
+            if (znesek != null && znesek.compareTo(BigDecimal.ZERO) > 0) {
+                return placano.compareTo(znesek) >= 0;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    public boolean hasAnyPayment() {
+        if (Boolean.TRUE.equals(isLocked)) return true;
+        return placano != null && placano.compareTo(BigDecimal.ZERO) > 0;
     }
 
     public String getFormattedZnesek() {

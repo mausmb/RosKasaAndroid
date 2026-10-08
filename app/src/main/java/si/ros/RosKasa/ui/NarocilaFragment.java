@@ -139,6 +139,10 @@ public class NarocilaFragment extends Fragment {
     }
 
     private void setupQuickKeysRecyclerView() {
+        boolean isLandscape = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        int spanCount = isLandscape ? 7 : 5;
+        int maxKeys = isLandscape ? 28 : 25;
+
         quickKeyAdapter = new QuickKeyAdapter(key -> {
             if (key.isBack) {
                 // Povratek na prejšnjo skupino ali v skupino 1
@@ -157,12 +161,13 @@ public class NarocilaFragment extends Fragment {
                 } else {
                     showArticlesForCategoryFallback(key.title);
                 }
-            } else {
+            } else if (key.title != null && !key.title.trim().isEmpty()) {
                 handleQuickKeyBooking(key);
             }
         });
+        quickKeyAdapter.setMaxKeys(maxKeys);
 
-        binding.rvQuickKeys.setLayoutManager(new GridLayoutManager(requireContext(), 5));
+        binding.rvQuickKeys.setLayoutManager(new GridLayoutManager(requireContext(), spanCount));
         binding.rvQuickKeys.setAdapter(quickKeyAdapter);
     }
 
@@ -189,6 +194,21 @@ public class NarocilaFragment extends Fragment {
         binding.btnClearSearch.setOnClickListener(v -> {
             binding.etSearchCenik.setText("");
         });
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        boolean isLandscape = newConfig.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        int spanCount = isLandscape ? 7 : 5;
+        int maxKeys = isLandscape ? 28 : 25;
+        if (quickKeyAdapter != null) {
+            quickKeyAdapter.setMaxKeys(maxKeys);
+        }
+        if (binding != null && binding.rvQuickKeys != null) {
+            binding.rvQuickKeys.setLayoutManager(new GridLayoutManager(requireContext(), spanCount));
+        }
+        displayQuickKeysForGroup(currentSkupinaId);
     }
 
     private void loadInitialOrderData() {
@@ -1235,6 +1255,9 @@ public class NarocilaFragment extends Fragment {
             return;
         }
 
+        boolean isLandscape = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        int maxKeys = isLandscape ? 28 : 25;
+
         List<QuickKeyAdapter.QuickKey> keys = new ArrayList<>();
 
         if (skupinaId != 1) {
@@ -1243,6 +1266,7 @@ public class NarocilaFragment extends Fragment {
         }
 
         for (HitraTipkaTp item : allApiHitreTipke) {
+            if (keys.size() >= maxKeys) break;
             if (item.getSkupinaId() != null && item.getSkupinaId() == skupinaId) {
                 boolean isCategory = item.getNivo4Id() != null && item.getNivo4Id() < 0;
                 Integer targetGroupId = isCategory ? Math.abs(item.getNivo4Id()) : null;
@@ -1276,6 +1300,7 @@ public class NarocilaFragment extends Fragment {
 
         if (keys.isEmpty() || (skupinaId != 1 && keys.size() == 1)) {
             for (HitraTipkaTp item : allApiHitreTipke) {
+                if (keys.size() >= maxKeys) break;
                 boolean isCategory = item.getNivo4Id() != null && item.getNivo4Id() < 0;
                 Integer targetGroupId = isCategory ? Math.abs(item.getNivo4Id()) : null;
                 int nivo4Id = item.getNivo4Id() != null ? item.getNivo4Id() : 0;
@@ -1306,6 +1331,7 @@ public class NarocilaFragment extends Fragment {
             }
         }
 
+        quickKeyAdapter.setMaxKeys(maxKeys);
         quickKeyAdapter.setKeys(keys);
     }
 
@@ -1992,21 +2018,7 @@ public class NarocilaFragment extends Fragment {
                     mainHandler.post(() -> {
                         enableEkran();
                         if (response != null && response.getRacGlava() != null) {
-                            RacunTp returned = response.getRacGlava();
-                            if ((returned.getRacPozic() == null || returned.getRacPozic().isEmpty()) && currentRacun.getRacPozic() != null) {
-                                returned.setRacPozic(currentRacun.getRacPozic());
-                            }
-                            if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null) {
-                                returned.setRacPlaci(currentRacun.getRacPlaci());
-                            }
-                            if (currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
-                                returned.setZnesek(currentRacun.getZnesek());
-                            }
-                            currentRacun = returned;
-                            currentRacun.preracunajVsote();
-                            Globals.getInstance().setCurrentRacun(currentRacun);
-                            populateOrderItemsFromCurrentRacun();
-                            updateOrderSummary();
+                            posodobiLokalniRacun(response.getRacGlava());
                             Toast.makeText(requireContext(), "Popust uspešno knjižen!", Toast.LENGTH_SHORT).show();
                         }
                     });
@@ -2085,14 +2097,11 @@ public class NarocilaFragment extends Fragment {
         if ((saved.getRacPozic() == null || saved.getRacPozic().isEmpty()) && currentRacun != null && currentRacun.getRacPozic() != null) {
             saved.setRacPozic(currentRacun.getRacPozic());
         }
-        if ((saved.getRacPlaci() == null || saved.getRacPlaci().isEmpty()) && currentRacun != null && currentRacun.getRacPlaci() != null) {
-            saved.setRacPlaci(currentRacun.getRacPlaci());
+        if (saved.getRacPlaci() == null) {
+            saved.setRacPlaci(new ArrayList<>());
         }
         if (currentRacun != null && currentRacun.getZnesek() != null && currentRacun.getZnesek().compareTo(BigDecimal.ZERO) > 0) {
             saved.setZnesek(currentRacun.getZnesek());
-        }
-        if (currentRacun != null && currentRacun.getPlacano() != null && (saved.getPlacano() == null || saved.getPlacano().compareTo(currentRacun.getPlacano()) < 0)) {
-            saved.setPlacano(currentRacun.getPlacano());
         }
         if (saved.getRacPozic() != null) {
             for (PozicijaTp p : saved.getRacPozic()) {
@@ -2107,6 +2116,16 @@ public class NarocilaFragment extends Fragment {
         currentRacun = saved;
         currentRacun.preracunajVsote();
         currentRacun.setOriginalObject(currentRacun.deepCopy());
+        if (currentRacun.getRacPozic() != null) {
+            for (PozicijaTp p : currentRacun.getRacPozic()) {
+                if (p != null) p.setOriginalObject(p.deepCopy());
+            }
+        }
+        if (currentRacun.getRacPlaci() != null) {
+            for (PlaciloTp pl : currentRacun.getRacPlaci()) {
+                if (pl != null) pl.setOriginalObject(pl.deepCopy());
+            }
+        }
         Globals.getInstance().setCurrentRacun(currentRacun);
         activeRacunId = currentRacun.getRacunId();
         prefs.setActiveRacunId(activeRacunId);
@@ -2252,29 +2271,36 @@ public class NarocilaFragment extends Fragment {
             HotelSobeDialog.show(requireContext(), zaplacilo, selectedRoom -> {
                 zakljuciInNatisniHotelKredit(placiloId, nacinNaziv, zaplacilo, selectedRoom);
             });
-        } else if (metoda == 3 || (metoda == 14 && !isIntentOn)) {
+        } else if (metoda == 3) {
             // Metoda 3 ali ročna kreditna kartica:
             Globals g = Globals.getInstance();
-            int kupecIdRocno = g.getkKarticaKupecIdRocno();
-            if (kupecIdRocno > 0) {
-                // 1.1 Če je v MOBIni KKARTICA_KUPECID_ROCNO <> 0, se AVTOMATSKO napolni RACPLACI.KUPEC_ID s to šifro in zaključi račun
-                g.vpisiKronologijo("Hitro plačilo KK ročno avtomatski KUPEC_ID: " + kupecIdRocno + " za R:" + (currentRacun != null ? currentRacun.getRacunId() : 0));
-                zakljuciInNatisniRocnaKreditnaKartica(placiloId, nacinNaziv, zaplacilo, kupecIdRocno);
+            NacPlacTp np = g.getPlaciloById(placiloId);
+            int PlaciloPartnerStoritevId = 0;
+            if (np != null && np.getStoritevId() != null) {
+                PlaciloPartnerStoritevId = np.getStoritevId();
+            }
+            int nacplacstoritevid = PlaciloPartnerStoritevId;
+            int kKarticaTippartnerRocno = g.getkKarticaTippartnerRocno();
+            int KKARTICA_KUPECID_ROCNO = g.getkKarticaKupecIdRocno();
+
+            if ((nacplacstoritevid == kKarticaTippartnerRocno) && ((KKARTICA_KUPECID_ROCNO > 0) && (PlaciloPartnerStoritevId == 0))) {
+                // Knjižimo partner in kupec preko parametra KKARTICA_KUPECID_ROCNO
+                g.vpisiKronologijo("Hitro plačilo KK ročno avtomatski KUPEC_ID: " + KKARTICA_KUPECID_ROCNO + " za R:" + (currentRacun != null ? currentRacun.getRacunId() : 0));
+                zakljuciInNatisniRocnaKreditnaKartica(placiloId, nacinNaziv, zaplacilo, KKARTICA_KUPECID_ROCNO);
             } else {
-                // Ročno za listo partnerjev, da izberemo KUPEC_ID
-                NacPlacTp np = g.getPlaciloById(placiloId);
-                int storitevId = (np != null && np.getStoritevId() != null && np.getStoritevId() > 0)
-                        ? np.getStoritevId()
-                        : g.getkKarticaTippartnerRocno();
-                PartnerVnosDialog.show(requireContext(), zaplacilo, storitevId, (partnerId, naziv, naslov, davcna, stNarocilnice, rabat) -> {
+                // Izbor partnerja iz liste za tip partner = STORITEV_ID
+                PartnerVnosDialog.show(requireContext(), zaplacilo, PlaciloPartnerStoritevId, (partnerId, naziv, naslov, davcna, stNarocilnice, rabat) -> {
                     zakljuciInNatisniPartner(placiloId, nacinNaziv, zaplacilo, partnerId, naziv, naslov, davcna, stNarocilnice, rabat);
                 });
             }
         } else if (metoda == 4 || placiloId == 4) {
             // Metoda 4: partner / dobavnica
             NacPlacTp np = Globals.getInstance().getPlaciloById(placiloId);
-            int storitevId = (np != null && np.getStoritevId() != null) ? np.getStoritevId() : 0;
-            PartnerVnosDialog.show(requireContext(), zaplacilo, storitevId, (partnerId, naziv, naslov, davcna, stNarocilnice, rabat) -> {
+            int PlaciloPartnerStoritevId = 0;
+            if (np != null && np.getStoritevId() != null) {
+                PlaciloPartnerStoritevId = np.getStoritevId();
+            }
+            PartnerVnosDialog.show(requireContext(), zaplacilo, PlaciloPartnerStoritevId, (partnerId, naziv, naslov, davcna, stNarocilnice, rabat) -> {
                 zakljuciInNatisniPartner(placiloId, nacinNaziv, zaplacilo, partnerId, naziv, naslov, davcna, stNarocilnice, rabat);
             });
         } else {
@@ -2535,12 +2561,21 @@ public class NarocilaFragment extends Fragment {
         pl.setZnesek(BigDecimal.ZERO);
         Globals g = Globals.getInstance();
         int metoda = g.placilometoda(placiloId);
-        if (metoda == 3 || g.getkKarticaKupecIdRocno() > 0) {
-            int kupecId = g.getkKarticaKupecIdRocno();
-            if (kupecId > 0) {
-                pl.setKupecId(kupecId);
-                pl.setPartnerId(kupecId);
-                currentRacun.setPartnerId(kupecId);
+        if (metoda == 3) {
+            NacPlacTp np = g.getPlaciloById(placiloId);
+            int PlaciloPartnerStoritevId = 0;
+            if (np != null && np.getStoritevId() != null) {
+                PlaciloPartnerStoritevId = np.getStoritevId();
+            }
+            int nacplacstoritevid = PlaciloPartnerStoritevId;
+            int kKarticaTippartnerRocno = g.getkKarticaTippartnerRocno();
+            int KKARTICA_KUPECID_ROCNO = g.getkKarticaKupecIdRocno();
+            if ((nacplacstoritevid == kKarticaTippartnerRocno) && ((KKARTICA_KUPECID_ROCNO > 0) && (PlaciloPartnerStoritevId == 0))) {
+                if (KKARTICA_KUPECID_ROCNO > 0) {
+                    pl.setKupecId(KKARTICA_KUPECID_ROCNO);
+                    pl.setPartnerId(KKARTICA_KUPECID_ROCNO);
+                    currentRacun.setPartnerId(KKARTICA_KUPECID_ROCNO);
+                }
             }
         }
         zakljuciInNatisniHitroPlaciloInterno(pl, nacinNaziv, zaplacilo);
@@ -2657,7 +2692,7 @@ public class NarocilaFragment extends Fragment {
                     if ((returned.getRacPozic() == null || returned.getRacPozic().isEmpty()) && currentRacun.getRacPozic() != null) {
                         returned.setRacPozic(currentRacun.getRacPozic());
                     }
-                    if ((returned.getRacPlaci() == null || returned.getRacPlaci().isEmpty()) && currentRacun.getRacPlaci() != null) {
+                    if (returned.getRacPlaci() == null && currentRacun.getRacPlaci() != null) {
                         returned.setRacPlaci(currentRacun.getRacPlaci());
                     }
                     if (returned.getFiskalizacija() == null && currentRacun.getFiskalizacija() != null) {

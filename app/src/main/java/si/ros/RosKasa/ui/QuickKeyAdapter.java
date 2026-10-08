@@ -45,6 +45,7 @@ public class QuickKeyAdapter extends RecyclerView.Adapter<QuickKeyAdapter.ViewHo
         }
     }
 
+    private int maxKeys = 25; // Portrait: 5 x 5 = 25, Landscape: 7 x 4 = 28
     private List<QuickKey> keys = new ArrayList<>();
     private final OnKeyClickListener listener;
 
@@ -52,8 +53,19 @@ public class QuickKeyAdapter extends RecyclerView.Adapter<QuickKeyAdapter.ViewHo
         this.listener = listener;
     }
 
-    public void setKeys(List<QuickKey> keys) {
-        this.keys = keys != null ? keys : new ArrayList<>();
+    public void setMaxKeys(int maxKeys) {
+        this.maxKeys = maxKeys;
+    }
+
+    public void setKeys(List<QuickKey> inputKeys) {
+        List<QuickKey> list = new ArrayList<>(inputKeys != null ? inputKeys : new ArrayList<>());
+        if (list.size() > maxKeys) {
+            list = new ArrayList<>(list.subList(0, maxKeys));
+        }
+        while (list.size() < maxKeys) {
+            list.add(new QuickKey("", false, false, null, 0));
+        }
+        this.keys = list;
         notifyDataSetChanged();
     }
 
@@ -69,11 +81,14 @@ public class QuickKeyAdapter extends RecyclerView.Adapter<QuickKeyAdapter.ViewHo
         QuickKey key = keys.get(position);
         if (key == null || key.title == null || key.title.trim().isEmpty()) {
             holder.btnKey.setText("");
-            holder.btnKey.setVisibility(View.INVISIBLE);
+            holder.btnKey.setVisibility(View.VISIBLE);
+            holder.btnKey.setEnabled(false);
+            holder.btnKey.setBackgroundColor(Color.parseColor("#262A2D"));
             holder.btnKey.setOnClickListener(null);
             return;
         }
 
+        holder.btnKey.setEnabled(true);
         holder.btnKey.setVisibility(View.VISIBLE);
         holder.btnKey.setText(key.title);
 

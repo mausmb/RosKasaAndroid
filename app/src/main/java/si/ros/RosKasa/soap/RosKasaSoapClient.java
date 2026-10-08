@@ -3068,6 +3068,31 @@ public class RosKasaSoapClient {
             } catch (Exception ignored) {}
         }
 
+        String placanoStr = getPropertyStringSafe(soap, "PLACANO");
+        if (placanoStr != null) {
+            try {
+                item.setPlacano(new BigDecimal(placanoStr.replace(",", ".").trim()));
+            } catch (Exception ignored) {}
+        }
+        if (item.getPlacano() == null || item.getPlacano().compareTo(BigDecimal.ZERO) <= 0) {
+            String delniStr = getPropertyStringSafe(soap, "DELNI_ZNESEK");
+            if (delniStr != null) {
+                try {
+                    item.setPlacano(new BigDecimal(delniStr.replace(",", ".").trim()));
+                } catch (Exception ignored) {}
+            }
+        }
+
+        String zaklenjenoStr = getPropertyStringSafe(soap, "ZAKLENJENO");
+        if (zaklenjenoStr != null) {
+            try {
+                int z = Integer.parseInt(zaklenjenoStr.trim());
+                if (z == 1) {
+                    item.setIsLocked(true);
+                }
+            } catch (Exception ignored) {}
+        }
+
         return item;
     }
 
@@ -3257,24 +3282,22 @@ public class RosKasaSoapClient {
                     throw new Exception("SERVER FAULT v setRacun: " + faultVal);
                 }
 
-                if (response.hasProperty("RACGLAVA")) {
-                    Object rgObj = response.getProperty("RACGLAVA");
-                    if (rgObj instanceof SoapObject) {
-                        RacunTp returnedRacun = parseRacunTp((SoapObject) rgObj);
-                        if (returnedRacun != null) {
-                            returnedRacun.setOriginalObject(returnedRacun.deepCopy());
-                            if (returnedRacun.getRacPozic() != null) {
-                                for (PozicijaTp p : returnedRacun.getRacPozic()) {
-                                    if (p != null) p.setOriginalObject(p.deepCopy());
-                                }
+                Object rgObj = getPropertyObjSafe(response, "RACGLAVA");
+                if (rgObj instanceof SoapObject) {
+                    RacunTp returnedRacun = parseRacunTp((SoapObject) rgObj);
+                    if (returnedRacun != null) {
+                        returnedRacun.setOriginalObject(returnedRacun.deepCopy());
+                        if (returnedRacun.getRacPozic() != null) {
+                            for (PozicijaTp p : returnedRacun.getRacPozic()) {
+                                if (p != null) p.setOriginalObject(p.deepCopy());
                             }
-                            if (returnedRacun.getRacPlaci() != null) {
-                                for (PlaciloTp pl : returnedRacun.getRacPlaci()) {
-                                    if (pl != null) pl.setOriginalObject(pl.deepCopy());
-                                }
-                            }
-                            result.setRacGlava(returnedRacun);
                         }
+                        if (returnedRacun.getRacPlaci() != null) {
+                            for (PlaciloTp pl : returnedRacun.getRacPlaci()) {
+                                if (pl != null) pl.setOriginalObject(pl.deepCopy());
+                            }
+                        }
+                        result.setRacGlava(returnedRacun);
                     }
                 }
             }
@@ -3866,36 +3889,32 @@ public class RosKasaSoapClient {
         }
 
         // Parsiranje RACPOZIC
-        if (soap.hasProperty("RACPOZIC")) {
-            Object rpObj = soap.getProperty("RACPOZIC");
-            if (rpObj instanceof SoapObject) {
-                SoapObject rpSoap = (SoapObject) rpObj;
-                int count = rpSoap.getPropertyCount();
-                for (int i = 0; i < count; i++) {
-                    Object itemObj = rpSoap.getProperty(i);
-                    if (itemObj instanceof SoapObject) {
-                        PozicijaTp poz = parsePozicijaTp((SoapObject) itemObj);
-                        if (poz != null) {
-                            racun.getRacPozic().add(poz);
-                        }
+        Object rpObj = getPropertyObjSafe(soap, "RACPOZIC");
+        if (rpObj instanceof SoapObject) {
+            SoapObject rpSoap = (SoapObject) rpObj;
+            int count = rpSoap.getPropertyCount();
+            for (int i = 0; i < count; i++) {
+                Object itemObj = rpSoap.getProperty(i);
+                if (itemObj instanceof SoapObject) {
+                    PozicijaTp poz = parsePozicijaTp((SoapObject) itemObj);
+                    if (poz != null) {
+                        racun.getRacPozic().add(poz);
                     }
                 }
             }
         }
 
         // Parsiranje RACPLACI
-        if (soap.hasProperty("RACPLACI")) {
-            Object rplObj = soap.getProperty("RACPLACI");
-            if (rplObj instanceof SoapObject) {
-                SoapObject rplSoap = (SoapObject) rplObj;
-                int count = rplSoap.getPropertyCount();
-                for (int i = 0; i < count; i++) {
-                    Object itemObj = rplSoap.getProperty(i);
-                    if (itemObj instanceof SoapObject) {
-                        PlaciloTp pl = parsePlaciloTp((SoapObject) itemObj);
-                        if (pl != null) {
-                            racun.getRacPlaci().add(pl);
-                        }
+        Object rplObj = getPropertyObjSafe(soap, "RACPLACI");
+        if (rplObj instanceof SoapObject) {
+            SoapObject rplSoap = (SoapObject) rplObj;
+            int count = rplSoap.getPropertyCount();
+            for (int i = 0; i < count; i++) {
+                Object itemObj = rplSoap.getProperty(i);
+                if (itemObj instanceof SoapObject) {
+                    PlaciloTp pl = parsePlaciloTp((SoapObject) itemObj);
+                    if (pl != null) {
+                        racun.getRacPlaci().add(pl);
                     }
                 }
             }

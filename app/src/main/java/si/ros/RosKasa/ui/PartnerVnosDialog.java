@@ -107,7 +107,7 @@ public class PartnerVnosDialog {
                 query = etDavcna.getText().toString().trim();
             }
 
-            if (query.length() < 2 && storitevId != 8 && storitevId != 31 && storitevId != 90 && storitevId != globals.getkKarticaTippartnerRocno()) {
+            if (query.length() == 1) {
                 Toast.makeText(context, "Vnesite vsaj 2 znaka za iskanje partnerja!", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -128,28 +128,19 @@ public class PartnerVnosDialog {
                         pId = Integer.parseInt(searchQuery);
                     } catch (Exception ignored) {}
 
-                    Integer tipPartner = null;
-                    if (storitevId == globals.getkKarticaTippartnerRocno()) {
-                        tipPartner = storitevId;
-                    } else if (storitevId == 8 || storitevId == 31 || storitevId == 90) {
-                        tipPartner = storitevId;
-                    } else if (storitevId == 5) {
-                        tipPartner = 5;
-                    }
+                    // STORITEV_ID določa TIP_PARTNERJA v iskanju partnerjev
+                    Integer tipPartner = (storitevId > 0) ? storitevId : null;
 
                     Integer strMestoId = null;
                     if (globals.isReprezentancaPoFirmah()) {
                         strMestoId = globals.getTocilnicaId();
                     }
 
-                    boolean neIsciPoDurs = !globals.isPartnerFurs();
-                    if (storitevId == 8 || storitevId == 31 || storitevId == 90) {
-                        neIsciPoDurs = true;
-                    }
+                    boolean neIsciPoDurs = !globals.isPartnerFurs() || storitevId > 0;
 
                     int racId = (globals.getCurrentRacun() != null) ? globals.getCurrentRacun().getRacunId() : 0;
                     globals.vpisiKronologijoDebugL1(serverUrl, token, prefs.getMobileId(),
-                            "Partner iskanje: " + searchQuery + (racId > 0 ? " R:" + racId : ""),
+                            "Partner iskanje: " + searchQuery + " tipPartner: " + tipPartner + (racId > 0 ? " R:" + racId : ""),
                             globals.getTekocaOsebaId(), globals.getTocilnicaId());
 
                     List<PartnerTp> results = RosKasaSoapClient.getPartner(
@@ -212,10 +203,8 @@ public class PartnerVnosDialog {
             return false;
         });
 
-        if ((initNaziv != null && initNaziv.trim().length() >= 2) || (initDavcna != null && initDavcna.trim().length() >= 3)
-                || storitevId == globals.getkKarticaTippartnerRocno()) {
-            mainHandler.post(performSearch);
-        }
+        // Ob odprtju dialoga vedno naložimo listo partnerjev (tudi ko je storitevId=0 ali null / dobavnica placilo_id=12)
+        mainHandler.post(performSearch);
 
         btnCancel.setOnClickListener(v -> dialog.dismiss());
 
@@ -228,7 +217,7 @@ public class PartnerVnosDialog {
             // Delphi FormPartner.pas kontrole:
             // ((edPartnernaziv.Text.Length>=3) and (edPartnerNaslov.Text.Length>4) and (edPartnerDavcna.Text.Length>6)) or selectedPartnerId > 0 or storitevId == 8
             boolean isDataValid = (naziv.length() >= 3 && naslov.length() > 4 && davcna.length() > 6)
-                    || (selectedPartnerId[0] > 0 && naziv.length() >= 3)
+                    || (selectedPartnerId[0] > 0)
                     || (storitevId == 8 && naziv.length() >= 3);
 
             if (!isDataValid) {

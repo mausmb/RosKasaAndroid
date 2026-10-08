@@ -27,13 +27,21 @@ public class MizeAdapter extends RecyclerView.Adapter<MizeAdapter.ViewHolder> {
         public String kasiralNaziv = "";
         public String kasiralInicialke = "";
         public boolean isMyTable = false;
+        public boolean isPlacano = false; // Račun je že plačan, pa ne izpisan = zaklenjen
+        public BigDecimal placano = BigDecimal.ZERO;
 
         public MizaItem(String naziv, boolean isOccupied, BigDecimal znesek, int racunId) {
-            this(naziv, isOccupied, znesek, racunId, 0, "", "", false);
+            this(naziv, isOccupied, znesek, racunId, 0, "", "", false, false, BigDecimal.ZERO);
         }
 
         public MizaItem(String naziv, boolean isOccupied, BigDecimal znesek, int racunId,
                         int kasiralOsebaId, String kasiralNaziv, String kasiralInicialke, boolean isMyTable) {
+            this(naziv, isOccupied, znesek, racunId, kasiralOsebaId, kasiralNaziv, kasiralInicialke, isMyTable, false, BigDecimal.ZERO);
+        }
+
+        public MizaItem(String naziv, boolean isOccupied, BigDecimal znesek, int racunId,
+                        int kasiralOsebaId, String kasiralNaziv, String kasiralInicialke, boolean isMyTable,
+                        boolean isPlacano, BigDecimal placano) {
             this.naziv = naziv;
             this.isOccupied = isOccupied;
             this.znesek = znesek;
@@ -42,6 +50,8 @@ public class MizeAdapter extends RecyclerView.Adapter<MizeAdapter.ViewHolder> {
             this.kasiralNaziv = kasiralNaziv != null ? kasiralNaziv : "";
             this.kasiralInicialke = kasiralInicialke != null ? kasiralInicialke : "";
             this.isMyTable = isMyTable;
+            this.isPlacano = isPlacano;
+            this.placano = placano != null ? placano : BigDecimal.ZERO;
         }
     }
 
@@ -79,14 +89,29 @@ public class MizeAdapter extends RecyclerView.Adapter<MizeAdapter.ViewHolder> {
         if (item.isOccupied) {
             holder.tvMizaName.setTextColor(Color.WHITE);
 
-            // Barva glede na to, ali je mizo odprl trenutno prijavljeni natakar ali drug natakar
-            if (item.isMyTable) {
+            // Barva mize:
+            // 1. ZELENA - račun je že plačan, a še ne izpisan (zaklenjen račun)
+            // 2. MODRA - zasedena miza trenutno prijavljenega natakarja
+            // 3. RDEČA - zasedena miza drugega natakarja
+            if (item.isPlacano) {
+                holder.itemView.setBackgroundColor(Color.parseColor("#2E7D32")); // Zelena - plačano / zaklenjeno
+            } else if (item.isMyTable) {
                 holder.itemView.setBackgroundColor(Color.parseColor("#1565C0")); // Modra - moja miza
             } else {
                 holder.itemView.setBackgroundColor(Color.parseColor("#B71C1C")); // Rdeča - zasedena miza drugega
             }
 
-            if (item.znesek != null && item.znesek.compareTo(BigDecimal.ZERO) > 0) {
+            if (item.isPlacano) {
+                holder.tvMizaZnesek.setTextColor(Color.parseColor("#E8F5E9"));
+                if (item.znesek != null && item.znesek.compareTo(BigDecimal.ZERO) > 0) {
+                    holder.tvMizaZnesek.setText(String.format(Locale.getDefault(), "%.2f € ✓", item.znesek));
+                    holder.tvMizaZnesek.setVisibility(View.VISIBLE);
+                } else {
+                    holder.tvMizaZnesek.setText("Plačano ✓");
+                    holder.tvMizaZnesek.setVisibility(View.VISIBLE);
+                }
+            } else if (item.znesek != null && item.znesek.compareTo(BigDecimal.ZERO) > 0) {
+                holder.tvMizaZnesek.setTextColor(item.isMyTable ? Color.parseColor("#BBDEFB") : Color.parseColor("#FFCDD2"));
                 holder.tvMizaZnesek.setText(String.format(Locale.getDefault(), "%.2f €", item.znesek));
                 holder.tvMizaZnesek.setVisibility(View.VISIBLE);
             } else {

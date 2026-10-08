@@ -1,4 +1,6 @@
 @echo off
+:: Nastavitev Windows Credential Manager (GCM)
+git config --global credential.helper manager > nul 2>&1
 chcp 65001 >nul
 echo ========================================================
 echo   RosKasa Android - Git Pull (Posodobitev iz GitHub)
